@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="auth-card">
+            <div class="otp-icon">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                </svg>
+            </div>
+            
+            <h2>Verify Your Email</h2>
+            <p class="subtitle">We've sent a 6-digit code to<br><strong>{{ email }}</strong></p>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="POST" action="{% url 'verify_otp' %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label>Enter OTP Code</label>
+                    <div class="otp-input-group">
+                        <input type="text" 
+                               name="otp_code" 
+                               id="otpInput"
+                               maxlength="6" 
+                               placeholder="000000"
+                               pattern="[0-9]{6}"
+                               required
+                               autocomplete="off">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary">Verify OTP</button>
+            </form>
+
+            <div class="form-footer">
+                <p>Didn't receive the code?</p>
+                <form method="POST" action="{% url 'resend_otp' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="link-button">Resend OTP</button>
+                </form>
+            </div>
+
+            <div class="info-box info-box-small">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="16" x2="12" y2="12"/>
+                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <span>Code expires in 10 minutes</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
