@@ -1,0 +1,23 @@
+<!-- core/templates/core/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}NamasteNomad - Your Travel Companion{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% include 'core/navbar.html' %}
+    
+    {% block content %}
+    {% endblock %}
+    
+    {% include 'core/footer.html' %}
+    
+    <script src="{% static 'js/main.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
