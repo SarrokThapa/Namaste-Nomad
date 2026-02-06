@@ -1,0 +1,48 @@
+{% extends "accounts/vendor_base.html" %}
+
+{% block title %}Vendor Bookings - Namaste Nomad{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>Bookings</h1>
+        <p>Track upcoming and recent bookings from travelers.</p>
+    </div>
+    <a class="primary-action" href="{% url 'vendor_dashboard' %}">
+        View Dashboard
+    </a>
+</section>
+
+<section class="card list-card">
+    <div class="card-header">
+        <h3>Recent Bookings</h3>
+        <span class="card-meta">{{ bookings|length }} total</span>
+    </div>
+    <div class="booking-list">
+        {% if bookings %}
+            {% for booking in bookings %}
+                <div class="booking-item">
+                    <div class="booking-avatar">
+                        {{ booking.traveler.first_name|default:"T"|slice:":1" }}{{ booking.traveler.last_name|default:""|slice:":1" }}
+                    </div>
+                    <div class="booking-info">
+                        <div class="booking-name">
+                            {{ booking.traveler.get_full_name|default:"Traveler" }}
+                        </div>
+                        <div class="booking-meta">
+                            {{ booking.package.title }} - {{ booking.start_date|date:"M d" }} - {{ booking.end_date|date:"M d" }} -
+                            Rs {{ booking.total_price|floatformat:0 }}
+                        </div>
+                    </div>
+                    <div class="booking-actions">
+                        <span class="status {{ booking.status }}">{{ booking.status|title }}</span>
+                        <button class="btn small neutral">View</button>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">No bookings yet.</div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

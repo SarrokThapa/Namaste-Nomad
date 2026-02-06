@@ -1,0 +1,53 @@
+{% extends "accounts/vendor_base.html" %}
+
+{% block title %}Vendor Analytics - Namaste Nomad{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>Analytics</h1>
+        <p>High-level performance metrics for your vendor account.</p>
+    </div>
+    <a class="primary-action" href="{% url 'vendor_dashboard' %}">
+        View Dashboard
+    </a>
+</section>
+
+<section class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-title">Packages</div>
+        <div class="stat-value">{{ analytics.packages }}</div>
+        <span class="stat-chip blue">Total</span>
+    </div>
+    <div class="stat-card">
+        <div class="stat-title">Bookings</div>
+        <div class="stat-value">{{ analytics.bookings }}</div>
+        <span class="stat-chip purple">Total</span>
+    </div>
+    <div class="stat-card">
+        <div class="stat-title">Revenue</div>
+        <div class="stat-value">Rs {{ analytics.revenue|floatformat:0 }}</div>
+        <span class="stat-chip green">Confirmed</span>
+    </div>
+    <div class="stat-card">
+        <div class="stat-title">Reviews</div>
+        <div class="stat-value">{{ analytics.reviews }}</div>
+        <span class="stat-chip amber">Feedback</span>
+    </div>
+    <div class="stat-card">
+        <div class="stat-title">Average Rating</div>
+        <div class="stat-value">{{ analytics.avg_rating|floatformat:1 }}</div>
+        <span class="stat-chip green">Score</span>
+    </div>
+</section>
+
+<section class="card list-card">
+    <div class="card-header">
+        <h3>Next Steps</h3>
+        <span class="card-meta">Suggested actions</span>
+    </div>
+    <div class="empty-state">
+        Add more packages or promote your listings to increase bookings.
+    </div>
+</section>
+{% endblock %}

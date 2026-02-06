@@ -1,0 +1,50 @@
+{% extends "accounts/vendor_base.html" %}
+
+{% block title %}Vendor Settings - Namaste Nomad{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>Settings</h1>
+        <p>Manage your vendor profile and contact details.</p>
+    </div>
+    <a class="primary-action" href="{% url 'vendor_dashboard' %}">
+        View Dashboard
+    </a>
+</section>
+
+<section class="card list-card">
+    <div class="card-header">
+        <h3>Vendor Profile</h3>
+        <span class="card-meta">Account details</span>
+    </div>
+    <div class="settings-grid">
+        <div class="settings-item">
+            <div class="settings-label">Business Name</div>
+            <div class="settings-value">{{ vendor_profile.business_name|default:"Not set" }}</div>
+        </div>
+        <div class="settings-item">
+            <div class="settings-label">Owner Name</div>
+            <div class="settings-value">{{ vendor_profile.owner_name|default:"Not set" }}</div>
+        </div>
+        <div class="settings-item">
+            <div class="settings-label">Email</div>
+            <div class="settings-value">{{ request.user.email }}</div>
+        </div>
+        <div class="settings-item">
+            <div class="settings-label">Phone</div>
+            <div class="settings-value">{{ request.user.phone|default:"Not set" }}</div>
+        </div>
+        <div class="settings-item">
+            <div class="settings-label">Approval Status</div>
+            <div class="settings-value">
+                {% if vendor_profile and vendor_profile.is_approved %}
+                    Approved
+                {% else %}
+                    Pending
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

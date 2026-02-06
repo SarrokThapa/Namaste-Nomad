@@ -1,0 +1,44 @@
+{% extends "accounts/vendor_base.html" %}
+
+{% block title %}Vendor Reviews - Namaste Nomad{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>Reviews</h1>
+        <p>See what travelers are saying about your packages.</p>
+    </div>
+    <a class="primary-action" href="{% url 'vendor_dashboard' %}">
+        View Dashboard
+    </a>
+</section>
+
+<section class="card list-card">
+    <div class="card-header">
+        <h3>Latest Reviews</h3>
+        <span class="card-meta">{{ reviews|length }} total</span>
+    </div>
+    <div class="review-list">
+        {% if reviews %}
+            {% for review in reviews %}
+                <div class="review-item">
+                    <div class="review-score">{{ review.rating }}.0</div>
+                    <div class="review-info">
+                        <div class="review-title">{{ review.package.title }}</div>
+                        <div class="review-meta">
+                            {{ review.traveler.get_full_name|default:"Traveler" }} - {{ review.created_at|date:"M d, Y" }}
+                        </div>
+                        {% if review.comment %}
+                            <div class="review-comment">{{ review.comment }}</div>
+                        {% else %}
+                            <div class="review-comment muted">No comment provided.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">No reviews yet.</div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

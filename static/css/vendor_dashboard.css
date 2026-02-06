@@ -171,6 +171,24 @@ body {
     margin-bottom: 2rem;
 }
 
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    gap: 1rem;
+}
+
+.page-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+}
+
+.page-header p {
+    color: var(--muted);
+}
+
 .hero h1 {
     font-size: 2rem;
     font-weight: 700;
@@ -193,6 +211,7 @@ body {
     align-items: center;
     gap: 0.6rem;
     box-shadow: 0 10px 18px rgba(28, 44, 91, 0.2);
+    text-decoration: none;
 }
 
 .stats-grid {
@@ -469,6 +488,11 @@ body {
     color: var(--success);
 }
 
+.status.cancelled {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+}
+
 .btn {
     border: none;
     border-radius: 0.6rem;
@@ -488,6 +512,92 @@ body {
     font-weight: 700;
     color: var(--success);
     white-space: nowrap;
+}
+
+.package-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.review-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.review-item {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 0.9rem;
+    background: #fbfcff;
+    border: 1px solid #edf1f7;
+}
+
+.review-score {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    background: var(--sky);
+    color: var(--navy);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.review-title {
+    font-weight: 600;
+}
+
+.review-meta {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 0.2rem;
+}
+
+.review-comment {
+    margin-top: 0.5rem;
+    color: var(--slate);
+    font-size: 0.9rem;
+}
+
+.review-comment.muted {
+    color: var(--muted);
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+}
+
+.settings-item {
+    background: #fbfcff;
+    border: 1px solid #edf1f7;
+    border-radius: 0.9rem;
+    padding: 1rem;
+}
+
+.settings-label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+}
+
+.settings-value {
+    font-weight: 600;
+}
+
+.empty-state {
+    padding: 1.5rem;
+    border: 1px dashed #dbe2ee;
+    border-radius: 0.9rem;
+    background: #f8fafc;
+    color: var(--muted);
+    text-align: center;
 }
 
 @media (max-width: 1024px) {
@@ -518,6 +628,11 @@ body {
         gap: 1rem;
     }
 
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
     .pie-wrapper {
         flex-direction: column;
         align-items: flex-start;
@@ -527,6 +642,10 @@ body {
     .package-item {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .review-item {
+        grid-template-columns: 1fr;
     }
 
     .booking-actions {

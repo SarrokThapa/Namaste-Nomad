@@ -1,0 +1,44 @@
+{% extends "accounts/vendor_base.html" %}
+
+{% block title %}Vendor Packages - Namaste Nomad{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>Packages</h1>
+        <p>Manage your active and draft travel packages.</p>
+    </div>
+    <a class="primary-action" href="#">
+        <span>+</span>
+        Create New Package
+    </a>
+</section>
+
+<section class="card list-card">
+    <div class="card-header">
+        <h3>Your Packages</h3>
+        <span class="card-meta">{{ packages|length }} total</span>
+    </div>
+    <div class="package-list">
+        {% if packages %}
+            {% for package in packages %}
+                <div class="package-item">
+                    <div>
+                        <div class="package-name">{{ package.title }}</div>
+                        <div class="package-meta">
+                            Price Rs {{ package.price|floatformat:0 }} - Views {{ package.views_count }} - Bookings {{ package.booking_count }} -
+                            {% if package.is_active %}Active{% else %}Paused{% endif %}
+                        </div>
+                    </div>
+                    <div class="package-actions">
+                        <button class="btn small neutral">Edit</button>
+                        <button class="btn small secondary">View</button>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">No packages created yet.</div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Vendor Dashboard - Namaste Nomad{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/vendor_dashboard.css">
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand-mark"></span>
+            <span class="brand-name">Namaste Nomad</span>
+        </div>
+        <div class="topbar-actions">
+            <button class="pill-button">
+                Vendor Dashboard
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M5 7l5 6 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <div class="avatar">
+                <span>{{ request.user.first_name|default:"V" }}</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard-shell">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="company">
+                    <div class="company-badge">VN</div>
+                    <div>
+                        <div class="company-name">{{ vendor_profile.business_name|default:"Vendor HQ" }}</div>
+                        <div class="company-meta">Verified Partner</div>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a class="nav-item {% if active_page == 'dashboard' %}active{% endif %}" href="{% url 'vendor_dashboard' %}">
+                    <span class="nav-icon">&gt;</span>
+                    Dashboard
+                </a>
+                <a class="nav-item {% if active_page == 'packages' %}active{% endif %}" href="{% url 'vendor_packages' %}">
+                    <span class="nav-icon">&gt;</span>
+                    Packages
+                </a>
+                <a class="nav-item {% if active_page == 'bookings' %}active{% endif %}" href="{% url 'vendor_bookings' %}">
+                    <span class="nav-icon">&gt;</span>
+                    Bookings
+                </a>
+                <a class="nav-item {% if active_page == 'reviews' %}active{% endif %}" href="{% url 'vendor_reviews' %}">
+                    <span class="nav-icon">&gt;</span>
+                    Reviews
+                </a>
+                <a class="nav-item {% if active_page == 'analytics' %}active{% endif %}" href="{% url 'vendor_analytics' %}">
+                    <span class="nav-icon">&gt;</span>
+                    Analytics
+                </a>
+                <a class="nav-item {% if active_page == 'settings' %}active{% endif %}" href="{% url 'vendor_settings' %}">
+                    <span class="nav-icon">&gt;</span>
+                    Settings
+                </a>
+                <a class="nav-item logout" href="{% url 'logout' %}">
+                    <span class="nav-icon">&gt;</span>
+                    Logout
+                </a>
+            </nav>
+        </aside>
+
+        <main class="dashboard-main">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>
