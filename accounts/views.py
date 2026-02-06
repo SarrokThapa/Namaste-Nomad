@@ -6,6 +6,24 @@ from django.views.decorators.csrf import csrf_protect
 from .models import User, VendorProfile
 from .utils import create_otp, verify_otp as verify_otp_util
 
+
+@login_required(login_url='vendor_login')
+def vendor_dashboard(request):
+    if getattr(request.user, 'user_type', '') != 'vendor':
+        messages.error(request, 'Vendor access only.')
+        return redirect('vendor_login')
+
+    vendor_profile = None
+    try:
+        vendor_profile = request.user.vendor_profile
+    except VendorProfile.DoesNotExist:
+        vendor_profile = None
+
+    return render(request, 'accounts/vendor_dashboard.html', {
+        'vendor_profile': vendor_profile,
+    })
+
+
 @csrf_protect
 def vendor_login(request):
     if request.method == 'POST':
@@ -216,7 +234,6 @@ def traveler_register(request):
     
     return render(request, 'accounts/traveler_register.html')
 
-from django.shortcuts import render
 
 def landing(request):
     return render(request, 'landing.html')

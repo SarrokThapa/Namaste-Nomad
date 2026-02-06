@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Dashboard - Namaste Nomad</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/vendor_dashboard.css">
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand-mark"></span>
+            <span class="brand-name">Namaste Nomad</span>
+        </div>
+        <div class="topbar-actions">
+            <button class="pill-button">
+                Vendor Dashboard
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M5 7l5 6 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <div class="avatar">
+                <span>{{ request.user.first_name|default:"V" }}</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard-shell">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="company">
+                    <div class="company-badge">VN</div>
+                    <div>
+                        <div class="company-name">{{ vendor_profile.business_name|default:"Vendor HQ" }}</div>
+                        <div class="company-meta">Verified Partner</div>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a class="nav-item active" href="#">
+                    <span class="nav-icon">▸</span>
+                    Dashboard
+                </a>
+                <a class="nav-item" href="#">
+                    <span class="nav-icon">▸</span>
+                    Packages
+                </a>
+                <a class="nav-item" href="#">
+                    <span class="nav-icon">▸</span>
+                    Bookings
+                </a>
+                <a class="nav-item" href="#">
+                    <span class="nav-icon">▸</span>
+                    Reviews
+                </a>
+                <a class="nav-item" href="#">
+                    <span class="nav-icon">▸</span>
+                    Analytics
+                </a>
+                <a class="nav-item" href="#">
+                    <span class="nav-icon">▸</span>
+                    Settings
+                </a>
+                <a class="nav-item logout" href="{% url 'logout' %}">
+                    <span class="nav-icon">▸</span>
+                    Logout
+                </a>
+            </nav>
+        </aside>
+
+        <main class="dashboard-main">
+            <section class="hero">
+                <div>
+                    <h1>Vendor Dashboard</h1>
+                    <p>Manage your packages and track your performance.</p>
+                </div>
+                <button class="primary-action">
+                    <span>+</span>
+                    Create New Package
+                </button>
+            </section>
+
+            <section class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-title">Total Revenue</div>
+                    <div class="stat-value">₹2,45,680</div>
+                    <span class="stat-chip green">+12%</span>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Active Packages</div>
+                    <div class="stat-value">12</div>
+                    <span class="stat-chip blue">+2</span>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Total Bookings</div>
+                    <div class="stat-value">89</div>
+                    <span class="stat-chip purple">+9</span>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Pending Bookings</div>
+                    <div class="stat-value">7</div>
+                    <span class="stat-chip amber">Action</span>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Average Rating</div>
+                    <div class="stat-value">4.8</div>
+                    <span class="stat-chip green">Top 10%</span>
+                </div>
+            </section>
+
+            <section class="cards-grid">
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h3>Revenue This Month</h3>
+                        <span class="card-meta">Last 4 weeks</span>
+                    </div>
+                    <div class="bar-chart">
+                        <div class="bar" style="--bar: 60%;">
+                            <span>Week 1</span>
+                        </div>
+                        <div class="bar" style="--bar: 72%;">
+                            <span>Week 2</span>
+                        </div>
+                        <div class="bar" style="--bar: 64%;">
+                            <span>Week 3</span>
+                        </div>
+                        <div class="bar" style="--bar: 85%;">
+                            <span>Week 4</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h3>Views Over Time</h3>
+                        <span class="card-meta">This week</span>
+                    </div>
+                    <div class="line-chart">
+                        <svg viewBox="0 0 320 160" preserveAspectRatio="none" aria-hidden="true">
+                            <polyline points="10,140 60,110 110,120 160,70 210,90 260,50 310,30"
+                                      fill="none" stroke="url(#lineGradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                            <defs>
+                                <linearGradient id="lineGradient" x1="0" x2="1" y1="0" y2="1">
+                                    <stop offset="0%" stop-color="#2563eb"/>
+                                    <stop offset="100%" stop-color="#60a5fa"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <div class="chart-labels">
+                            <span>Mon</span>
+                            <span>Tue</span>
+                            <span>Wed</span>
+                            <span>Thu</span>
+                            <span>Fri</span>
+                            <span>Sat</span>
+                            <span>Sun</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h3>Booking Sources</h3>
+                        <span class="card-meta">Top channels</span>
+                    </div>
+                    <div class="pie-wrapper">
+                        <div class="pie-chart"></div>
+                        <div class="pie-legend">
+                            <div class="legend-item"><span class="dot dot-blue"></span>Direct</div>
+                            <div class="legend-item"><span class="dot dot-navy"></span>Partners</div>
+                            <div class="legend-item"><span class="dot dot-sky"></span>Social</div>
+                            <div class="legend-item"><span class="dot dot-ice"></span>Marketplace</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="cards-grid split">
+                <div class="card list-card">
+                    <div class="card-header">
+                        <h3>Upcoming Bookings</h3>
+                        <span class="card-meta">Next 14 days</span>
+                    </div>
+                    <div class="booking-list">
+                        <div class="booking-item">
+                            <div class="booking-avatar">AK</div>
+                            <div class="booking-info">
+                                <div class="booking-name">Abhinav Koirala</div>
+                                <div class="booking-meta">Active Tour · Dec 15-20</div>
+                            </div>
+                            <div class="booking-actions">
+                                <span class="status pending">Pending</span>
+                                <button class="btn small success">Confirm</button>
+                                <button class="btn small danger">Cancel</button>
+                            </div>
+                        </div>
+                        <div class="booking-item">
+                            <div class="booking-avatar">ST</div>
+                            <div class="booking-info">
+                                <div class="booking-name">Sarrok Thapa</div>
+                                <div class="booking-meta">High Fly Tour · Dec 22-25</div>
+                            </div>
+                            <div class="booking-actions">
+                                <span class="status confirmed">Confirmed</span>
+                                <button class="btn small neutral">View</button>
+                                <button class="btn small secondary">Contact</button>
+                            </div>
+                        </div>
+                        <div class="booking-item">
+                            <div class="booking-avatar">AG</div>
+                            <div class="booking-info">
+                                <div class="booking-name">Anita Gurung</div>
+                                <div class="booking-meta">Happy Travels · Jan 5-12</div>
+                            </div>
+                            <div class="booking-actions">
+                                <span class="status pending">Pending</span>
+                                <button class="btn small success">Confirm</button>
+                                <button class="btn small danger">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card list-card">
+                    <div class="card-header">
+                        <h3>Package Performance</h3>
+                        <span class="card-meta">Top 3 packages</span>
+                    </div>
+                    <div class="package-list">
+                        <div class="package-item">
+                            <div>
+                                <div class="package-name">Active Tour</div>
+                                <div class="package-meta">Views 1,234 · Bookings 23 · Rating 4.9</div>
+                            </div>
+                            <div class="package-revenue">₹45,000</div>
+                        </div>
+                        <div class="package-item">
+                            <div>
+                                <div class="package-name">High Fly Tour</div>
+                                <div class="package-meta">Views 987 · Bookings 18 · Rating 4.7</div>
+                            </div>
+                            <div class="package-revenue">₹32,500</div>
+                        </div>
+                        <div class="package-item">
+                            <div>
+                                <div class="package-name">Happy Travels</div>
+                                <div class="package-meta">Views 856 · Bookings 14 · Rating 4.6</div>
+                            </div>
+                            <div class="package-revenue">₹28,900</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
