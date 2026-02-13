@@ -1,0 +1,206 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traveler Profile - Namaste Nomad</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/traveler_profile.css' %}">
+</head>
+<body>
+    <header class="traveler-topbar">
+        <div class="brand">
+            <span class="brand-mark"></span>
+            <span class="brand-name">Namaste Nomad</span>
+        </div>
+        <div class="topbar-actions">
+            <div class="user-chip">
+                <div class="chip-avatar">
+                    {{ request.user.first_name|default:"T"|slice:":1" }}
+                </div>
+                <span>{{ request.user.first_name|default:"Traveler" }}</span>
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M5 7l5 6 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+        </div>
+    </header>
+
+    <div class="traveler-shell">
+        <aside class="traveler-sidebar">
+            <nav class="sidebar-nav">
+                <a class="nav-item" href="#">
+                    <span class="nav-icon">▸</span>
+                    Dashboard
+                </a>
+                <a class="nav-item" href="#">
+                    <span class="nav-icon">▸</span>
+                    My Bookings
+                </a>
+                <a class="nav-item" href="#">
+                    <span class="nav-icon">▸</span>
+                    Wishlist
+                </a>
+                <a class="nav-item" href="#">
+                    <span class="nav-icon">▸</span>
+                    Reviews
+                </a>
+                <a class="nav-item" href="#">
+                    <span class="nav-icon">▸</span>
+                    Badges
+                </a>
+                <a class="nav-item" href="#">
+                    <span class="nav-icon">▸</span>
+                    Community Posts
+                </a>
+                <a class="nav-item active" href="{% url 'traveler_profile' %}">
+                    <span class="nav-icon">▸</span>
+                    Profile
+                </a>
+                <a class="nav-item logout" href="{% url 'logout' %}">
+                    <span class="nav-icon">▸</span>
+                    Logout
+                </a>
+            </nav>
+        </aside>
+
+        <main class="traveler-main">
+            {% if messages %}
+                <div class="alert-stack">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <form class="profile-form" method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <section class="card profile-card">
+                    <div class="profile-identity">
+                        <div class="avatar-wrap">
+                            {% if profile.avatar %}
+                                <img src="{{ profile.avatar.url }}" alt="Traveler avatar">
+                            {% else %}
+                                <div class="avatar-fallback">
+                                    {{ request.user.first_name|default:"T"|slice:":1" }}
+                                </div>
+                            {% endif %}
+                            <label class="avatar-action" title="Update photo">
+                                <input type="file" name="avatar" accept="image/*">
+                                <span>+</span>
+                            </label>
+                        </div>
+                        <div>
+                            <h1>{{ full_name }}</h1>
+                            <p class="handle">@{{ request.user.username }}</p>
+                            <p class="meta">Member since {{ request.user.date_joined|date:"F Y" }}</p>
+                            <span class="badge">Traveler</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="content-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Personal Information</h2>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input class="form-control" type="text" name="full_name" value="{{ full_name }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input class="form-control" type="email" name="email" value="{{ request.user.email }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input class="form-control" type="text" name="phone" value="{{ request.user.phone|default:'' }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Date of Birth</label>
+                                <input class="form-control" type="date" name="date_of_birth" value="{{ profile.date_of_birth|date:'Y-m-d' }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Gender</label>
+                                <select class="form-control" name="gender">
+                                    <option value="" {% if not profile.gender %}selected{% endif %}>Select</option>
+                                    <option value="male" {% if profile.gender == 'male' %}selected{% endif %}>Male</option>
+                                    <option value="female" {% if profile.gender == 'female' %}selected{% endif %}>Female</option>
+                                    <option value="other" {% if profile.gender == 'other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Nationality</label>
+                                <input class="form-control" type="text" name="nationality" value="{{ profile.nationality|default:'' }}">
+                            </div>
+                            <div class="form-group span-2">
+                                <label>Bio</label>
+                                <textarea class="form-control" name="bio" rows="4" placeholder="Tell us about your travel style">{{ profile.bio }}</textarea>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button type="submit" class="btn-primary">Save Changes</button>
+                        </div>
+                    </div>
+
+                    <div class="card activity-card">
+                        <div class="card-header">
+                            <h2>Recent Activity</h2>
+                        </div>
+                        <div class="activity-list">
+                            {% for item in activity %}
+                                <div class="activity-item">
+                                    <div class="activity-icon {{ item.variant }}">
+                                        {% if item.variant == 'review' %}
+                                            ★
+                                        {% elif item.variant == 'completed' %}
+                                            ✓
+                                        {% else %}
+                                            ✦
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <div class="activity-title">{{ item.title }}</div>
+                                        <div class="activity-time">{{ item.time }}</div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card preferences-card">
+                    <div class="card-header">
+                        <h2>Travel Preferences</h2>
+                    </div>
+                    <div class="preferences-grid">
+                        <div>
+                            <h3>Preferred Difficulty</h3>
+                            <label class="check-row"><input type="checkbox" checked> Easy</label>
+                            <label class="check-row"><input type="checkbox" checked> Medium</label>
+                            <label class="check-row"><input type="checkbox"> Hard</label>
+                        </div>
+                        <div>
+                            <h3>Preferred Regions</h3>
+                            <label class="check-row"><input type="checkbox" checked> Himalayas</label>
+                            <label class="check-row"><input type="checkbox"> Kathmandu Valley</label>
+                            <label class="check-row"><input type="checkbox" checked> Annapurna</label>
+                        </div>
+                        <div>
+                            <h3>Activities</h3>
+                            <label class="check-row"><input type="checkbox" checked> Trekking</label>
+                            <label class="check-row"><input type="checkbox"> Climbing</label>
+                            <label class="check-row"><input type="checkbox" checked> Cultural Tours</label>
+                        </div>
+                    </div>
+                </section>
+            </form>
+        </main>
+    </div>
+</body>
+</html>

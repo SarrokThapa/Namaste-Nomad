@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Namaste Nomad - Find Your Perfect Trek</title>
+    <title>Namaste Nomad - Nepal Treks & Tours</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="{% static 'css/landing.css' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -39,19 +39,20 @@
     <!-- Hero Section -->
     <section class="hero">
         <div class="hero-content">
-            <h1 class="hero-title">Find Your Perfect Trek</h1>
+            <h1 class="hero-title">Find Your Perfect Nepal Trek</h1>
             <p class="hero-subtitle">
-                Compare prices from hundreds of trekking providers and find your next adventure.
+                Compare trusted local operators for Nepal's Himalayas and heritage tours.
             </p>
             <form class="search-card" action="#">
                 <div class="search-field">
                     <label for="destination">Destination</label>
                     <select id="destination" name="destination">
-                        <option>Where do you want to go?</option>
-                        <option>Nepal</option>
-                        <option>Tanzania</option>
-                        <option>Peru</option>
-                        <option>Chile</option>
+                        <option>Where in Nepal?</option>
+                        <option>Everest Region</option>
+                        <option>Annapurna Region</option>
+                        <option>Manaslu Region</option>
+                        <option>Langtang Region</option>
+                        <option>Midwest &amp; Farwest</option>
                     </select>
                 </div>
                 <div class="search-field">
@@ -62,9 +63,10 @@
                     <label for="difficulty">Difficulty</label>
                     <select id="difficulty" name="difficulty">
                         <option>Difficulty Level</option>
-                        <option>Easy</option>
+                        <option>Easy (Tours)</option>
                         <option>Moderate</option>
                         <option>Challenging</option>
+                        <option>Expedition</option>
                     </select>
                 </div>
                 <div class="search-field">
@@ -81,15 +83,15 @@
         <div class="container-landing">
             <div class="section-header">
                 <div>
-                    <h2 class="section-title">Featured Treks</h2>
-                    <p class="section-subtitle">Handpicked adventures for your next journey</p>
+                    <h2 class="section-title">Featured Treks &amp; Tours</h2>
+                    <p class="section-subtitle">Handpicked Nepal adventures for your next journey</p>
                 </div>
-                <a class="link-arrow" href="#">View all treks</a>
+                <a class="link-arrow" href="#">View all Nepal trips</a>
             </div>
 
             <div class="trek-grid">
                 <article class="trek-card">
-                    <div class="trek-image">
+                    <div class="trek-image trek-everest">
                         <span class="tag">Featured</span>
                     </div>
                     <div class="trek-body">
@@ -97,7 +99,43 @@
                         <p class="trek-meta">Nepal | 14 days</p>
                         <div class="trek-rating">
                             <span class="stars">*****</span>
-                            <span>4.8 (342 reviews)</span>
+                            <span>4.9 (512 reviews)</span>
+                        </div>
+                        <div class="trek-footer">
+                            <span class="trek-price">$1,899</span>
+                            <a class="btn-outline-dark" href="#">View Details</a>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="trek-card">
+                    <div class="trek-image trek-annapurna">
+                        <span class="tag">Featured</span>
+                    </div>
+                    <div class="trek-body">
+                        <h3>Annapurna Circuit</h3>
+                        <p class="trek-meta">Nepal | 12 days</p>
+                        <div class="trek-rating">
+                            <span class="stars">*****</span>
+                            <span>4.8 (430 reviews)</span>
+                        </div>
+                        <div class="trek-footer">
+                            <span class="trek-price">$1,599</span>
+                            <a class="btn-outline-dark" href="#">View Details</a>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="trek-card">
+                    <div class="trek-image trek-manaslu">
+                        <span class="tag">Featured</span>
+                    </div>
+                    <div class="trek-body">
+                        <h3>Manaslu Circuit Trek</h3>
+                        <p class="trek-meta">Nepal | 14 days</p>
+                        <div class="trek-rating">
+                            <span class="stars">*****</span>
+                            <span>4.8 (220 reviews)</span>
                         </div>
                         <div class="trek-footer">
                             <span class="trek-price">$1,999</span>
@@ -107,90 +145,54 @@
                 </article>
 
                 <article class="trek-card">
-                    <div class="trek-image">
+                    <div class="trek-image trek-tilicho">
                         <span class="tag">Featured</span>
                     </div>
                     <div class="trek-body">
-                        <h3>Annapurna Circuit</h3>
-                        <p class="trek-meta">Nepal | 12 days</p>
+                        <h3>Tilicho Lake Trek</h3>
+                        <p class="trek-meta">Nepal | 10 days</p>
                         <div class="trek-rating">
                             <span class="stars">*****</span>
-                            <span>4.9 (289 reviews)</span>
+                            <span>4.7 (190 reviews)</span>
                         </div>
                         <div class="trek-footer">
-                            <span class="trek-price">$1,799</span>
+                            <span class="trek-price">$1,399</span>
                             <a class="btn-outline-dark" href="#">View Details</a>
                         </div>
                     </div>
                 </article>
 
                 <article class="trek-card">
-                    <div class="trek-image">
+                    <div class="trek-image trek-lumbini">
                         <span class="tag">Featured</span>
                     </div>
                     <div class="trek-body">
-                        <h3>Kilimanjaro Climb</h3>
-                        <p class="trek-meta">Tanzania | 8 days</p>
+                        <h3>Lumbini Heritage Tour</h3>
+                        <p class="trek-meta">Lumbini | 3 days</p>
                         <div class="trek-rating">
                             <span class="stars">*****</span>
-                            <span>4.7 (412 reviews)</span>
+                            <span>4.6 (142 reviews)</span>
                         </div>
                         <div class="trek-footer">
-                            <span class="trek-price">$2,499</span>
+                            <span class="trek-price">$399</span>
                             <a class="btn-outline-dark" href="#">View Details</a>
                         </div>
                     </div>
                 </article>
 
                 <article class="trek-card">
-                    <div class="trek-image">
+                    <div class="trek-image trek-swayambhu">
                         <span class="tag">Featured</span>
                     </div>
                     <div class="trek-body">
-                        <h3>Tour du Mont Blanc</h3>
-                        <p class="trek-meta">France | 11 days</p>
+                        <h3>Swayambhunath &amp; Valley Tour</h3>
+                        <p class="trek-meta">Kathmandu | 1 day</p>
                         <div class="trek-rating">
                             <span class="stars">*****</span>
-                            <span>5.0 (178 reviews)</span>
+                            <span>4.7 (318 reviews)</span>
                         </div>
                         <div class="trek-footer">
-                            <span class="trek-price">$2,899</span>
-                            <a class="btn-outline-dark" href="#">View Details</a>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="trek-card">
-                    <div class="trek-image">
-                        <span class="tag">Featured</span>
-                    </div>
-                    <div class="trek-body">
-                        <h3>Inca Trail to Machu Picchu</h3>
-                        <p class="trek-meta">Peru | 4 days</p>
-                        <div class="trek-rating">
-                            <span class="stars">*****</span>
-                            <span>4.9 (521 reviews)</span>
-                        </div>
-                        <div class="trek-footer">
-                            <span class="trek-price">$1,299</span>
-                            <a class="btn-outline-dark" href="#">View Details</a>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="trek-card">
-                    <div class="trek-image">
-                        <span class="tag">Featured</span>
-                    </div>
-                    <div class="trek-body">
-                        <h3>Patagonia W Trek</h3>
-                        <p class="trek-meta">Chile | 5 days</p>
-                        <div class="trek-rating">
-                            <span class="stars">*****</span>
-                            <span>4.8 (267 reviews)</span>
-                        </div>
-                        <div class="trek-footer">
-                            <span class="trek-price">$1,599</span>
+                            <span class="trek-price">$149</span>
                             <a class="btn-outline-dark" href="#">View Details</a>
                         </div>
                     </div>
@@ -205,7 +207,7 @@
             <div class="section-header center">
                 <div>
                     <h2 class="section-title">Browse by Category</h2>
-                    <p class="section-subtitle">Find the perfect trek for your adventure style</p>
+                    <p class="section-subtitle">Find the perfect Nepal trip for your travel style</p>
                 </div>
             </div>
             <div class="category-grid">
@@ -215,7 +217,7 @@
                             <path d="M3 20l9-16 9 16H3z"/>
                         </svg>
                     </div>
-                    <h3>High Altitude</h3>
+                    <h3>Himalayan Treks</h3>
                 </div>
                 <div class="category-card">
                     <div class="category-icon">
@@ -224,7 +226,7 @@
                             <path d="M7 21V7l5-4 5 4v14"/>
                         </svg>
                     </div>
-                    <h3>Camping Tours</h3>
+                    <h3>Lake Trails</h3>
                 </div>
                 <div class="category-card">
                     <div class="category-icon">
@@ -233,7 +235,7 @@
                             <path d="M6 21l6-9 6 9"/>
                         </svg>
                     </div>
-                    <h3>Guided Expeditions</h3>
+                    <h3>Cultural Tours</h3>
                 </div>
                 <div class="category-card">
                     <div class="category-icon">
@@ -242,7 +244,7 @@
                             <path d="M16 2v4M8 2v4M3 10h18"/>
                         </svg>
                     </div>
-                    <h3>Weekend Treks</h3>
+                    <h3>Heritage Sites</h3>
                 </div>
             </div>
         </div>

@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_protect
 
 from core.models import Booking, Package, Review
-from .models import User, VendorProfile
+from .models import User, VendorProfile, TravelerProfile
 from .utils import create_otp, verify_otp as verify_otp_util
 
 
@@ -20,9 +20,23 @@ def _get_vendor_profile(user):
         return None
 
 
+def _get_traveler_profile(user):
+    try:
+        return user.traveler_profile
+    except TravelerProfile.DoesNotExist:
+        return None
+
+
 def _ensure_vendor(request):
     if getattr(request.user, 'user_type', '') != 'vendor':
         messages.error(request, 'Vendor access only.')
+        return False
+    return True
+
+
+def _ensure_traveler(request):
+    if getattr(request.user, 'user_type', '') != 'traveler':
+        messages.error(request, 'Traveler access only.')
         return False
     return True
 
@@ -257,6 +271,78 @@ def vendor_settings(request):
     })
 
 
+@login_required(login_url='traveler_login')
+def traveler_profile(request):
+    if not _ensure_traveler(request):
+        return redirect('traveler_login')
+
+    profile = _get_traveler_profile(request.user)
+    if profile is None:
+        profile = TravelerProfile.objects.create(user=request.user)
+
+    if request.method == 'POST':
+        full_name = (request.POST.get('full_name') or '').strip()
+        email = (request.POST.get('email') or '').strip()
+        phone = (request.POST.get('phone') or '').strip()
+        date_of_birth = request.POST.get('date_of_birth')
+        gender = request.POST.get('gender') or ''
+        nationality = (request.POST.get('nationality') or '').strip()
+        bio = (request.POST.get('bio') or '').strip()
+        avatar = request.FILES.get('avatar')
+
+        if full_name:
+            parts = full_name.split()
+            request.user.first_name = parts[0]
+            request.user.last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+
+        if email and email != request.user.email:
+            if User.objects.filter(email=email).exclude(id=request.user.id).exists():
+                messages.error(request, 'Email is already in use.')
+                return redirect('traveler_profile')
+            request.user.email = email
+            request.user.username = email
+
+        request.user.phone = phone
+        request.user.save()
+
+        profile.gender = gender
+        profile.nationality = nationality
+        profile.bio = bio
+        profile.date_of_birth = date_of_birth or None
+        if avatar:
+            profile.avatar = avatar
+        profile.save()
+
+        messages.success(request, 'Profile updated successfully.')
+        return redirect('traveler_profile')
+
+    full_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+    activity = [
+        {
+            'title': 'Left a review for Everest Base Camp Trek',
+            'time': '2 days ago',
+            'variant': 'review',
+        },
+        {
+            'title': 'Completed Annapurna Circuit',
+            'time': '1 week ago',
+            'variant': 'completed',
+        },
+        {
+            'title': 'Earned "High Altitude" badge',
+            'time': '2 weeks ago',
+            'variant': 'badge',
+        },
+    ]
+
+    return render(request, 'accounts/traveler_profile.html', {
+        'profile': profile,
+        'full_name': full_name,
+        'activity': activity,
+        'active_page': 'profile',
+    })
+
+
 @csrf_protect
 def vendor_login(request):
     if request.method == 'POST':
@@ -349,7 +435,9 @@ def traveler_login(request):
                     return redirect('verify_otp')
                 
                 login(request, user)
-                return redirect('traveler_dashboard')
+                if _get_traveler_profile(user) is None:
+                    TravelerProfile.objects.create(user=user)
+                return redirect('traveler_profile')
             else:
                 messages.error(request, 'Invalid credentials')
         except User.DoesNotExist:
@@ -404,7 +492,9 @@ def verify_otp_view(request):
             if user.user_type == 'vendor':
                 return redirect('vendor_dashboard')
             else:
-                return redirect('traveler_dashboard')
+                if _get_traveler_profile(user) is None:
+                    TravelerProfile.objects.create(user=user)
+                return redirect('traveler_profile')
         else:
             messages.error(request, 'Invalid or expired OTP')
     
@@ -426,7 +516,12 @@ def resend_otp(request):
     return redirect('verify_otp')
 
 def logout_view(request):
+    user_type = getattr(request.user, 'user_type', '')
     logout(request)
+    if user_type == 'traveler':
+        return redirect('traveler_login')
+    if user_type == 'admin':
+        return redirect('admin_login')
     return redirect('vendor_login')
 
 @csrf_protect
@@ -457,6 +552,8 @@ def traveler_register(request):
             first_name=first_name,
             last_name=last_name
         )
+
+        TravelerProfile.objects.create(user=user)
         
         # Send OTP
         create_otp(user)

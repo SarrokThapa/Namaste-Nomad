@@ -111,7 +111,12 @@ section {
 
 /* Hero */
 .hero {
-    background: linear-gradient(135deg, #cfe3f4 0%, #e9f2fb 45%, #f4efe6 100%);
+    background-image:
+        linear-gradient(135deg, rgba(207, 227, 244, 0.88) 0%, rgba(233, 242, 251, 0.88) 45%, rgba(244, 239, 230, 0.9) 100%),
+        url("../images/hero-himalaya.jpg");
+    background-size: cover, cover;
+    background-position: center, center;
+    background-repeat: no-repeat;
     padding: 3.8rem 2rem 4.6rem;
 }
 
@@ -245,6 +250,33 @@ section {
     background: linear-gradient(135deg, #dbe6f3 0%, #cfd8e3 100%);
     height: 140px;
     position: relative;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.trek-everest {
+    background-image: url("../images/everest-base-camp.jpg");
+}
+
+.trek-annapurna {
+    background-image: url("../images/annapurna-circuit.jpg");
+}
+
+.trek-manaslu {
+    background-image: url("../images/manaslu-circuit.jpg");
+}
+
+.trek-tilicho {
+    background-image: url("../images/tilicho-lake.jpg");
+}
+
+.trek-lumbini {
+    background-image: url("../images/lumbini-heritage.jpg");
+}
+
+.trek-swayambhu {
+    background-image: url("../images/swayambhu-stupa.jpg");
 }
 
 .tag {
