@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Choose Registration Type - Namaste Nomad</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/account_choice.css">
+</head>
+<body class="choice-body">
+    <nav class="navbar">
+        <div class="nav-brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+            <span>NamasteNomad</span>
+        </div>
+        <div class="nav-buttons">
+            <a href="{% url 'account_login_choice' %}" class="btn-nav">Login</a>
+            <a href="{% url 'account_register_choice' %}" class="btn-nav btn-nav-orange">Register</a>
+        </div>
+    </nav>
+
+    <main class="choice-main">
+        <header class="choice-header">
+            <h1>Choose Registration Type</h1>
+            <p>Select the account that fits your journey.</p>
+        </header>
+
+        <section class="choice-grid">
+            <article class="choice-card">
+                <div class="choice-icon">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                        <circle cx="12" cy="8" r="3.5"/>
+                        <path d="M4 20c1.6-3.2 4.3-5 8-5s6.4 1.8 8 5"/>
+                    </svg>
+                </div>
+                <h2>Traveler</h2>
+                <p>Book amazing treks and tours across Nepal.</p>
+                <ul>
+                    <li>Browse curated packages</li>
+                    <li>Make secure bookings</li>
+                    <li>Track upcoming trips</li>
+                    <li>Share reviews and tips</li>
+                </ul>
+                <a class="choice-btn" href="{% url 'traveler_register' %}">Register as Traveler</a>
+            </article>
+
+            <article class="choice-card">
+                <div class="choice-icon">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                        <rect x="4" y="7" width="16" height="12" rx="2"/>
+                        <path d="M9 7V5a3 3 0 0 1 6 0v2"/>
+                    </svg>
+                </div>
+                <h2>Vendor</h2>
+                <p>List and manage your trekking packages.</p>
+                <ul>
+                    <li>Create tour packages</li>
+                    <li>Manage bookings</li>
+                    <li>Track analytics</li>
+                    <li>Grow your business</li>
+                </ul>
+                <a class="choice-btn" href="{% url 'vendor_register' %}">Register as Vendor</a>
+            </article>
+        </section>
+    </main>
+</body>
+</html>

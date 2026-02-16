@@ -567,3 +567,11 @@ def traveler_register(request):
 
 def landing(request):
     return render(request, 'landing.html')
+
+
+def account_register_choice(request):
+    return render(request, 'accounts/register_choice.html')
+
+
+def account_login_choice(request):
+    return render(request, 'accounts/login_choice.html')

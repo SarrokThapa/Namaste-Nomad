@@ -1,0 +1,123 @@
+body.choice-body {
+    background: #f4f5f8;
+    font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+    color: #111827;
+}
+
+.choice-main {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 3rem 2rem 4rem;
+}
+
+.choice-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+.choice-header h1 {
+    font-size: 2.4rem;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+}
+
+.choice-header p {
+    color: #6b7280;
+    font-size: 1rem;
+}
+
+.choice-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+}
+
+.choice-card {
+    background: #fff;
+    border: 2px solid #e5e7eb;
+    border-radius: 1rem;
+    padding: 2.2rem 2rem;
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+    text-align: center;
+}
+
+.choice-icon {
+    width: 86px;
+    height: 86px;
+    border-radius: 50%;
+    background: #eef2f7;
+    border: 2px solid #cfd6df;
+    display: grid;
+    place-items: center;
+    color: #6b7280;
+}
+
+.choice-card h2 {
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.choice-card p {
+    color: #6b7280;
+    font-size: 0.95rem;
+}
+
+.choice-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0.6rem 0 0.9rem;
+    text-align: left;
+    width: 100%;
+}
+
+.choice-card li {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.35rem 0;
+    font-size: 0.95rem;
+    color: #111827;
+}
+
+.choice-card li::before {
+    content: "•";
+    color: #111827;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.choice-btn {
+    margin-top: auto;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 0.7rem 1rem;
+    border-radius: 0.65rem;
+    border: 2px solid #9ca3af;
+    color: #111827;
+    text-decoration: none;
+    font-weight: 600;
+    background: #e5e7eb;
+    transition: all 0.2s ease;
+}
+
+.choice-btn:hover {
+    background: #111827;
+    color: #fff;
+    border-color: #111827;
+}
+
+@media (max-width: 640px) {
+    .choice-main {
+        padding: 2.5rem 1.2rem 3rem;
+    }
+
+    .choice-header h1 {
+        font-size: 2rem;
+    }
+}

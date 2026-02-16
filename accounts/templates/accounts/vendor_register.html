@@ -16,10 +16,9 @@
             </svg>
             <span>NamasteNomad</span>
         </div>
-        <div class="nav-links">
-            <a href="#">Home</a>
-            <a href="#">About</a>
-            <a href="#">Contact</a>
+        <div class="nav-buttons">
+            <a href="{% url 'account_login_choice' %}" class="btn-nav">Login</a>
+            <a href="{% url 'account_register_choice' %}" class="btn-nav btn-nav-orange">Register</a>
         </div>
     </nav>
 
@@ -127,7 +126,7 @@
             </div>
 
             <div class="form-footer">
-                <p>Already have an account? <a href="{% url 'vendor_login' %}" class="link">Login here</a></p>
+                <p>Already have an account? <a href="{% url 'account_login_choice' %}" class="link">Login here</a></p>
             </div>
         </div>
     </div>
