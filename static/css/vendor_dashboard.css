@@ -43,6 +43,13 @@ body {
     font-family: "Space Grotesk", "Plus Jakarta Sans", sans-serif;
     font-weight: 600;
     font-size: 1.2rem;
+    text-decoration: none;
+    color: inherit;
+}
+
+.brand:hover,
+.brand:focus {
+    text-decoration: none;
 }
 
 .brand-mark {

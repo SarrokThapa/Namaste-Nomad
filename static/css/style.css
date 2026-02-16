@@ -32,6 +32,12 @@ body {
     color: white;
     font-size: 1.25rem;
     font-weight: 600;
+    text-decoration: none;
+}
+
+.nav-brand:hover,
+.nav-brand:focus {
+    text-decoration: none;
 }
 
 .nav-links {

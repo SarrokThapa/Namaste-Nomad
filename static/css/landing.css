@@ -62,6 +62,12 @@ section {
     font-size: 1.05rem;
     font-weight: 700;
     color: var(--ink);
+    text-decoration: none;
+}
+
+.landing-nav .nav-brand:hover,
+.landing-nav .nav-brand:focus {
+    text-decoration: none;
 }
 
 .nav-menu {
