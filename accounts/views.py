@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_protect
 
 from core.models import Booking, Package, Review
 from .models import User, VendorProfile, TravelerProfile
+from .forms import PackageForm
 from .utils import create_otp, verify_otp as verify_otp_util
 
 
@@ -268,6 +269,31 @@ def vendor_settings(request):
     return render(request, 'accounts/vendor_settings.html', {
         'vendor_profile': vendor_profile,
         'active_page': 'settings',
+    })
+
+
+@login_required(login_url='vendor_login')
+def vendor_package_create(request):
+    if not _ensure_vendor(request):
+        return redirect('vendor_login')
+
+    vendor_profile = _get_vendor_profile(request.user)
+
+    if request.method == 'POST':
+        form = PackageForm(request.POST)
+        if form.is_valid():
+            package = form.save(commit=False)
+            package.vendor = request.user
+            package.save()
+            messages.success(request, 'Package created successfully.')
+            return redirect('vendor_packages')
+    else:
+        form = PackageForm()
+
+    return render(request, 'accounts/vendor_package_form.html', {
+        'vendor_profile': vendor_profile,
+        'active_page': 'packages',
+        'form': form,
     })
 
 

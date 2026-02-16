@@ -4,13 +4,29 @@ from django.db import models
 
 
 class Package(models.Model):
+    DIFFICULTY_CHOICES = (
+        ('easy', 'Easy'),
+        ('moderate', 'Moderate'),
+        ('challenging', 'Challenging'),
+        ('expedition', 'Expedition'),
+    )
+
     vendor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='vendor_packages',
     )
     title = models.CharField(max_length=200)
+    location = models.CharField(max_length=120, blank=True)
     description = models.TextField(blank=True)
+    itinerary = models.TextField(blank=True)
+    inclusions = models.TextField(blank=True)
+    exclusions = models.TextField(blank=True)
+    duration_days = models.PositiveSmallIntegerField(blank=True, null=True)
+    difficulty = models.CharField(max_length=20, choices=DIFFICULTY_CHOICES, blank=True)
+    group_size = models.PositiveSmallIntegerField(blank=True, null=True)
+    best_season = models.CharField(max_length=100, blank=True)
+    image_url = models.URLField(blank=True)
     price = models.DecimalField(
         max_digits=10,
         decimal_places=2,

@@ -1,0 +1,213 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ package.title }} - Namaste Nomad</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/packages.css' %}">
+</head>
+<body class="packages-body">
+    <nav class="landing-nav">
+        <div class="nav-container">
+            <a class="nav-brand" href="{% url 'home' %}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+                <span>Namaste Nomad</span>
+            </a>
+            <div class="nav-menu">
+                <a href="#">Destinations</a>
+                <a href="{% url 'package_list' %}">Packages</a>
+                <a href="{% url 'about' %}">About</a>
+                <a href="#">Blog</a>
+                <a href="{% url 'contact' %}">Contact</a>
+            </div>
+            <div class="nav-actions">
+                <a href="{% url 'account_login_choice' %}" class="btn-ghost">Sign In</a>
+                <a href="{% url 'account_register_choice' %}" class="btn-dark">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="detail-hero">
+        <div class="detail-hero-content">
+            <div>
+                <p class="detail-subtitle">{{ package.location|default:"Nepal Adventure" }}</p>
+                <h1>{{ package.title }}</h1>
+                <div class="detail-rating">
+                    <span class="stars">★★★★★</span>
+                    <span>{{ rating.avg|default:0|floatformat:1 }} ({{ rating.count }} reviews)</span>
+                    <span class="detail-views">{{ package.views_count }} views</span>
+                </div>
+            </div>
+            <div class="detail-host">
+                <span>Hosted by</span>
+                <strong>{{ package.vendor.get_full_name|default:package.vendor.username }}</strong>
+            </div>
+        </div>
+        <div class="detail-gallery">
+            <div class="gallery-main" {% if package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}></div>
+            <div class="gallery-stack">
+                <div class="gallery-tile" {% if package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}></div>
+                <div class="gallery-tile" {% if package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}></div>
+            </div>
+        </div>
+    </header>
+
+    <main class="detail-shell">
+        <section class="detail-content">
+            <div class="detail-card">
+                <h2>About this package</h2>
+                <p>
+                    {{ package.description|default:"This Nepal trek package is crafted with local expertise. Contact the vendor for full itinerary and customization options." }}
+                </p>
+            </div>
+
+            <div class="detail-card">
+                <h2>Sample Itinerary</h2>
+                {% if itinerary_points %}
+                    <ul class="detail-list">
+                        {% for item in itinerary_points %}
+                            <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="detail-empty">Itinerary details will be shared after inquiry.</p>
+                {% endif %}
+            </div>
+
+            <div class="detail-card">
+                <h2>Key Details</h2>
+                <div class="detail-facts">
+                    {% for item in facts %}
+                        <div class="fact">
+                            <span>{{ item.label }}</span>
+                            <strong>{{ item.value }}</strong>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="detail-card">
+                <h2>Typical Inclusions</h2>
+                {% if inclusions %}
+                    <ul class="detail-list">
+                        {% for item in inclusions %}
+                            <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="detail-empty">Confirm inclusions with the vendor.</p>
+                {% endif %}
+                <h3>Typical Exclusions</h3>
+                {% if exclusions %}
+                    <ul class="detail-list muted">
+                        {% for item in exclusions %}
+                            <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="detail-empty">Confirm exclusions with the vendor.</p>
+                {% endif %}
+                <p class="detail-note">Confirm inclusions/exclusions with the vendor before booking.</p>
+            </div>
+
+            <div class="detail-card">
+                <h2>Traveler Reviews</h2>
+                {% if reviews %}
+                    <div class="review-list">
+                        {% for review in reviews %}
+                            <div class="review-item">
+                                <div class="review-score">{{ review.rating }}/5</div>
+                                <div>
+                                    <div class="review-title">
+                                        {{ review.traveler.get_full_name|default:review.traveler.username|default:"Traveler" }}
+                                    </div>
+                                    <div class="review-meta">{{ review.created_at|date:"M d, Y" }}</div>
+                                    <div class="review-comment">{{ review.comment|default:"Great experience!" }}</div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="detail-empty">No reviews yet. Be the first to share your experience.</p>
+                {% endif %}
+            </div>
+        </section>
+
+        <aside class="detail-sidebar">
+            <div class="detail-price-card">
+                <h2>From</h2>
+                <div class="price-amount">Rs {{ package.price|floatformat:0 }}</div>
+                <p>Per traveler (estimate)</p>
+                <button class="btn-primary">Check Availability</button>
+                <button class="btn-outline-dark">Contact Vendor</button>
+            </div>
+
+            <div class="detail-price-card secondary">
+                <h3>Why book with us?</h3>
+                <ul>
+                    <li>Trusted local operators</li>
+                    <li>Flexible itineraries</li>
+                    <li>Secure payments</li>
+                </ul>
+            </div>
+        </aside>
+    </main>
+
+    <footer class="footer">
+        <div class="container-landing">
+            <div class="footer-grid">
+                <div class="footer-column">
+                    <div class="footer-brand">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 19l8-14 8 14H4z"/>
+                        </svg>
+                        <span>Namaste Nomad</span>
+                    </div>
+                    <p>Your trusted companion for finding the perfect trekking adventure.</p>
+                </div>
+
+                <div class="footer-column">
+                    <h4>Company</h4>
+                    <ul>
+                        <li><a href="{% url 'about' %}">About Us</a></li>
+                        <li><a href="#">Careers</a></li>
+                        <li><a href="#">Terms &amp; Conditions</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-column">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Safety Guidelines</a></li>
+                        <li><a href="#">Cancellation Policy</a></li>
+                        <li><a href="{% url 'contact' %}">Contact Us</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-column">
+                    <h4>Destinations</h4>
+                    <ul>
+                        <li><a href="#">Nepal</a></li>
+                        <li><a href="#">Everest</a></li>
+                        <li><a href="#">Annapurna</a></li>
+                        <li><a href="#">Manaslu</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2026 Namaste Nomad. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

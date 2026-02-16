@@ -1,0 +1,44 @@
+from django import forms
+
+from core.models import Package
+
+
+class PackageForm(forms.ModelForm):
+    class Meta:
+        model = Package
+        fields = [
+            'title',
+            'location',
+            'price',
+            'duration_days',
+            'difficulty',
+            'group_size',
+            'best_season',
+            'image_url',
+            'description',
+            'itinerary',
+            'inclusions',
+            'exclusions',
+            'is_active',
+        ]
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Everest Base Camp Trek'}),
+            'location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Khumbu, Nepal'}),
+            'price': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '1899'}),
+            'duration_days': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '14'}),
+            'difficulty': forms.Select(attrs={'class': 'form-control'}),
+            'group_size': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '10'}),
+            'best_season': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Mar-May, Sep-Nov'}),
+            'image_url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://...'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'itinerary': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Day 1: Kathmandu\nDay 2: Lukla...'}),
+            'inclusions': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Guide\nPermits\nAccommodation'}),
+            'exclusions': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'International flights\nInsurance'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
+        }
+        labels = {
+            'duration_days': 'Duration (days)',
+            'group_size': 'Group Size',
+            'image_url': 'Cover Image URL',
+            'is_active': 'Publish package',
+        }

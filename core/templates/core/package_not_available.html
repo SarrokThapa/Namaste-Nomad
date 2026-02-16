@@ -1,0 +1,29 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Package Not Available - Namaste Nomad</title>
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/packages.css' %}">
+</head>
+<body class="packages-body">
+    <nav class="landing-nav">
+        <div class="nav-container">
+            <a class="nav-brand" href="{% url 'home' %}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+                <span>Namaste Nomad</span>
+            </a>
+        </div>
+    </nav>
+
+    <main class="packages-empty-state">
+        <h1>Package not available</h1>
+        <p>This package is currently unavailable. Please browse other Nepal treks and tours.</p>
+        <a class="btn-outline-dark" href="{% url 'package_list' %}">Back to Packages</a>
+    </main>
+</body>
+</html>

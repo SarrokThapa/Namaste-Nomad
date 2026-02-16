@@ -10,6 +10,7 @@ urlpatterns = [
 
     path('vendor/login/', views.vendor_login, name='vendor_login'),
     path('vendor/register/', views.vendor_register, name='vendor_register'),
+    path('vendor/packages/new/', views.vendor_package_create, name='vendor_package_create'),
     path('vendor/dashboard/', views.vendor_dashboard, name='vendor_dashboard'),
     path('vendor/packages/', views.vendor_packages, name='vendor_packages'),
     path('vendor/bookings/', views.vendor_bookings, name='vendor_bookings'),
