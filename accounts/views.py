@@ -1,10 +1,11 @@
 from datetime import timedelta
+from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, Sum
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_protect
 
@@ -32,6 +33,10 @@ def _ensure_vendor(request):
     if getattr(request.user, 'user_type', '') != 'vendor':
         messages.error(request, 'Vendor access only.')
         return False
+    vendor_profile = _get_vendor_profile(request.user)
+    if vendor_profile and not vendor_profile.is_approved:
+        messages.error(request, 'Your vendor account is pending approval.')
+        return False
     return True
 
 
@@ -40,6 +45,18 @@ def _ensure_traveler(request):
         messages.error(request, 'Traveler access only.')
         return False
     return True
+
+
+def admin_required(view_func):
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('admin_login')
+        if getattr(request.user, 'user_type', '') != 'admin' or not request.user.is_staff:
+            messages.error(request, 'Admin access only.')
+            return redirect('home')
+        return view_func(request, *args, **kwargs)
+    return _wrapped
 
 
 @login_required(login_url='vendor_login')
@@ -272,6 +289,84 @@ def vendor_settings(request):
     })
 
 
+@admin_required
+def admin_dashboard(request):
+    vendors = User.objects.filter(user_type='vendor').select_related('vendor_profile').annotate(
+        package_count=Count('vendor_packages', distinct=True),
+    ).order_by('-date_joined')
+    pending_vendors = vendors.filter(vendor_profile__is_approved=False)
+    travelers = User.objects.filter(user_type='traveler').order_by('-date_joined')
+    packages = Package.objects.select_related('vendor').order_by('-created_at')
+
+    stats = {
+        'total_vendors': vendors.count(),
+        'pending_vendors': pending_vendors.count(),
+        'total_travelers': travelers.count(),
+        'total_packages': packages.count(),
+        'active_packages': packages.filter(is_active=True).count(),
+    }
+
+    return render(request, 'accounts/admin_dashboard.html', {
+        'vendors': vendors,
+        'pending_vendors': pending_vendors,
+        'travelers': travelers,
+        'packages': packages,
+        'stats': stats,
+    })
+
+
+@admin_required
+@csrf_protect
+def admin_vendor_action(request, vendor_id):
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+
+    vendor = get_object_or_404(User, id=vendor_id, user_type='vendor')
+    profile = _get_vendor_profile(vendor)
+    action = request.POST.get('action')
+
+    if profile is None:
+        messages.error(request, 'Vendor profile not found.')
+        return redirect('admin_dashboard')
+
+    if action == 'approve':
+        profile.is_approved = True
+        vendor.is_active = True
+        messages.success(request, f'{vendor.email} approved.')
+    elif action == 'reject':
+        profile.is_approved = False
+        vendor.is_active = False
+        messages.success(request, f'{vendor.email} rejected.')
+    elif action == 'suspend':
+        vendor.is_active = False
+        messages.success(request, f'{vendor.email} suspended.')
+    elif action == 'activate':
+        vendor.is_active = True
+        messages.success(request, f'{vendor.email} activated.')
+    else:
+        messages.error(request, 'Invalid action.')
+        return redirect('admin_dashboard')
+
+    vendor.save()
+    profile.save()
+    return redirect('admin_dashboard')
+
+
+@admin_required
+@csrf_protect
+def admin_package_toggle(request, package_id):
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+
+    package = get_object_or_404(Package, id=package_id)
+    package.is_active = not package.is_active
+    package.save()
+
+    status_label = 'activated' if package.is_active else 'deactivated'
+    messages.success(request, f'{package.title} {status_label}.')
+    return redirect('admin_dashboard')
+
+
 @login_required(login_url='vendor_login')
 def vendor_package_create(request):
     if not _ensure_vendor(request):
@@ -386,7 +481,12 @@ def vendor_login(request):
                     request.session['user_id'] = user.id
                     messages.info(request, 'Please verify your email with the OTP sent.')
                     return redirect('verify_otp')
-                
+
+                vendor_profile = _get_vendor_profile(user)
+                if vendor_profile and not vendor_profile.is_approved:
+                    messages.error(request, 'Your vendor account is pending approval.')
+                    return redirect('vendor_login')
+
                 login(request, user)
                 if not remember_me:
                     request.session.set_expiry(0)

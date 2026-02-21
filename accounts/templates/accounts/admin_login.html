@@ -5,18 +5,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Login - Namaste Nomad</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/admin_login.css">
 </head>
-<body class="admin-body">
-    <div class="container">
-        {% comment %} <div class="admin-header">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-            </svg>
+<body class="admin-page">
+    <main class="admin-shell">
+        <div class="admin-brand">
+            <div class="brand-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+            </div>
             <h1>Namaste Nomad</h1>
-        </div> {% endcomment %}
+        </div>
 
-        <div class="auth-card admin-card">
+        <div class="admin-card">
             <h2>Admin Login</h2>
 
             {% if messages %}
@@ -37,7 +43,7 @@
                     <div class="password-input">
                         <input type="password" name="password" id="adminPassword" required>
                         <button type="button" class="toggle-password" onclick="togglePassword('adminPassword')">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                                 <circle cx="12" cy="12" r="3"/>
                             </svg>
@@ -45,7 +51,7 @@
                     </div>
                 </div>
 
-                <div class="form-group">
+                <div class="admin-row">
                     <label class="checkbox-label">
                         <input type="checkbox" name="remember_me">
                         <span>Remember me</span>
@@ -55,15 +61,14 @@
                 <button type="submit" class="btn-primary btn-blue">Login</button>
             </form>
 
-            <div class="form-footer">
+            <div class="admin-link">
                 <a href="#" class="link">Forgot Password?</a>
             </div>
 
-            <div class="admin-notice">
-                Admin access only
-            </div>
+            <div class="admin-divider"></div>
+            <div class="admin-notice">Admin access only</div>
         </div>
-    </div>
+    </main>
 
     <script src="/static/js/main.js"></script>
 </body>

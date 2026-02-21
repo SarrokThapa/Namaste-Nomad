@@ -1,0 +1,43 @@
+.admin-dashboard .topbar {
+    background: linear-gradient(120deg, #111827, #1f2937);
+}
+
+.admin-dashboard .company-badge {
+    background: #111827;
+    color: #fff;
+}
+
+.admin-dashboard .stat-card {
+    border-left: 4px solid #2563eb;
+}
+
+.admin-dashboard .alert-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.admin-dashboard .alert {
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid transparent;
+    font-size: 0.9rem;
+}
+
+.admin-dashboard .alert-error {
+    background: #fee2e2;
+    border-color: #fecaca;
+    color: #991b1b;
+}
+
+.admin-dashboard .alert-success {
+    background: #dcfce7;
+    border-color: #bbf7d0;
+    color: #166534;
+}
+
+.admin-dashboard .btn.small.secondary {
+    background: #111827;
+    color: #fff;
+}

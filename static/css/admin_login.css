@@ -1,0 +1,89 @@
+body.admin-page {
+    background: #f3f5f9;
+    color: #111827;
+    font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+}
+
+.admin-shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    padding: 3rem 1.5rem;
+}
+
+.admin-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #1f2937;
+}
+
+.admin-brand h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+}
+
+.brand-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 2px solid #1f2937;
+    display: grid;
+    place-items: center;
+}
+
+.admin-card {
+    width: min(420px, 92vw);
+    background: #fff;
+    border: 1px solid #d4d9e1;
+    border-radius: 0.9rem;
+    padding: 2rem 2rem 1.6rem;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.admin-card h2 {
+    text-align: center;
+    font-size: 1.4rem;
+    margin-bottom: 1.5rem;
+}
+
+.admin-card .form-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.admin-card .form-group input {
+    border-radius: 0.6rem;
+    border: 1px solid #d7dde6;
+    padding: 0.7rem 0.8rem;
+}
+
+.admin-row {
+    margin-top: 0.6rem;
+    margin-bottom: 1.2rem;
+}
+
+.admin-card .btn-primary {
+    width: 100%;
+}
+
+.admin-link {
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.admin-divider {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 1.4rem 0 0.8rem;
+}
+
+.admin-notice {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #9ca3af;
+}

@@ -1,0 +1,249 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Namaste Nomad</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/vendor_dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+</head>
+<body class="admin-dashboard">
+    <header class="topbar">
+        <a class="brand" href="{% url 'home' %}">
+            <span class="brand-mark"></span>
+            <span class="brand-name">Namaste Nomad</span>
+        </a>
+        <div class="topbar-actions">
+            <button class="pill-button">
+                Admin Dashboard
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M5 7l5 6 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <div class="avatar">
+                <span>{{ request.user.first_name|default:"A"|slice:":1" }}</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard-shell">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="company">
+                    <div class="company-badge">AD</div>
+                    <div>
+                        <div class="company-name">Admin Console</div>
+                        <div class="company-meta">System Access</div>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a class="nav-item active" href="{% url 'admin_dashboard' %}">
+                    <span class="nav-icon">&gt;</span>
+                    Overview
+                </a>
+                <a class="nav-item" href="#vendors">
+                    <span class="nav-icon">&gt;</span>
+                    Vendors
+                </a>
+                <a class="nav-item" href="#pending">
+                    <span class="nav-icon">&gt;</span>
+                    Pending Approvals
+                </a>
+                <a class="nav-item" href="#travelers">
+                    <span class="nav-icon">&gt;</span>
+                    Customers
+                </a>
+                <a class="nav-item" href="#packages">
+                    <span class="nav-icon">&gt;</span>
+                    Listings
+                </a>
+                <a class="nav-item logout" href="{% url 'logout' %}">
+                    <span class="nav-icon">&gt;</span>
+                    Logout
+                </a>
+            </nav>
+        </aside>
+
+        <main class="dashboard-main">
+            {% if messages %}
+                <div class="alert-stack">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <section class="page-header">
+                <div>
+                    <h1>Admin Dashboard</h1>
+                    <p>Monitor vendors, travelers, and listings across the platform.</p>
+                </div>
+            </section>
+
+            <section class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-title">Total Vendors</div>
+                    <div class="stat-value">{{ stats.total_vendors }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Pending Vendors</div>
+                    <div class="stat-value">{{ stats.pending_vendors }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Total Customers</div>
+                    <div class="stat-value">{{ stats.total_travelers }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Listings</div>
+                    <div class="stat-value">{{ stats.total_packages }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Active Listings</div>
+                    <div class="stat-value">{{ stats.active_packages }}</div>
+                </div>
+            </section>
+
+            <section class="cards-grid split" id="pending">
+                <div class="card list-card">
+                    <div class="card-header">
+                        <h3>Pending Vendors</h3>
+                        <span class="card-meta">{{ pending_vendors|length }} waiting</span>
+                    </div>
+                    <div class="package-list">
+                        {% if pending_vendors %}
+                            {% for vendor in pending_vendors %}
+                                <div class="package-item">
+                                    <div>
+                                        <div class="package-name">{{ vendor.vendor_profile.business_name|default:vendor.email }}</div>
+                                        <div class="package-meta">
+                                            {{ vendor.get_full_name|default:vendor.email }} · Joined {{ vendor.date_joined|date:"M d, Y" }}
+                                        </div>
+                                    </div>
+                                    <div class="package-actions">
+                                        <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="approve">
+                                            <button class="btn small success" type="submit">Approve</button>
+                                        </form>
+                                        <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="reject">
+                                            <button class="btn small danger" type="submit">Reject</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">No pending vendors.</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card list-card" id="vendors">
+                    <div class="card-header">
+                        <h3>All Vendors</h3>
+                        <span class="card-meta">{{ vendors|length }} total</span>
+                    </div>
+                    <div class="package-list">
+                        {% if vendors %}
+                            {% for vendor in vendors %}
+                                <div class="package-item">
+                                    <div>
+                                        <div class="package-name">{{ vendor.vendor_profile.business_name|default:vendor.email }}</div>
+                                        <div class="package-meta">
+                                            {{ vendor.email }} · Packages {{ vendor.package_count }} ·
+                                            {% if vendor.vendor_profile.is_approved %}Approved{% else %}Pending{% endif %} ·
+                                            {% if vendor.is_active %}Active{% else %}Suspended{% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="package-actions">
+                                        {% if vendor.is_active %}
+                                            <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="suspend">
+                                                <button class="btn small danger" type="submit">Suspend</button>
+                                            </form>
+                                        {% else %}
+                                            <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="activate">
+                                                <button class="btn small success" type="submit">Activate</button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">No vendors yet.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="cards-grid split" id="travelers">
+                <div class="card list-card">
+                    <div class="card-header">
+                        <h3>Customers</h3>
+                        <span class="card-meta">{{ travelers|length }} total</span>
+                    </div>
+                    <div class="booking-list">
+                        {% if travelers %}
+                            {% for traveler in travelers %}
+                                <div class="booking-item">
+                                    <div class="booking-avatar">
+                                        {{ traveler.first_name|default:"T"|slice:":1" }}{{ traveler.last_name|default:""|slice:":1" }}
+                                    </div>
+                                    <div class="booking-info">
+                                        <div class="booking-name">{{ traveler.get_full_name|default:traveler.email }}</div>
+                                        <div class="booking-meta">Joined {{ traveler.date_joined|date:"M d, Y" }}</div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">No travelers yet.</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card list-card" id="packages">
+                    <div class="card-header">
+                        <h3>Listings</h3>
+                        <span class="card-meta">{{ packages|length }} total</span>
+                    </div>
+                    <div class="package-list">
+                        {% if packages %}
+                            {% for package in packages %}
+                                <div class="package-item">
+                                    <div>
+                                        <div class="package-name">{{ package.title }}</div>
+                                        <div class="package-meta">
+                                            {{ package.vendor.get_full_name|default:package.vendor.email }} ·
+                                            Rs {{ package.price|floatformat:0 }} ·
+                                            {% if package.is_active %}Active{% else %}Hidden{% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="package-actions">
+                                        <form method="POST" action="{% url 'admin_package_toggle' package.id %}">
+                                            {% csrf_token %}
+                                            <button class="btn small secondary" type="submit">
+                                                {% if package.is_active %}Hide{% else %}Activate{% endif %}
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">No listings yet.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

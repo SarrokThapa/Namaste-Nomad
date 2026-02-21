@@ -19,6 +19,9 @@ urlpatterns = [
     path('vendor/settings/', views.vendor_settings, name='vendor_settings'),
     
     path('admin/login/', views.admin_login, name='admin_login'),
+    path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('admin/vendors/<int:vendor_id>/action/', views.admin_vendor_action, name='admin_vendor_action'),
+    path('admin/packages/<int:package_id>/toggle/', views.admin_package_toggle, name='admin_package_toggle'),
 
     path('verify-otp/', views.verify_otp_view, name='verify_otp'),
     path('resend-otp/', views.resend_otp, name='resend_otp'),
