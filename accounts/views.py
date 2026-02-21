@@ -1,4 +1,5 @@
-from datetime import timedelta
+from calendar import monthrange
+from datetime import date, timedelta
 from functools import wraps
 
 from django.contrib import messages
@@ -297,6 +298,84 @@ def admin_dashboard(request):
     pending_vendors = vendors.filter(vendor_profile__is_approved=False)
     travelers = User.objects.filter(user_type='traveler').order_by('-date_joined')
     packages = Package.objects.select_related('vendor').order_by('-created_at')
+    bookings = Booking.objects.select_related('package', 'traveler').order_by('-created_at')
+    reviews = Review.objects.select_related('traveler', 'package').order_by('-created_at')
+
+    total_revenue = bookings.filter(status='confirmed').aggregate(
+        total=Sum('total_price')
+    )['total'] or 0
+    total_bookings = bookings.count()
+    active_vendors = vendors.filter(is_active=True, vendor_profile__is_approved=True).count()
+    total_users = vendors.count() + travelers.count()
+    total_reviews = reviews.count()
+    avg_rating = reviews.aggregate(avg=Avg('rating'))['avg'] or 0
+
+    today = timezone.now().date()
+    month_labels = []
+    month_values = []
+    for offset in range(11, -1, -1):
+        total_months = today.year * 12 + (today.month - 1) - offset
+        year = total_months // 12
+        month = total_months % 12 + 1
+        start = date(year, month, 1)
+        end = date(year, month, monthrange(year, month)[1])
+        total = bookings.filter(
+            status='confirmed',
+            created_at__date__range=(start, end),
+        ).aggregate(total=Sum('total_price'))['total'] or 0
+        month_labels.append(start.strftime('%b'))
+        month_values.append(float(total))
+
+    width = 720
+    height = 200
+    pad_x = 20
+    pad_y = 20
+    step = (width - pad_x * 2) / max(len(month_values) - 1, 1)
+    max_value = max(month_values) if month_values else 0
+    min_value = min(month_values) if month_values else 0
+    revenue_points = []
+    for idx, value in enumerate(month_values):
+        x = pad_x + idx * step
+        if max_value == min_value:
+            y = height / 2
+        else:
+            ratio = (value - min_value) / (max_value - min_value)
+            y = height - pad_y - ratio * (height - pad_y * 2)
+        revenue_points.append(f"{x:.0f},{y:.0f}")
+
+    activity_items = []
+    for booking in bookings[:3]:
+        actor = booking.traveler.get_full_name() if booking.traveler else 'Traveler'
+        activity_items.append({
+            'action': 'New Booking',
+            'actor': actor or 'Traveler',
+            'date': booking.created_at,
+            'details': booking.package.title,
+        })
+    for vendor in vendors[:2]:
+        vendor_profile = _get_vendor_profile(vendor)
+        activity_items.append({
+            'action': 'Vendor Registration',
+            'actor': vendor_profile.business_name if vendor_profile else vendor.email,
+            'date': vendor.date_joined,
+            'details': 'Pending approval' if vendor_profile and not vendor_profile.is_approved else 'Approved',
+        })
+    for package in packages[:2]:
+        activity_items.append({
+            'action': 'Package Created',
+            'actor': package.vendor.get_full_name() or package.vendor.email,
+            'date': package.created_at,
+            'details': package.title,
+        })
+    for review in reviews[:2]:
+        activity_items.append({
+            'action': 'Review Posted',
+            'actor': review.traveler.get_full_name() if review.traveler else 'Traveler',
+            'date': review.created_at,
+            'details': f'{review.rating}-star rating',
+        })
+    activity_items.sort(key=lambda item: item['date'], reverse=True)
+    activity_items = activity_items[:6]
 
     stats = {
         'total_vendors': vendors.count(),
@@ -304,6 +383,13 @@ def admin_dashboard(request):
         'total_travelers': travelers.count(),
         'total_packages': packages.count(),
         'active_packages': packages.filter(is_active=True).count(),
+        'total_users': total_users,
+        'active_vendors': active_vendors,
+        'total_bookings': total_bookings,
+        'total_revenue': float(total_revenue),
+        'total_reviews': total_reviews,
+        'avg_rating': round(avg_rating or 0, 1),
+        'forum_posts': 0,
     }
 
     return render(request, 'accounts/admin_dashboard.html', {
@@ -312,6 +398,9 @@ def admin_dashboard(request):
         'travelers': travelers,
         'packages': packages,
         'stats': stats,
+        'revenue_points': " ".join(revenue_points),
+        'revenue_labels': month_labels,
+        'activity_items': activity_items,
     })
 
 
