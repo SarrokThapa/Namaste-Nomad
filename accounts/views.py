@@ -12,7 +12,7 @@ from django.views.decorators.csrf import csrf_protect
 
 from core.models import Booking, Package, Review
 from .models import User, VendorProfile, TravelerProfile, AdminProfile
-from .forms import PackageForm
+from .forms import PackageForm, VendorProfileForm
 from .utils import create_otp, verify_otp as verify_otp_util
 
 
@@ -44,6 +44,13 @@ def _ensure_vendor(request):
     vendor_profile = _get_vendor_profile(request.user)
     if vendor_profile and not vendor_profile.is_approved:
         messages.error(request, 'Your vendor account is pending approval.')
+        return False
+    return True
+
+
+def _ensure_vendor_account(request):
+    if getattr(request.user, 'user_type', '') != 'vendor':
+        messages.error(request, 'Vendor access only.')
         return False
     return True
 
@@ -294,6 +301,52 @@ def vendor_settings(request):
     return render(request, 'accounts/vendor_settings.html', {
         'vendor_profile': vendor_profile,
         'active_page': 'settings',
+    })
+
+
+@login_required(login_url='vendor_login')
+def vendor_profile(request):
+    if not _ensure_vendor_account(request):
+        return redirect('vendor_login')
+
+    vendor_profile = _get_vendor_profile(request.user)
+    if vendor_profile is None:
+        vendor_profile = VendorProfile.objects.create(
+            user=request.user,
+            business_name=request.user.get_full_name() or request.user.username,
+            owner_name=request.user.get_full_name() or request.user.username,
+        )
+
+    if request.method == 'POST':
+        form = VendorProfileForm(request.POST, request.FILES, instance=vendor_profile)
+        email = (request.POST.get('email') or '').strip()
+        phone = (request.POST.get('phone') or '').strip()
+
+        if email and email != request.user.email:
+            if User.objects.filter(email=email).exclude(id=request.user.id).exists():
+                messages.error(request, 'Email is already in use.')
+                return redirect('vendor_profile')
+            request.user.email = email
+            request.user.username = email
+
+        request.user.phone = phone
+        request.user.save()
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Profile updated successfully.')
+            return redirect('vendor_profile')
+        messages.error(request, 'Please correct the errors below.')
+    else:
+        form = VendorProfileForm(instance=vendor_profile)
+
+    packages = Package.objects.filter(vendor=request.user).order_by('-created_at')[:6]
+
+    return render(request, 'accounts/vendor_profile.html', {
+        'vendor_profile': vendor_profile,
+        'form': form,
+        'packages': packages,
+        'active_page': 'profile',
     })
 
 

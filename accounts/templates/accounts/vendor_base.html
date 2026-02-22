@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/vendor_dashboard.css">
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
     <header class="topbar">
@@ -59,6 +60,10 @@
                 <a class="nav-item {% if active_page == 'analytics' %}active{% endif %}" href="{% url 'vendor_analytics' %}">
                     <span class="nav-icon">&gt;</span>
                     Analytics
+                </a>
+                <a class="nav-item {% if active_page == 'profile' %}active{% endif %}" href="{% url 'vendor_profile' %}">
+                    <span class="nav-icon">&gt;</span>
+                    Profile
                 </a>
                 <a class="nav-item {% if active_page == 'settings' %}active{% endif %}" href="{% url 'vendor_settings' %}">
                     <span class="nav-icon">&gt;</span>

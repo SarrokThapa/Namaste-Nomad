@@ -1,6 +1,7 @@
 from django import forms
 
 from core.models import Package
+from .models import VendorProfile
 
 
 class PackageForm(forms.ModelForm):
@@ -41,4 +42,37 @@ class PackageForm(forms.ModelForm):
             'group_size': 'Group Size',
             'image_url': 'Cover Image URL',
             'is_active': 'Publish package',
+        }
+
+
+class VendorProfileForm(forms.ModelForm):
+    class Meta:
+        model = VendorProfile
+        fields = [
+            'business_name',
+            'owner_name',
+            'tagline',
+            'website',
+            'license_number',
+            'business_address',
+            'description',
+            'bank_name',
+            'account_number',
+            'routing_number',
+            'paypal_email',
+            'logo',
+            'cover_image',
+        ]
+        widgets = {
+            'business_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'owner_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'tagline': forms.TextInput(attrs={'class': 'form-control'}),
+            'website': forms.URLInput(attrs={'class': 'form-control'}),
+            'license_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'business_address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'bank_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'account_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'routing_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'paypal_email': forms.EmailInput(attrs={'class': 'form-control'}),
         }

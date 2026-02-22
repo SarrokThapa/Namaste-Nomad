@@ -1,0 +1,141 @@
+{% extends "accounts/vendor_base.html" %}
+
+{% block title %}Vendor Profile - Namaste Nomad{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/vendor_profile.css">
+{% endblock %}
+
+{% block content %}
+<form method="POST" enctype="multipart/form-data" class="vendor-profile-form">
+    {% csrf_token %}
+    <input class="hidden-file" type="file" id="vendorCover" name="cover_image" accept="image/*">
+    <input class="hidden-file" type="file" id="vendorLogo" name="logo" accept="image/*">
+
+    <section class="vendor-hero">
+        <div class="vendor-cover" {% if vendor_profile.cover_image %}style="background-image: url('{{ vendor_profile.cover_image.url }}');"{% endif %}>
+            <label class="cover-button" for="vendorCover">Change Cover</label>
+            {% if not vendor_profile.cover_image %}
+                <div class="cover-placeholder">Cover Photo</div>
+            {% endif %}
+        </div>
+        <div class="vendor-summary card">
+            <div class="vendor-avatar">
+                {% if vendor_profile.logo %}
+                    <img src="{{ vendor_profile.logo.url }}" alt="Vendor Logo">
+                {% else %}
+                    <div class="avatar-fallback">
+                        {{ vendor_profile.business_name|default:request.user.username|slice:":1" }}
+                    </div>
+                {% endif %}
+                <label class="avatar-button" for="vendorLogo">+</label>
+            </div>
+            <div class="vendor-summary-text">
+                <h1>{{ vendor_profile.business_name|default:"Vendor Profile" }}</h1>
+                <p>{{ vendor_profile.tagline|default:"Premium travel packages for adventure seekers" }}</p>
+                <span class="status-pill {% if vendor_profile.is_approved %}approved{% else %}pending{% endif %}">
+                    {% if vendor_profile.is_approved %}Verified{% else %}Pending{% endif %}
+                </span>
+            </div>
+        </div>
+    </section>
+
+    <section class="card vendor-section">
+        <h2>Business Information</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Company Name</label>
+                {{ form.business_name }}
+            </div>
+            <div class="form-group">
+                <label>Owner Name</label>
+                {{ form.owner_name }}
+            </div>
+            <div class="form-group">
+                <label>Tagline</label>
+                {{ form.tagline }}
+            </div>
+            <div class="form-group">
+                <label>Email Address</label>
+                <input class="form-control" type="email" name="email" value="{{ request.user.email }}">
+            </div>
+            <div class="form-group">
+                <label>Phone Number</label>
+                <input class="form-control" type="text" name="phone" value="{{ request.user.phone|default:'' }}">
+            </div>
+            <div class="form-group">
+                <label>Website</label>
+                {{ form.website }}
+            </div>
+            <div class="form-group">
+                <label>License Number</label>
+                {{ form.license_number }}
+            </div>
+            <div class="form-group span-2">
+                <label>Business Address</label>
+                {{ form.business_address }}
+            </div>
+            <div class="form-group span-2">
+                <label>About Us / Description</label>
+                {{ form.description }}
+            </div>
+        </div>
+    </section>
+
+    <section class="card vendor-section">
+        <h2>Bank &amp; Payment Details</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Bank Name</label>
+                {{ form.bank_name }}
+            </div>
+            <div class="form-group">
+                <label>Account Number</label>
+                {{ form.account_number }}
+            </div>
+            <div class="form-group">
+                <label>Routing Number</label>
+                {{ form.routing_number }}
+            </div>
+            <div class="form-group">
+                <label>PayPal Email</label>
+                {{ form.paypal_email }}
+            </div>
+        </div>
+    </section>
+
+    <section class="card vendor-section">
+        <div class="section-header-inline">
+            <div>
+                <h2>My Packages</h2>
+                <p class="section-subtitle">Showcase your latest listings.</p>
+            </div>
+            <a class="btn neutral" href="{% url 'vendor_package_create' %}">Create New Package</a>
+        </div>
+        <div class="package-card-grid">
+            {% if packages %}
+                {% for package in packages %}
+                    <div class="package-card">
+                        <div class="package-thumb" {% if package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
+                            {% if not package.image_url %}Package Image{% endif %}
+                        </div>
+                        <div class="package-info">
+                            <h3>{{ package.title }}</h3>
+                            <p>Rs {{ package.price|floatformat:0 }}</p>
+                            <span class="package-status {% if package.is_active %}active{% else %}draft{% endif %}">
+                                {% if package.is_active %}Active{% else %}Draft{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">No packages added yet.</div>
+            {% endif %}
+        </div>
+    </section>
+
+    <div class="form-actions">
+        <button class="btn success" type="submit">Save Profile</button>
+    </div>
+</form>
+{% endblock %}
