@@ -20,6 +20,8 @@ urlpatterns = [
     
     path('admin/login/', views.admin_login, name='admin_login'),
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('admin/profile/', views.admin_profile, name='admin_profile'),
+    path('admin/vendors/<int:vendor_id>/', views.admin_vendor_detail, name='admin_vendor_detail'),
     path('admin/vendors/<int:vendor_id>/action/', views.admin_vendor_action, name='admin_vendor_action'),
     path('admin/packages/<int:package_id>/toggle/', views.admin_package_toggle, name='admin_package_toggle'),
 

@@ -33,7 +33,7 @@
     <div class="dashboard-shell admin-shell">
         <aside class="sidebar admin-sidebar">
             <nav class="sidebar-nav">
-                <a class="nav-item active" href="#dashboard">
+                <a class="nav-item {% if active_page == 'dashboard' %}active{% endif %}" href="{% url 'admin_dashboard' %}">
                     <span class="nav-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M3 13h8V3H3v10zM13 21h8V11h-8v10zM13 3h8v6h-8V3zM3 21h8v-6H3v6z"/>
@@ -101,18 +101,21 @@
                 <a class="nav-item" href="#quick-actions">
                     <span class="nav-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2v4"/>
-                            <path d="M12 18v4"/>
-                            <path d="M4.93 4.93l2.83 2.83"/>
-                            <path d="M16.24 16.24l2.83 2.83"/>
-                            <path d="M2 12h4"/>
-                            <path d="M18 12h4"/>
-                            <path d="M4.93 19.07l2.83-2.83"/>
-                            <path d="M16.24 7.76l2.83-2.83"/>
-                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M12 20c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z"/>
+                            <path d="M12 14v-4"/>
+                            <path d="M12 8h.01"/>
                         </svg>
                     </span>
                     Settings
+                </a>
+                <a class="nav-item {% if active_page == 'profile' %}active{% endif %}" href="{% url 'admin_profile' %}">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="8" r="4"/>
+                            <path d="M4 20c2-4 6-6 8-6s6 2 8 6"/>
+                        </svg>
+                    </span>
+                    Profile
                 </a>
                 <a class="nav-item logout" href="{% url 'logout' %}">
                     <span class="nav-icon">&gt;</span>

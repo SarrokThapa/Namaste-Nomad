@@ -29,6 +29,16 @@ class VendorProfile(models.Model):
         return self.business_name
 
 
+class AdminProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='admin_profile')
+    bio = models.TextField(blank=True)
+    avatar = models.FileField(upload_to='admin_avatars/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} Admin Profile"
+
+
 class TravelerProfile(models.Model):
     GENDER_CHOICES = (
         ('male', 'Male'),

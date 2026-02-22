@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from functools import wraps
 
 from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, Sum
 from django.shortcuts import get_object_or_404, redirect, render
@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_protect
 
 from core.models import Booking, Package, Review
-from .models import User, VendorProfile, TravelerProfile
+from .models import User, VendorProfile, TravelerProfile, AdminProfile
 from .forms import PackageForm
 from .utils import create_otp, verify_otp as verify_otp_util
 
@@ -20,6 +20,13 @@ def _get_vendor_profile(user):
     try:
         return user.vendor_profile
     except VendorProfile.DoesNotExist:
+        return None
+
+
+def _get_admin_profile(user):
+    try:
+        return user.admin_profile
+    except AdminProfile.DoesNotExist:
         return None
 
 
@@ -401,6 +408,84 @@ def admin_dashboard(request):
         'revenue_points': " ".join(revenue_points),
         'revenue_labels': month_labels,
         'activity_items': activity_items,
+        'active_page': 'dashboard',
+    })
+
+
+@admin_required
+@csrf_protect
+def admin_profile(request):
+    profile = _get_admin_profile(request.user)
+    if profile is None:
+        profile = AdminProfile.objects.create(user=request.user)
+
+    if request.method == 'POST':
+        full_name = (request.POST.get('full_name') or '').strip()
+        email = (request.POST.get('email') or '').strip()
+        phone = (request.POST.get('phone') or '').strip()
+        bio = (request.POST.get('bio') or '').strip()
+        avatar = request.FILES.get('avatar')
+
+        current_password = request.POST.get('current_password') or ''
+        new_password = request.POST.get('new_password') or ''
+        confirm_password = request.POST.get('confirm_password') or ''
+
+        if full_name:
+            parts = full_name.split()
+            request.user.first_name = parts[0]
+            request.user.last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+
+        if email and email != request.user.email:
+            if User.objects.filter(email=email).exclude(id=request.user.id).exists():
+                messages.error(request, 'Email is already in use.')
+                return redirect('admin_profile')
+            request.user.email = email
+            request.user.username = email
+
+        request.user.phone = phone
+        request.user.save()
+
+        profile.bio = bio
+        if avatar:
+            profile.avatar = avatar
+
+        if profile.avatar is None and avatar is None:
+            messages.error(request, 'Profile photo is required.')
+            return redirect('admin_profile')
+
+        profile.save()
+
+        if current_password or new_password or confirm_password:
+            if not request.user.check_password(current_password):
+                messages.error(request, 'Current password is incorrect.')
+                return redirect('admin_profile')
+            if new_password != confirm_password:
+                messages.error(request, 'New passwords do not match.')
+                return redirect('admin_profile')
+            if len(new_password) < 6:
+                messages.error(request, 'New password must be at least 6 characters long.')
+                return redirect('admin_profile')
+            request.user.set_password(new_password)
+            request.user.save()
+            update_session_auth_hash(request, request.user)
+            messages.success(request, 'Password updated successfully.')
+        else:
+            messages.success(request, 'Profile updated successfully.')
+
+        return redirect('admin_profile')
+
+    full_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+    pending_vendors = User.objects.filter(
+        user_type='vendor',
+        vendor_profile__is_approved=False,
+    ).select_related('vendor_profile').order_by('-date_joined')
+
+    return render(request, 'accounts/admin_profile.html', {
+        'profile': profile,
+        'full_name': full_name,
+        'pending_vendors': pending_vendors,
+        'active_page': 'profile',
+        'photo_required': profile.avatar is None,
     })
 
 
@@ -454,6 +539,20 @@ def admin_package_toggle(request, package_id):
     status_label = 'activated' if package.is_active else 'deactivated'
     messages.success(request, f'{package.title} {status_label}.')
     return redirect('admin_dashboard')
+
+
+@admin_required
+def admin_vendor_detail(request, vendor_id):
+    vendor = get_object_or_404(User, id=vendor_id, user_type='vendor')
+    profile = _get_vendor_profile(vendor)
+    packages = Package.objects.filter(vendor=vendor).order_by('-created_at')
+
+    return render(request, 'accounts/admin_vendor_detail.html', {
+        'vendor': vendor,
+        'vendor_profile': profile,
+        'packages': packages,
+        'active_page': 'vendors',
+    })
 
 
 @login_required(login_url='vendor_login')
