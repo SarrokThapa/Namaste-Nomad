@@ -32,9 +32,9 @@ def create_otp(user):
     otp = OTP.objects.create(user=user, otp_code=otp_code)
     
     # Send OTP via email
-    send_otp_email(user, otp_code)
+    sent = send_otp_email(user, otp_code)
     
-    return otp
+    return otp, sent
 
 def verify_otp(user, otp_code):
     """Verify OTP code"""

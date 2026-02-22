@@ -665,9 +665,12 @@ def vendor_login(request):
             
             if user is not None:
                 if not user.is_verified:
-                    create_otp(user)
+                    _, sent = create_otp(user)
                     request.session['user_id'] = user.id
-                    messages.info(request, 'Please verify your email with the OTP sent.')
+                    if sent:
+                        messages.info(request, 'Please verify your email with the OTP sent.')
+                    else:
+                        messages.error(request, 'OTP email could not be sent. Please check email settings or spam folder.')
                     return redirect('verify_otp')
 
                 vendor_profile = _get_vendor_profile(user)
@@ -723,10 +726,12 @@ def vendor_register(request):
         )
         
         # Send OTP
-        create_otp(user)
+        _, sent = create_otp(user)
         request.session['user_id'] = user.id
         
         messages.success(request, 'Registration successful! Please verify your email.')
+        if not sent:
+            messages.error(request, 'OTP email could not be sent. Please check email settings or spam folder.')
         return redirect('verify_otp')
     
     return render(request, 'accounts/vendor_register.html')
@@ -743,9 +748,12 @@ def traveler_login(request):
             
             if user is not None:
                 if not user.is_verified:
-                    create_otp(user)
+                    _, sent = create_otp(user)
                     request.session['user_id'] = user.id
-                    messages.info(request, 'Please verify your email with the OTP sent.')
+                    if sent:
+                        messages.info(request, 'Please verify your email with the OTP sent.')
+                    else:
+                        messages.error(request, 'OTP email could not be sent. Please check email settings or spam folder.')
                     return redirect('verify_otp')
                 
                 login(request, user)
@@ -822,8 +830,11 @@ def resend_otp(request):
     
     try:
         user = User.objects.get(id=user_id)
-        create_otp(user)
-        messages.success(request, 'New OTP sent to your email')
+        _, sent = create_otp(user)
+        if sent:
+            messages.success(request, 'New OTP sent to your email')
+        else:
+            messages.error(request, 'OTP email could not be sent. Please check email settings or spam folder.')
     except User.DoesNotExist:
         messages.error(request, 'User not found')
     
@@ -870,10 +881,12 @@ def traveler_register(request):
         TravelerProfile.objects.create(user=user)
         
         # Send OTP
-        create_otp(user)
+        _, sent = create_otp(user)
         request.session['user_id'] = user.id
         
         messages.success(request, 'Registration successful! Please verify your email.')
+        if not sent:
+            messages.error(request, 'OTP email could not be sent. Please check email settings or spam folder.')
         return redirect('verify_otp')
     
     return render(request, 'accounts/traveler_register.html')

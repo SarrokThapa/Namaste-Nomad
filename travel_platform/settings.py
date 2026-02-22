@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -117,15 +118,13 @@ USE_I18N = True
 
 USE_TZ = True
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # For development
-# For production with Gmail:
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend' #Real email sending 
-EMAIL_HOST = 'smtp.gmail.com' #Gmail official email server
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'sarrokthapa18@gmail.com'
-EMAIL_HOST_PASSWORD = 'ghyn qrjb npvn zqck'
-DEFAULT_FROM_EMAIL = 'your-email@gmail.com'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'sarrokthapa18@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'ghyn qrjb npvn zqck').replace(' ', '')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # Static files
 STATIC_URL = '/static/'
