@@ -664,15 +664,6 @@ def vendor_login(request):
             user = authenticate(request, username=user.username, password=password)
             
             if user is not None:
-                if not user.is_verified:
-                    _, sent = create_otp(user)
-                    request.session['user_id'] = user.id
-                    if sent:
-                        messages.info(request, 'Please verify your email with the OTP sent.')
-                    else:
-                        messages.error(request, 'OTP email could not be sent. Please check email settings or spam folder.')
-                    return redirect('verify_otp')
-
                 vendor_profile = _get_vendor_profile(user)
                 if vendor_profile and not vendor_profile.is_approved:
                     messages.error(request, 'Your vendor account is pending approval.')
@@ -747,15 +738,6 @@ def traveler_login(request):
             user = authenticate(request, username=user.username, password=password)
             
             if user is not None:
-                if not user.is_verified:
-                    _, sent = create_otp(user)
-                    request.session['user_id'] = user.id
-                    if sent:
-                        messages.info(request, 'Please verify your email with the OTP sent.')
-                    else:
-                        messages.error(request, 'OTP email could not be sent. Please check email settings or spam folder.')
-                    return redirect('verify_otp')
-                
                 login(request, user)
                 if _get_traveler_profile(user) is None:
                     TravelerProfile.objects.create(user=user)
