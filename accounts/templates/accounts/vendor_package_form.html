@@ -1,17 +1,30 @@
 {% extends "accounts/vendor_base.html" %}
 
-{% block title %}Create Package - Namaste Nomad{% endblock %}
+{% block title %}{% if is_edit %}Edit Package{% else %}Create Package{% endif %} - Namaste Nomad{% endblock %}
 
 {% block content %}
 <section class="page-header">
     <div>
-        <h1>Create Package</h1>
-        <p>Add a new Nepal trek or tour with complete details.</p>
+        <h1>{% if is_edit %}Edit Package{% else %}Create Package{% endif %}</h1>
+        <p>
+            {% if is_edit %}
+                Update details, manage existing images, and add new photos.
+            {% else %}
+                Add a new Nepal trek or tour with complete details.
+            {% endif %}
+        </p>
     </div>
 </section>
 
-<form method="POST" class="card form-card">
+<form method="POST" enctype="multipart/form-data" class="card form-card">
     {% csrf_token %}
+
+    {% if form.errors %}
+        <div class="empty-state">
+            Please fix the highlighted form errors and submit again.
+        </div>
+    {% endif %}
+
     <div class="form-grid">
         <div class="form-group">
             <label for="{{ form.title.id_for_label }}">Title</label>
@@ -64,6 +77,60 @@
             {{ form.exclusions }}
             <span class="field-hint">Use one item per line.</span>
         </div>
+
+        {% if is_edit %}
+            <div class="form-group span-2">
+                <div class="image-manager-head">
+                    <label>Existing Images</label>
+                    <span class="field-hint">Reorder with Up/Down. Check Remove to delete after saving.</span>
+                </div>
+                <div class="existing-image-grid" id="existingImageGrid">
+                    {% for image in existing_images %}
+                        <div class="existing-image-card">
+                            <div class="existing-image-thumb" style="background-image: url('{{ image.image.url }}');"></div>
+                            <div class="existing-image-tools">
+                                <label class="checkbox-label compact">
+                                    <input type="checkbox" name="delete_images" value="{{ image.id }}">
+                                    <span>Remove</span>
+                                </label>
+                                <div class="order-control">
+                                    <button type="button" class="btn secondary order-btn" data-direction="-1">Up</button>
+                                    <input
+                                        class="form-control image-order-input"
+                                        type="number"
+                                        min="1"
+                                        name="image_order_{{ image.id }}"
+                                        value="{{ image.order|default:forloop.counter }}"
+                                    >
+                                    <button type="button" class="btn secondary order-btn" data-direction="1">Down</button>
+                                </div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="empty-state">No images uploaded yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="form-group span-2">
+            <label for="packageImagesInput">
+                {% if is_edit %}Add More Images{% else %}Package Images{% endif %}
+            </label>
+            <input
+                id="packageImagesInput"
+                class="form-control"
+                type="file"
+                name="images"
+                accept="image/*"
+                multiple
+            >
+            <span class="field-hint">
+                Upload multiple images (JPG/PNG). First ordered image is used as the cover.
+            </span>
+            <div id="newImagePreview" class="new-image-preview-grid" aria-live="polite"></div>
+        </div>
+
         <div class="form-group checkbox-row">
             <label class="checkbox-label">
                 {{ form.is_active }}
@@ -73,8 +140,102 @@
     </div>
 
     <div class="form-actions">
-        <button class="btn neutral" type="submit">Save Package</button>
-        <a class="btn secondary" href="{% url 'vendor_packages' %}">Cancel</a>
+        <button class="btn neutral" type="submit">{% if is_edit %}Save Changes{% else %}Save Package{% endif %}</button>
+        <a class="btn secondary" href="{% url 'vendor_packages' %}">Back to Packages</a>
     </div>
 </form>
+
+<script>
+    (function () {
+        const fileInput = document.getElementById('packageImagesInput');
+        const previewContainer = document.getElementById('newImagePreview');
+        const existingGrid = document.getElementById('existingImageGrid');
+
+        function renderNewImagePreviews(files) {
+            previewContainer.innerHTML = '';
+            if (!files || !files.length) {
+                return;
+            }
+
+            files.forEach((file) => {
+                if (!file.type || !file.type.startsWith('image/')) {
+                    return;
+                }
+
+                const item = document.createElement('div');
+                item.className = 'preview-image-card';
+
+                const thumb = document.createElement('img');
+                thumb.alt = file.name;
+
+                const name = document.createElement('span');
+                name.className = 'preview-image-name';
+                name.textContent = file.name;
+
+                item.appendChild(thumb);
+                item.appendChild(name);
+                previewContainer.appendChild(item);
+
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    thumb.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        if (fileInput && previewContainer) {
+            fileInput.addEventListener('change', function () {
+                renderNewImagePreviews(Array.from(this.files || []));
+            });
+        }
+
+        function syncImageOrderInputs() {
+            if (!existingGrid) {
+                return;
+            }
+            const cards = existingGrid.querySelectorAll('.existing-image-card');
+            cards.forEach((card, index) => {
+                const input = card.querySelector('.image-order-input');
+                if (input) {
+                    input.value = index + 1;
+                }
+            });
+        }
+
+        if (existingGrid) {
+            existingGrid.addEventListener('click', function (event) {
+                const button = event.target.closest('.order-btn');
+                if (!button) {
+                    return;
+                }
+
+                event.preventDefault();
+                const card = button.closest('.existing-image-card');
+                if (!card) {
+                    return;
+                }
+
+                const cards = Array.from(existingGrid.querySelectorAll('.existing-image-card'));
+                const currentIndex = cards.indexOf(card);
+                const direction = Number(button.dataset.direction || 0);
+                const targetIndex = currentIndex + direction;
+
+                if (targetIndex < 0 || targetIndex >= cards.length) {
+                    return;
+                }
+
+                if (direction < 0) {
+                    existingGrid.insertBefore(card, cards[targetIndex]);
+                } else {
+                    existingGrid.insertBefore(cards[targetIndex], card);
+                }
+
+                syncImageOrderInputs();
+            });
+
+            syncImageOrderInputs();
+        }
+    })();
+</script>
 {% endblock %}

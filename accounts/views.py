@@ -5,12 +5,12 @@ from functools import wraps
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
-from django.db.models import Avg, Count, Sum
+from django.db.models import Avg, Count, Max, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_protect
 
-from core.models import Booking, Package, Review
+from core.models import Booking, Package, Review, PackageImage
 from .models import User, VendorProfile, TravelerProfile, AdminProfile
 from .forms import PackageForm, VendorProfileForm
 from .utils import create_otp, verify_otp as verify_otp_util
@@ -60,6 +60,54 @@ def _ensure_traveler(request):
         messages.error(request, 'Traveler access only.')
         return False
     return True
+
+
+def _append_package_images(package, uploaded_images):
+    if not uploaded_images:
+        return
+
+    max_order = package.images.aggregate(max_order=Max('order'))['max_order'] or 0
+    for offset, image in enumerate(uploaded_images, start=1):
+        PackageImage.objects.create(
+            package=package,
+            image=image,
+            order=max_order + offset,
+        )
+
+
+def _reorder_package_images(package, post_data):
+    remaining_images = list(package.images.all())
+    if not remaining_images:
+        return
+
+    sortable = []
+    for image in remaining_images:
+        raw_order = post_data.get(f'image_order_{image.id}', '').strip()
+        try:
+            desired_order = int(raw_order)
+        except (TypeError, ValueError):
+            desired_order = image.order
+        sortable.append((max(desired_order, 0), image.created_at, image.id, image))
+
+    sortable.sort(key=lambda item: (item[0], item[1], item[2]))
+    for index, (_, _, _, image) in enumerate(sortable, start=1):
+        image.order = index
+    PackageImage.objects.bulk_update([item[3] for item in sortable], ['order'])
+
+
+def _sync_package_images(package, post_data, files_data):
+    delete_ids = []
+    for raw_id in post_data.getlist('delete_images'):
+        try:
+            delete_ids.append(int(raw_id))
+        except (TypeError, ValueError):
+            continue
+
+    if delete_ids:
+        package.images.filter(id__in=delete_ids).delete()
+
+    _reorder_package_images(package, post_data)
+    _append_package_images(package, files_data.getlist('images'))
 
 
 def admin_required(view_func):
@@ -340,7 +388,7 @@ def vendor_profile(request):
     else:
         form = VendorProfileForm(instance=vendor_profile)
 
-    packages = Package.objects.filter(vendor=request.user).order_by('-created_at')[:6]
+    packages = Package.objects.filter(vendor=request.user).prefetch_related('images').order_by('-created_at')[:6]
 
     return render(request, 'accounts/vendor_profile.html', {
         'vendor_profile': vendor_profile,
@@ -621,6 +669,7 @@ def vendor_package_create(request):
             package = form.save(commit=False)
             package.vendor = request.user
             package.save()
+            _append_package_images(package, request.FILES.getlist('images'))
             messages.success(request, 'Package created successfully.')
             return redirect('vendor_packages')
     else:
@@ -630,6 +679,41 @@ def vendor_package_create(request):
         'vendor_profile': vendor_profile,
         'active_page': 'packages',
         'form': form,
+        'is_edit': False,
+        'existing_images': [],
+    })
+
+
+@login_required(login_url='vendor_login')
+def vendor_package_edit(request, package_id):
+    if not _ensure_vendor(request):
+        return redirect('vendor_login')
+
+    vendor_profile = _get_vendor_profile(request.user)
+    package = get_object_or_404(
+        Package.objects.prefetch_related('images'),
+        id=package_id,
+        vendor=request.user,
+    )
+
+    if request.method == 'POST':
+        form = PackageForm(request.POST, instance=package)
+        if form.is_valid():
+            package = form.save()
+            _sync_package_images(package, request.POST, request.FILES)
+            messages.success(request, 'Package updated successfully.')
+            return redirect('vendor_package_edit', package_id=package.id)
+        messages.error(request, 'Please correct the errors below.')
+    else:
+        form = PackageForm(instance=package)
+
+    return render(request, 'accounts/vendor_package_form.html', {
+        'vendor_profile': vendor_profile,
+        'active_page': 'packages',
+        'form': form,
+        'is_edit': True,
+        'package': package,
+        'existing_images': package.images.all(),
     })
 
 

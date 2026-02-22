@@ -9,7 +9,7 @@ def home(request):
     return render(request, 'core/home.html')
 
 def package_list(request):
-    packages = Package.objects.filter(is_active=True).annotate(
+    packages = Package.objects.filter(is_active=True).prefetch_related('images').annotate(
         review_count=Count('reviews', distinct=True),
         avg_rating=Avg('reviews__rating'),
     ).order_by('-created_at')
@@ -18,7 +18,7 @@ def package_list(request):
     })
 
 def package_detail(request, package_id):
-    package = get_object_or_404(Package, id=package_id)
+    package = get_object_or_404(Package.objects.prefetch_related('images'), id=package_id)
     if not package.is_active and package.vendor != request.user:
         return render(request, 'core/package_not_available.html', status=404)
 
@@ -49,6 +49,8 @@ def package_detail(request, package_id):
     exclusions = [item.strip() for item in (package.exclusions or '').splitlines() if item.strip()]
     itinerary_points = [item.strip() for item in (package.itinerary or '').splitlines() if item.strip()]
 
+    images = list(package.images.all())
+
     return render(request, 'core/package_detail.html', {
         'package': package,
         'reviews': reviews,
@@ -57,6 +59,7 @@ def package_detail(request, package_id):
         'inclusions': inclusions,
         'exclusions': exclusions,
         'itinerary_points': itinerary_points,
+        'images': images,
     })
 
 def about(request):

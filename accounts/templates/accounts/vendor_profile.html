@@ -116,9 +116,11 @@
             {% if packages %}
                 {% for package in packages %}
                     <div class="package-card">
-                        <div class="package-thumb" {% if package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
-                            {% if not package.image_url %}Package Image{% endif %}
-                        </div>
+                        {% with cover=package.images.all|first %}
+                            <div class="package-thumb" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
+                                {% if not cover and not package.image_url %}Package Image{% endif %}
+                            </div>
+                        {% endwith %}
                         <div class="package-info">
                             <h3>{{ package.title }}</h3>
                             <p>Rs {{ package.price|floatformat:0 }}</p>

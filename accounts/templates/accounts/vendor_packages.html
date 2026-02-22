@@ -33,7 +33,7 @@
                         </div>
                     </div>
                     <div class="package-actions">
-                        <button class="btn small neutral">Edit</button>
+                        <a class="btn small neutral" href="{% url 'vendor_package_edit' package.id %}">Edit</a>
                         <a class="btn small secondary" href="{% url 'package_detail' package.id %}">View</a>
                     </div>
                 </div>

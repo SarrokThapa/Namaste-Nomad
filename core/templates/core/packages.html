@@ -63,9 +63,11 @@
             {% if packages %}
                 {% for package in packages %}
                     <article class="package-card">
-                        <div class="package-image" {% if package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
-                            <span class="package-pill">Top Pick</span>
-                        </div>
+                        {% with cover=package.images.all|first %}
+                            <div class="package-image" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
+                                <span class="package-pill">Top Pick</span>
+                            </div>
+                        {% endwith %}
                         <div class="package-body">
                             <div class="package-title-row">
                                 <h2>{{ package.title }}</h2>
