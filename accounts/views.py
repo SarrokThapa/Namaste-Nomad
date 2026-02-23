@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, Max, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect
 
 from core.models import Booking, Package, Review, PackageImage
@@ -119,9 +120,10 @@ def admin_required(view_func):
             messages.error(request, 'Admin access only.')
             return redirect('home')
         return view_func(request, *args, **kwargs)
-    return _wrapped
+    return never_cache(_wrapped)
 
 
+@never_cache
 @login_required(login_url='vendor_login')
 def vendor_dashboard(request):
     if not _ensure_vendor(request):
@@ -267,6 +269,7 @@ def vendor_dashboard(request):
     })
 
 
+@never_cache
 @login_required(login_url='vendor_login')
 def vendor_packages(request):
     if not _ensure_vendor(request):
@@ -283,6 +286,7 @@ def vendor_packages(request):
     })
 
 
+@never_cache
 @login_required(login_url='vendor_login')
 def vendor_bookings(request):
     if not _ensure_vendor(request):
@@ -297,6 +301,7 @@ def vendor_bookings(request):
     })
 
 
+@never_cache
 @login_required(login_url='vendor_login')
 def vendor_reviews(request):
     if not _ensure_vendor(request):
@@ -311,6 +316,7 @@ def vendor_reviews(request):
     })
 
 
+@never_cache
 @login_required(login_url='vendor_login')
 def vendor_analytics(request):
     if not _ensure_vendor(request):
@@ -340,6 +346,7 @@ def vendor_analytics(request):
     })
 
 
+@never_cache
 @login_required(login_url='vendor_login')
 def vendor_settings(request):
     if not _ensure_vendor(request):
@@ -352,6 +359,7 @@ def vendor_settings(request):
     })
 
 
+@never_cache
 @login_required(login_url='vendor_login')
 def vendor_profile(request):
     if not _ensure_vendor_account(request):
@@ -656,6 +664,7 @@ def admin_vendor_detail(request, vendor_id):
     })
 
 
+@never_cache
 @login_required(login_url='vendor_login')
 def vendor_package_create(request):
     if not _ensure_vendor(request):
@@ -684,6 +693,7 @@ def vendor_package_create(request):
     })
 
 
+@never_cache
 @login_required(login_url='vendor_login')
 def vendor_package_edit(request, package_id):
     if not _ensure_vendor(request):
@@ -717,6 +727,7 @@ def vendor_package_edit(request, package_id):
     })
 
 
+@never_cache
 @login_required(login_url='traveler_login')
 def traveler_profile(request):
     if not _ensure_traveler(request):
@@ -963,14 +974,11 @@ def resend_otp(request):
     
     return redirect('verify_otp')
 
+@never_cache
 def logout_view(request):
-    user_type = getattr(request.user, 'user_type', '')
     logout(request)
-    if user_type == 'traveler':
-        return redirect('traveler_login')
-    if user_type == 'admin':
-        return redirect('admin_login')
-    return redirect('vendor_login')
+    messages.success(request, 'You have been logged out successfully.')
+    return redirect('home')
 
 @csrf_protect
 def traveler_register(request):
