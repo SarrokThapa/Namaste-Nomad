@@ -125,26 +125,112 @@
                 <p class="detail-note">Confirm inclusions/exclusions with the vendor before booking.</p>
             </div>
 
-            <div class="detail-card">
-                <h2>Traveler Reviews</h2>
-                {% if reviews %}
-                    <div class="review-list">
-                        {% for review in reviews %}
-                            <div class="review-item">
-                                <div class="review-score">{{ review.rating }}/5</div>
-                                <div>
-                                    <div class="review-title">
-                                        {{ review.traveler.get_full_name|default:review.traveler.username|default:"Traveler" }}
-                                    </div>
-                                    <div class="review-meta">{{ review.created_at|date:"M d, Y" }}</div>
-                                    <div class="review-comment">{{ review.comment|default:"Great experience!" }}</div>
-                                </div>
+            <div class="detail-card review-section" id="reviews">
+                <div class="review-layout">
+                    <div class="review-summary">
+                        <div class="review-summary-card">
+                            <div class="review-summary-score">{{ rating.avg|default:0|floatformat:1 }}</div>
+                            <div class="review-summary-stars" aria-label="{{ rating.avg|default:0|floatformat:1 }} out of 5 stars">
+                                {% for star in "12345" %}
+                                    <span class="{% if forloop.counter <= rating.avg|default:0 %}filled{% endif %}">&#9733;</span>
+                                {% endfor %}
                             </div>
-                        {% endfor %}
+                            <div class="review-summary-meta">Based on {{ rating.count }} reviews</div>
+                            <div class="review-breakdown">
+                                {% for item in rating_breakdown %}
+                                    <div class="review-breakdown-row">
+                                        <span class="review-breakdown-label">{{ item.stars }}</span>
+                                        <span class="review-breakdown-star">&#9733;</span>
+                                        <div class="review-breakdown-bar">
+                                            <span style="width: {{ item.percent }}%"></span>
+                                        </div>
+                                        <span class="review-breakdown-percent">{{ item.percent }}%</span>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% if can_review %}
+                            <a class="review-cta" href="#write-review">+ Write a Review</a>
+                        {% else %}
+                            <a class="review-cta" href="{% url 'account_login_choice' %}">Login to write a review</a>
+                        {% endif %}
                     </div>
-                {% else %}
-                    <p class="detail-empty">No reviews yet. Be the first to share your experience.</p>
-                {% endif %}
+                    <div class="review-feed">
+                        <div class="review-feed-header">
+                            <div>
+                                <h3>Customer Reviews</h3>
+                                <p>Verified traveler feedback</p>
+                            </div>
+                            <form class="review-sort" method="get">
+                                <label for="review-sort">Sort</label>
+                                <select id="review-sort" name="sort" onchange="this.form.submit()">
+                                    <option value="recent" {% if review_sort == 'recent' %}selected{% endif %}>Most Recent</option>
+                                    <option value="highest" {% if review_sort == 'highest' %}selected{% endif %}>Highest Rated</option>
+                                    <option value="lowest" {% if review_sort == 'lowest' %}selected{% endif %}>Lowest Rated</option>
+                                </select>
+                            </form>
+                        </div>
+
+                        {% if reviews %}
+                            <div class="package-review-list">
+                                {% for review in reviews %}
+                                    {% with reviewer=review.traveler.get_full_name|default:review.traveler.username|default:"Traveler" %}
+                                        <article class="package-review-card">
+                                            <div class="review-card-top">
+                                                <div class="reviewer">
+                                                    <div class="reviewer-avatar">{{ reviewer|slice:":1" }}</div>
+                                                    <div>
+                                                        <div class="reviewer-name">{{ reviewer }}</div>
+                                                        <div class="reviewer-meta">{{ review.created_at|date:"F d, Y" }} • Verified Traveler</div>
+                                                    </div>
+                                                </div>
+                                                <div class="review-card-stars" aria-label="{{ review.rating }} out of 5 stars">
+                                                    {% for star in "12345" %}
+                                                        <span class="{% if forloop.counter <= review.rating %}filled{% endif %}">&#9733;</span>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            <p class="review-card-comment">{{ review.comment|default:"Great experience!" }}</p>
+                                        </article>
+                                    {% endwith %}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="detail-empty">No reviews yet. Be the first to share your experience.</p>
+                        {% endif %}
+
+                        {% if can_review %}
+                            <div class="review-form-card" id="write-review">
+                                <h4>Write a Review</h4>
+                                <form method="POST" action="{% url 'submit_review' %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.path }}">
+                                    <input type="hidden" name="package" value="{{ package.id }}">
+                                    <div class="review-form-grid">
+                                        <div class="form-field">
+                                            <label for="detail-rating">Rating</label>
+                                            <select id="detail-rating" name="rating" required>
+                                                <option value="">Select rating</option>
+                                                <option value="5">&#9733;&#9733;&#9733;&#9733;&#9733; (5)</option>
+                                                <option value="4">&#9733;&#9733;&#9733;&#9733;&#9734; (4)</option>
+                                                <option value="3">&#9733;&#9733;&#9733;&#9734;&#9734; (3)</option>
+                                                <option value="2">&#9733;&#9733;&#9734;&#9734;&#9734; (2)</option>
+                                                <option value="1">&#9733;&#9734;&#9734;&#9734;&#9734; (1)</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-field span-2">
+                                            <label for="detail-comment">Comment</label>
+                                            <textarea id="detail-comment" name="comment" rows="3" placeholder="Share your experience." required></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="review-form-actions">
+                                        <button class="btn-primary" type="submit">Submit Review</button>
+                                    </div>
+                                </form>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </section>
 

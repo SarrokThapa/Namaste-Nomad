@@ -200,6 +200,78 @@
                     </div>
                 </section>
             </form>
+
+            <section class="card review-entry-card">
+                <div class="card-header">
+                    <h2>Leave a Review</h2>
+                    <p class="card-subtitle">Share your trip experience with the community.</p>
+                </div>
+                {% if review_packages %}
+                    <form class="review-form" method="POST" action="{% url 'submit_review' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{% url 'traveler_profile' %}">
+                        <div class="review-form-grid">
+                            <div class="form-group">
+                                <label for="profile-review-package">Trip Package</label>
+                                <select id="profile-review-package" class="form-control" name="package" required>
+                                    <option value="">Select a package</option>
+                                    {% for package in review_packages %}
+                                        <option value="{{ package.id }}">{{ package.title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="profile-review-rating">Rating</label>
+                                <select id="profile-review-rating" class="form-control" name="rating" required>
+                                    <option value="">Select rating</option>
+                                    <option value="5">&#9733;&#9733;&#9733;&#9733;&#9733; (5)</option>
+                                    <option value="4">&#9733;&#9733;&#9733;&#9733;&#9734; (4)</option>
+                                    <option value="3">&#9733;&#9733;&#9733;&#9734;&#9734; (3)</option>
+                                    <option value="2">&#9733;&#9733;&#9734;&#9734;&#9734; (2)</option>
+                                    <option value="1">&#9733;&#9734;&#9734;&#9734;&#9734; (1)</option>
+                                </select>
+                            </div>
+                            <div class="form-group span-2">
+                                <label for="profile-review-comment">Comment</label>
+                                <textarea id="profile-review-comment" class="form-control" name="comment" rows="3" placeholder="What stood out on your trip?" required></textarea>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button type="submit" class="btn-primary">Submit Review</button>
+                        </div>
+                    </form>
+                {% else %}
+                    <p class="empty-state">No active packages available for review.</p>
+                {% endif %}
+            </section>
+
+            <section class="card review-list-card">
+                <div class="card-header">
+                    <h2>Your Recent Reviews</h2>
+                </div>
+                <div class="review-list">
+                    {% if traveler_reviews %}
+                        {% for review in traveler_reviews %}
+                            <div class="review-item">
+                                <div class="review-item-header">
+                                    <div>
+                                        <div class="review-title">{{ review.package.title }}</div>
+                                        <div class="review-date">{{ review.created_at|date:"M d, Y" }}</div>
+                                    </div>
+                                    <div class="review-stars" aria-label="{{ review.rating }} out of 5 stars">
+                                        {% for star in "12345" %}
+                                            <span class="{% if forloop.counter <= review.rating %}filled{% endif %}">&#9733;</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <p class="review-comment">{{ review.comment|default:"No comment provided." }}</p>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">You haven't posted any reviews yet.</div>
+                    {% endif %}
+                </div>
+            </section>
         </main>
     </div>
 </body>

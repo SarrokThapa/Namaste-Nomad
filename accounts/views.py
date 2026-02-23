@@ -763,6 +763,8 @@ def traveler_profile(request):
         return redirect('traveler_profile')
 
     full_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+    traveler_reviews = Review.objects.filter(traveler=request.user).select_related('package').order_by('-created_at')[:6]
+    review_packages = Package.objects.filter(is_active=True).order_by('title')
     activity = [
         {
             'title': 'Left a review for Everest Base Camp Trek',
@@ -784,6 +786,8 @@ def traveler_profile(request):
     return render(request, 'accounts/traveler_profile.html', {
         'profile': profile,
         'full_name': full_name,
+        'traveler_reviews': traveler_reviews,
+        'review_packages': review_packages,
         'activity': activity,
         'active_page': 'profile',
     })
