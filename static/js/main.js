@@ -1,7 +1,14 @@
-function togglePassword(inputId) {
+function togglePassword(inputId, toggleButton) {
     const input = document.getElementById(inputId);
-    const type = input.type === 'password' ? 'text' : 'password';
-    input.type = type;
+    if (!input) {
+        return;
+    }
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    if (toggleButton) {
+        toggleButton.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+        toggleButton.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+    }
 }
 
 // File Upload Handler

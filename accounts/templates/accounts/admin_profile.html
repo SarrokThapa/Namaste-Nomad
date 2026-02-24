@@ -180,15 +180,39 @@
                     <div class="profile-grid">
                         <div class="form-group span-2">
                             <label>Current Password</label>
-                            <input class="form-control" type="password" name="current_password" placeholder="Enter current password">
+                            <div class="password-input">
+                                <input class="form-control" type="password" id="adminCurrentPassword" name="current_password" placeholder="Enter current password">
+                                <button type="button" class="toggle-password" onclick="togglePassword('adminCurrentPassword', this)" aria-label="Show password" aria-pressed="false">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                         <div class="form-group span-2">
                             <label>New Password</label>
-                            <input class="form-control" type="password" name="new_password" placeholder="Enter new password">
+                            <div class="password-input">
+                                <input class="form-control" type="password" id="adminNewPassword" name="new_password" placeholder="Enter new password">
+                                <button type="button" class="toggle-password" onclick="togglePassword('adminNewPassword', this)" aria-label="Show password" aria-pressed="false">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                         <div class="form-group span-2">
                             <label>Confirm New Password</label>
-                            <input class="form-control" type="password" name="confirm_password" placeholder="Confirm new password">
+                            <div class="password-input">
+                                <input class="form-control" type="password" id="adminConfirmPassword" name="confirm_password" placeholder="Confirm new password">
+                                <button type="button" class="toggle-password" onclick="togglePassword('adminConfirmPassword', this)" aria-label="Show password" aria-pressed="false">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                         <div class="form-group span-2">
                             <div class="toggle-row">
@@ -249,5 +273,7 @@
             </section>
         </main>
     </div>
+
+    <script src="/static/js/main.js"></script>
 </body>
 </html>
