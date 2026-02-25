@@ -290,27 +290,27 @@ section {
 }
 
 .trek-everest {
-    background-image: url("../images/everest-base-camp.jpg");
+    background-image: url("../images/featured/everest-base-camp.jpg");
 }
 
 .trek-annapurna {
-    background-image: url("../images/annapurna-circuit.jpg");
+    background-image: url("../images/featured/annapurna-circuit.jpg");
 }
 
 .trek-manaslu {
-    background-image: url("../images/manaslu-circuit.jpg");
+    background-image: url("../images/featured/manaslu-circuit.jpg");
 }
 
 .trek-tilicho {
-    background-image: url("../images/tilicho-lake.jpg");
+    background-image: url("../images/featured/tilicho-lake.jpg");
 }
 
 .trek-lumbini {
-    background-image: url("../images/lumbini-heritage.jpg");
+    background-image: url("../images/featured/lumbini-heritage.jpg");
 }
 
 .trek-swayambhu {
-    background-image: url("../images/swayambhu-stupa.jpg");
+    background-image: url("../images/featured/swayambhu-valley.jpg");
 }
 
 .tag {
