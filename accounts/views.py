@@ -5,6 +5,7 @@ from functools import wraps
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
+from django.core.files.images import get_image_dimensions
 from django.db.models import Avg, Count, Max, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -44,6 +45,17 @@ def _delete_stored_file(instance, field_name, file_name):
     storage = instance._meta.get_field(field_name).storage
     if storage.exists(file_name):
         storage.delete(file_name)
+
+
+def _is_valid_uploaded_image(uploaded_file):
+    if uploaded_file is None:
+        return False
+    try:
+        get_image_dimensions(uploaded_file)
+        uploaded_file.seek(0)
+    except Exception:
+        return False
+    return True
 
 
 def _ensure_vendor(request):
@@ -386,6 +398,7 @@ def vendor_profile(request):
         form = VendorProfileForm(request.POST, request.FILES, instance=vendor_profile)
         email = (request.POST.get('email') or '').strip()
         phone = (request.POST.get('phone') or '').strip()
+        remove_logo = request.POST.get('remove_logo') == '1'
 
         if email and email != request.user.email:
             if User.objects.filter(email=email).exclude(id=request.user.id).exists():
@@ -398,16 +411,17 @@ def vendor_profile(request):
         request.user.save()
 
         if form.is_valid():
-            remove_logo = request.POST.get('remove_logo') == '1'
+            uploading_new_logo = bool(request.FILES.get('logo'))
             profile_instance = form.save(commit=False)
 
             if remove_logo:
-                _delete_stored_file(profile_instance, 'logo', old_logo_name)
                 profile_instance.logo = None
-            elif request.FILES.get('logo'):
-                _delete_stored_file(profile_instance, 'logo', old_logo_name)
 
             profile_instance.save()
+            if remove_logo or uploading_new_logo:
+                current_logo_name = profile_instance.logo.name if profile_instance.logo else ''
+                if old_logo_name and old_logo_name != current_logo_name:
+                    _delete_stored_file(profile_instance, 'logo', old_logo_name)
             messages.success(request, 'Profile updated successfully.')
             return redirect('vendor_profile')
         messages.error(request, 'Please correct the errors below.')
@@ -557,6 +571,10 @@ def admin_profile(request):
         avatar = request.FILES.get('avatar')
         remove_avatar = request.POST.get('remove_avatar') == '1'
 
+        if avatar and not _is_valid_uploaded_image(avatar):
+            messages.error(request, 'Please upload a valid image file.')
+            return redirect('admin_profile')
+
         current_password = request.POST.get('current_password') or ''
         new_password = request.POST.get('new_password') or ''
         confirm_password = request.POST.get('confirm_password') or ''
@@ -577,14 +595,17 @@ def admin_profile(request):
         request.user.save()
 
         profile.bio = bio
+        uploading_new_avatar = bool(avatar)
         if remove_avatar:
-            _delete_stored_file(profile, 'avatar', old_avatar_name)
             profile.avatar = None
         elif avatar:
-            _delete_stored_file(profile, 'avatar', old_avatar_name)
             profile.avatar = avatar
 
         profile.save()
+        if remove_avatar or uploading_new_avatar:
+            current_avatar_name = profile.avatar.name if profile.avatar else ''
+            if old_avatar_name and old_avatar_name != current_avatar_name:
+                _delete_stored_file(profile, 'avatar', old_avatar_name)
 
         if current_password or new_password or confirm_password:
             if not request.user.check_password(current_password):
@@ -772,6 +793,10 @@ def traveler_profile(request):
         avatar = request.FILES.get('avatar')
         remove_avatar = request.POST.get('remove_avatar') == '1'
 
+        if avatar and not _is_valid_uploaded_image(avatar):
+            messages.error(request, 'Please upload a valid image file.')
+            return redirect('traveler_profile')
+
         if full_name:
             parts = full_name.split()
             request.user.first_name = parts[0]
@@ -791,13 +816,16 @@ def traveler_profile(request):
         profile.nationality = nationality
         profile.bio = bio
         profile.date_of_birth = date_of_birth or None
+        uploading_new_avatar = bool(avatar)
         if remove_avatar:
-            _delete_stored_file(profile, 'avatar', old_avatar_name)
             profile.avatar = None
         elif avatar:
-            _delete_stored_file(profile, 'avatar', old_avatar_name)
             profile.avatar = avatar
         profile.save()
+        if remove_avatar or uploading_new_avatar:
+            current_avatar_name = profile.avatar.name if profile.avatar else ''
+            if old_avatar_name and old_avatar_name != current_avatar_name:
+                _delete_stored_file(profile, 'avatar', old_avatar_name)
 
         messages.success(request, 'Profile updated successfully.')
         return redirect('traveler_profile')

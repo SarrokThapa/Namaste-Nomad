@@ -29,7 +29,14 @@
                 {% endif %}
                 <label class="avatar-button" for="vendorLogo">+</label>
                 {% if vendor_profile.logo %}
-                    <button class="avatar-remove" type="submit" name="remove_logo" value="1">x</button>
+                    <button class="avatar-remove" type="submit" name="remove_logo" value="1" aria-label="Remove profile picture" title="Remove profile picture">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M3 6h18"/>
+                            <path d="M8 6V4h8v2"/>
+                            <path d="M19 6l-1 14H6L5 6"/>
+                            <path d="M10 11v6M14 11v6"/>
+                        </svg>
+                    </button>
                 {% endif %}
             </div>
             <div class="vendor-summary-text">

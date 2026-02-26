@@ -90,7 +90,9 @@ body {
 .chip-avatar img {
     width: 100%;
     height: 100%;
+    display: block;
     object-fit: cover;
+    border-radius: 50%;
 }
 
 .traveler-shell {
@@ -211,7 +213,9 @@ body {
 .avatar-wrap img {
     width: 100%;
     height: 100%;
+    display: block;
     object-fit: cover;
+    border-radius: 50%;
 }
 
 .avatar-fallback {
@@ -255,9 +259,13 @@ body {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 0.72rem;
-    font-weight: 700;
     line-height: 1;
+    padding: 0;
+}
+
+.avatar-remove svg {
+    width: 14px;
+    height: 14px;
 }
 
 .profile-card h1 {
