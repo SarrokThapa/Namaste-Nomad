@@ -20,7 +20,11 @@
         <div class="topbar-actions">
             <div class="admin-user">
                 <div class="avatar">
-                    <span>{{ request.user.first_name|default:"A"|slice:":1" }}</span>
+                    {% if admin_profile and admin_profile.avatar %}
+                        <img src="{{ admin_profile.avatar.url }}" alt="Admin avatar">
+                    {% else %}
+                        <img src="{% static 'images/default-avatar.svg' %}" alt="Default admin avatar">
+                    {% endif %}
                 </div>
                 <span>{{ request.user.first_name|default:"Admin" }}</span>
             </div>
@@ -30,10 +34,42 @@
     <div class="dashboard-shell admin-shell">
         <aside class="sidebar admin-sidebar">
             <nav class="sidebar-nav">
-                <a class="nav-item" href="{% url 'admin_dashboard' %}">Dashboard</a>
-                <a class="nav-item active" href="{% url 'admin_dashboard' %}#vendors">Vendors</a>
-                <a class="nav-item" href="{% url 'admin_profile' %}">Profile</a>
-                <a class="nav-item logout" href="{% url 'logout' %}">Logout</a>
+                <a class="nav-item" href="{% url 'admin_dashboard' %}">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 13h8V3H3v10zM13 21h8V11h-8v10zM13 3h8v6h-8V3zM3 21h8v-6H3v6z"/>
+                        </svg>
+                    </span>
+                    Dashboard
+                </a>
+                <a class="nav-item active" href="{% url 'admin_dashboard' %}#vendors">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="7" width="18" height="13" rx="2"/>
+                            <path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </span>
+                    Vendors
+                </a>
+                <a class="nav-item" href="{% url 'admin_profile' %}">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="8" r="4"/>
+                            <path d="M4 20c2-4 6-6 8-6s6 2 8 6"/>
+                        </svg>
+                    </span>
+                    Profile
+                </a>
+                <a class="nav-item logout" href="{% url 'logout' %}">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10 17l5-5-5-5"/>
+                            <path d="M15 12H3"/>
+                            <path d="M11 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8"/>
+                        </svg>
+                    </span>
+                    Logout
+                </a>
             </nav>
         </aside>
 

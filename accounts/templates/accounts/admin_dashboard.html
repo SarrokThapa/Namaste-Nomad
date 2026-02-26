@@ -20,7 +20,11 @@
         <div class="topbar-actions">
             <div class="admin-user">
                 <div class="avatar">
-                    <span>{{ request.user.first_name|default:"A"|slice:":1" }}</span>
+                    {% if admin_profile and admin_profile.avatar %}
+                        <img src="{{ admin_profile.avatar.url }}" alt="Admin avatar">
+                    {% else %}
+                        <img src="{% static 'images/default-avatar.svg' %}" alt="Default admin avatar">
+                    {% endif %}
                 </div>
                 <span>{{ request.user.first_name|default:"Admin" }}</span>
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -118,7 +122,13 @@
                     Profile
                 </a>
                 <a class="nav-item logout" href="{% url 'logout' %}">
-                    <span class="nav-icon">&gt;</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10 17l5-5-5-5"/>
+                            <path d="M15 12H3"/>
+                            <path d="M11 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8"/>
+                        </svg>
+                    </span>
                     Logout
                 </a>
             </nav>

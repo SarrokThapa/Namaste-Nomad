@@ -38,6 +38,14 @@ def _get_traveler_profile(user):
         return None
 
 
+def _delete_stored_file(instance, field_name, file_name):
+    if not file_name:
+        return
+    storage = instance._meta.get_field(field_name).storage
+    if storage.exists(file_name):
+        storage.delete(file_name)
+
+
 def _ensure_vendor(request):
     if getattr(request.user, 'user_type', '') != 'vendor':
         messages.error(request, 'Vendor access only.')
@@ -374,6 +382,7 @@ def vendor_profile(request):
         )
 
     if request.method == 'POST':
+        old_logo_name = vendor_profile.logo.name if vendor_profile.logo else ''
         form = VendorProfileForm(request.POST, request.FILES, instance=vendor_profile)
         email = (request.POST.get('email') or '').strip()
         phone = (request.POST.get('phone') or '').strip()
@@ -389,7 +398,16 @@ def vendor_profile(request):
         request.user.save()
 
         if form.is_valid():
-            form.save()
+            remove_logo = request.POST.get('remove_logo') == '1'
+            profile_instance = form.save(commit=False)
+
+            if remove_logo:
+                _delete_stored_file(profile_instance, 'logo', old_logo_name)
+                profile_instance.logo = None
+            elif request.FILES.get('logo'):
+                _delete_stored_file(profile_instance, 'logo', old_logo_name)
+
+            profile_instance.save()
             messages.success(request, 'Profile updated successfully.')
             return redirect('vendor_profile')
         messages.error(request, 'Please correct the errors below.')
@@ -408,6 +426,7 @@ def vendor_profile(request):
 
 @admin_required
 def admin_dashboard(request):
+    admin_profile = _get_admin_profile(request.user)
     vendors = User.objects.filter(user_type='vendor').select_related('vendor_profile').annotate(
         package_count=Count('vendor_packages', distinct=True),
     ).order_by('-date_joined')
@@ -509,6 +528,7 @@ def admin_dashboard(request):
     }
 
     return render(request, 'accounts/admin_dashboard.html', {
+        'admin_profile': admin_profile,
         'vendors': vendors,
         'pending_vendors': pending_vendors,
         'travelers': travelers,
@@ -529,11 +549,13 @@ def admin_profile(request):
         profile = AdminProfile.objects.create(user=request.user)
 
     if request.method == 'POST':
+        old_avatar_name = profile.avatar.name if profile.avatar else ''
         full_name = (request.POST.get('full_name') or '').strip()
         email = (request.POST.get('email') or '').strip()
         phone = (request.POST.get('phone') or '').strip()
         bio = (request.POST.get('bio') or '').strip()
         avatar = request.FILES.get('avatar')
+        remove_avatar = request.POST.get('remove_avatar') == '1'
 
         current_password = request.POST.get('current_password') or ''
         new_password = request.POST.get('new_password') or ''
@@ -555,12 +577,12 @@ def admin_profile(request):
         request.user.save()
 
         profile.bio = bio
-        if avatar:
+        if remove_avatar:
+            _delete_stored_file(profile, 'avatar', old_avatar_name)
+            profile.avatar = None
+        elif avatar:
+            _delete_stored_file(profile, 'avatar', old_avatar_name)
             profile.avatar = avatar
-
-        if profile.avatar is None and avatar is None:
-            messages.error(request, 'Profile photo is required.')
-            return redirect('admin_profile')
 
         profile.save()
 
@@ -594,7 +616,6 @@ def admin_profile(request):
         'full_name': full_name,
         'pending_vendors': pending_vendors,
         'active_page': 'profile',
-        'photo_required': profile.avatar is None,
     })
 
 
@@ -654,9 +675,11 @@ def admin_package_toggle(request, package_id):
 def admin_vendor_detail(request, vendor_id):
     vendor = get_object_or_404(User, id=vendor_id, user_type='vendor')
     profile = _get_vendor_profile(vendor)
+    admin_profile = _get_admin_profile(request.user)
     packages = Package.objects.filter(vendor=vendor).order_by('-created_at')
 
     return render(request, 'accounts/admin_vendor_detail.html', {
+        'admin_profile': admin_profile,
         'vendor': vendor,
         'vendor_profile': profile,
         'packages': packages,
@@ -738,6 +761,7 @@ def traveler_profile(request):
         profile = TravelerProfile.objects.create(user=request.user)
 
     if request.method == 'POST':
+        old_avatar_name = profile.avatar.name if profile.avatar else ''
         full_name = (request.POST.get('full_name') or '').strip()
         email = (request.POST.get('email') or '').strip()
         phone = (request.POST.get('phone') or '').strip()
@@ -746,6 +770,7 @@ def traveler_profile(request):
         nationality = (request.POST.get('nationality') or '').strip()
         bio = (request.POST.get('bio') or '').strip()
         avatar = request.FILES.get('avatar')
+        remove_avatar = request.POST.get('remove_avatar') == '1'
 
         if full_name:
             parts = full_name.split()
@@ -766,7 +791,11 @@ def traveler_profile(request):
         profile.nationality = nationality
         profile.bio = bio
         profile.date_of_birth = date_of_birth or None
-        if avatar:
+        if remove_avatar:
+            _delete_stored_file(profile, 'avatar', old_avatar_name)
+            profile.avatar = None
+        elif avatar:
+            _delete_stored_file(profile, 'avatar', old_avatar_name)
             profile.avatar = avatar
         profile.save()
 

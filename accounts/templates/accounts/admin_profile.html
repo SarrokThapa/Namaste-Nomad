@@ -20,7 +20,11 @@
         <div class="topbar-actions">
             <div class="admin-user">
                 <div class="avatar">
-                    <span>{{ request.user.first_name|default:"A"|slice:":1" }}</span>
+                    {% if profile.avatar %}
+                        <img src="{{ profile.avatar.url }}" alt="Admin avatar">
+                    {% else %}
+                        <img src="{% static 'images/default-avatar.svg' %}" alt="Default admin avatar">
+                    {% endif %}
                 </div>
                 <span>{{ request.user.first_name|default:"Admin" }}</span>
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -108,7 +112,13 @@
                     Profile
                 </a>
                 <a class="nav-item logout" href="{% url 'logout' %}">
-                    <span class="nav-icon">&gt;</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10 17l5-5-5-5"/>
+                            <path d="M15 12H3"/>
+                            <path d="M11 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8"/>
+                        </svg>
+                    </span>
                     Logout
                 </a>
             </nav>
@@ -129,15 +139,18 @@
                 <section class="admin-card admin-profile-card">
                     <h2>Admin Profile</h2>
                     <div class="profile-hero">
-                    <div class="profile-avatar {% if photo_required %}missing{% endif %}">
+                    <div class="profile-avatar">
                         {% if profile.avatar %}
                             <img src="{{ profile.avatar.url }}" alt="Admin Avatar">
                         {% else %}
-                            <div class="avatar-fallback">{{ request.user.first_name|default:"A"|slice:":1" }}</div>
+                            <img src="{% static 'images/default-avatar.svg' %}" alt="Default admin avatar">
                         {% endif %}
                             <label class="avatar-upload" for="adminAvatar">
                                 <span>+</span>
                             </label>
+                            {% if profile.avatar %}
+                                <button class="avatar-remove" type="submit" name="remove_avatar" value="1">x</button>
+                            {% endif %}
                         </div>
                         <div class="profile-meta">
                             <h3>{{ full_name }}</h3>
@@ -164,9 +177,6 @@
                             <label class="file-field" for="adminAvatar">
                                 <span>Choose File</span>
                             </label>
-                            {% if photo_required %}
-                                <span class="field-hint danger">Profile photo is required.</span>
-                            {% endif %}
                         </div>
                         <div class="form-group span-2">
                             <label>Bio/Description</label>

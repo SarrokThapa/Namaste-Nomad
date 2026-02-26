@@ -390,6 +390,24 @@
     display: none;
 }
 
+.avatar-remove {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #ef4444;
+    color: #fff;
+    border: 2px solid #fff;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
 .profile-meta h3 {
     font-size: 1.2rem;
     margin-bottom: 0.3rem;

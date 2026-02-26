@@ -30,7 +30,7 @@ class VendorProfile(models.Model):
     account_number = models.CharField(max_length=120, blank=True)
     routing_number = models.CharField(max_length=120, blank=True)
     paypal_email = models.EmailField(blank=True)
-    logo = models.FileField(upload_to='vendor_logos/', blank=True, null=True)
+    logo = models.ImageField(upload_to='vendor_logos/', blank=True, null=True)
     cover_image = models.FileField(upload_to='vendor_covers/', blank=True, null=True)
     business_license = models.FileField(upload_to='licenses/', blank=True, null=True)
     is_approved = models.BooleanField(default=False)
@@ -43,7 +43,7 @@ class VendorProfile(models.Model):
 class AdminProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='admin_profile')
     bio = models.TextField(blank=True)
-    avatar = models.FileField(upload_to='admin_avatars/', blank=True, null=True)
+    avatar = models.ImageField(upload_to='admin_avatars/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -63,7 +63,7 @@ class TravelerProfile(models.Model):
     gender = models.CharField(max_length=20, choices=GENDER_CHOICES, blank=True)
     nationality = models.CharField(max_length=80, blank=True)
     bio = models.TextField(blank=True)
-    avatar = models.FileField(upload_to='avatars/', blank=True, null=True)
+    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

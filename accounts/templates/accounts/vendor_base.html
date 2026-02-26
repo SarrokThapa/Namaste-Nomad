@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -24,7 +25,11 @@
                 </svg>
             </button>
             <div class="avatar">
-                <span>{{ request.user.first_name|default:"V" }}</span>
+                {% if vendor_profile and vendor_profile.logo %}
+                    <img src="{{ vendor_profile.logo.url }}" alt="Vendor avatar">
+                {% else %}
+                    <img src="{% static 'images/default-avatar.svg' %}" alt="Default vendor avatar">
+                {% endif %}
             </div>
         </div>
     </header>
@@ -42,35 +47,77 @@
             </div>
             <nav class="sidebar-nav">
                 <a class="nav-item {% if active_page == 'dashboard' %}active{% endif %}" href="{% url 'vendor_dashboard' %}">
-                    <span class="nav-icon">&gt;</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M3 13h8V3H3v10zM13 21h8V11h-8v10zM13 3h8v6h-8V3zM3 21h8v-6H3v6z"/>
+                        </svg>
+                    </span>
                     Dashboard
                 </a>
                 <a class="nav-item {% if active_page == 'packages' %}active{% endif %}" href="{% url 'vendor_packages' %}">
-                    <span class="nav-icon">&gt;</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M21 8a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 8"/>
+                            <path d="M3 8V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2"/>
+                            <path d="M3 8v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8"/>
+                        </svg>
+                    </span>
                     Packages
                 </a>
                 <a class="nav-item {% if active_page == 'bookings' %}active{% endif %}" href="{% url 'vendor_bookings' %}">
-                    <span class="nav-icon">&gt;</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <rect x="3" y="4" width="18" height="18" rx="2"/>
+                            <path d="M16 2v4M8 2v4M3 10h18"/>
+                        </svg>
+                    </span>
                     Bookings
                 </a>
                 <a class="nav-item {% if active_page == 'reviews' %}active{% endif %}" href="{% url 'vendor_reviews' %}">
-                    <span class="nav-icon">&gt;</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M12 17l-5 3 1-5-4-4 5-1 3-5 3 5 5 1-4 4 1 5-5-3z"/>
+                        </svg>
+                    </span>
                     Reviews
                 </a>
                 <a class="nav-item {% if active_page == 'analytics' %}active{% endif %}" href="{% url 'vendor_analytics' %}">
-                    <span class="nav-icon">&gt;</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M4 19h16"/>
+                            <path d="M7 15v-5"/>
+                            <path d="M12 15V7"/>
+                            <path d="M17 15v-8"/>
+                        </svg>
+                    </span>
                     Analytics
                 </a>
                 <a class="nav-item {% if active_page == 'profile' %}active{% endif %}" href="{% url 'vendor_profile' %}">
-                    <span class="nav-icon">&gt;</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <circle cx="12" cy="8" r="4"/>
+                            <path d="M4 20c2-4 6-6 8-6s6 2 8 6"/>
+                        </svg>
+                    </span>
                     Profile
                 </a>
                 <a class="nav-item {% if active_page == 'settings' %}active{% endif %}" href="{% url 'vendor_settings' %}">
-                    <span class="nav-icon">&gt;</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.7 1.7 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.82-.33 1.7 1.7 0 0 0-1 1.54V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.54 1.7 1.7 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .33-1.82 1.7 1.7 0 0 0-1.54-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.54-1 1.7 1.7 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.82.33h.01a1.7 1.7 0 0 0 1-1.54V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.54h.01a1.7 1.7 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.33 1.82v.01a1.7 1.7 0 0 0 1.54 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.54 1z"/>
+                        </svg>
+                    </span>
                     Settings
                 </a>
                 <a class="nav-item logout" href="{% url 'logout' %}">
-                    <span class="nav-icon">&gt;</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M10 17l5-5-5-5"/>
+                            <path d="M15 12H3"/>
+                            <path d="M11 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8"/>
+                        </svg>
+                    </span>
                     Logout
                 </a>
             </nav>

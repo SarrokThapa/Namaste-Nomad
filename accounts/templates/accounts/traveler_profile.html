@@ -19,7 +19,11 @@
         <div class="topbar-actions">
             <div class="user-chip">
                 <div class="chip-avatar">
-                    {{ request.user.first_name|default:"T"|slice:":1" }}
+                    {% if profile.avatar %}
+                        <img src="{{ profile.avatar.url }}" alt="Traveler avatar">
+                    {% else %}
+                        <img src="{% static 'images/default-avatar.svg' %}" alt="Default traveler avatar">
+                    {% endif %}
                 </div>
                 <span>{{ request.user.first_name|default:"Traveler" }}</span>
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -33,35 +37,73 @@
         <aside class="traveler-sidebar">
             <nav class="sidebar-nav">
                 <a class="nav-item" href="#">
-                    <span class="nav-icon">▸</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M3 13h8V3H3v10zM13 21h8V11h-8v10zM13 3h8v6h-8V3zM3 21h8v-6H3v6z"/>
+                        </svg>
+                    </span>
                     Dashboard
                 </a>
                 <a class="nav-item" href="#">
-                    <span class="nav-icon">▸</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <rect x="3" y="4" width="18" height="18" rx="2"/>
+                            <path d="M16 2v4M8 2v4M3 10h18"/>
+                        </svg>
+                    </span>
                     My Bookings
                 </a>
                 <a class="nav-item" href="#">
-                    <span class="nav-icon">▸</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M12 21s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 5.65-7 10-7 10z"/>
+                        </svg>
+                    </span>
                     Wishlist
                 </a>
                 <a class="nav-item" href="#">
-                    <span class="nav-icon">▸</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M12 17l-5 3 1-5-4-4 5-1 3-5 3 5 5 1-4 4 1 5-5-3z"/>
+                        </svg>
+                    </span>
                     Reviews
                 </a>
                 <a class="nav-item" href="#">
-                    <span class="nav-icon">▸</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M8 21h8"/>
+                            <path d="M12 17v4"/>
+                            <path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/>
+                        </svg>
+                    </span>
                     Badges
                 </a>
                 <a class="nav-item" href="#">
-                    <span class="nav-icon">▸</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/>
+                        </svg>
+                    </span>
                     Community Posts
                 </a>
                 <a class="nav-item active" href="{% url 'traveler_profile' %}">
-                    <span class="nav-icon">▸</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <circle cx="12" cy="8" r="4"/>
+                            <path d="M4 20c2-4 6-6 8-6s6 2 8 6"/>
+                        </svg>
+                    </span>
                     Profile
                 </a>
                 <a class="nav-item logout" href="{% url 'logout' %}">
-                    <span class="nav-icon">▸</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M10 17l5-5-5-5"/>
+                            <path d="M15 12H3"/>
+                            <path d="M11 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8"/>
+                        </svg>
+                    </span>
                     Logout
                 </a>
             </nav>
@@ -85,14 +127,15 @@
                             {% if profile.avatar %}
                                 <img src="{{ profile.avatar.url }}" alt="Traveler avatar">
                             {% else %}
-                                <div class="avatar-fallback">
-                                    {{ request.user.first_name|default:"T"|slice:":1" }}
-                                </div>
+                                <img src="{% static 'images/default-avatar.svg' %}" alt="Default traveler avatar">
                             {% endif %}
                             <label class="avatar-action" title="Update photo">
                                 <input type="file" name="avatar" accept="image/*">
                                 <span>+</span>
                             </label>
+                            {% if profile.avatar %}
+                                <button class="avatar-remove" type="submit" name="remove_avatar" value="1">x</button>
+                            {% endif %}
                         </div>
                         <div>
                             <h1>{{ full_name }}</h1>
