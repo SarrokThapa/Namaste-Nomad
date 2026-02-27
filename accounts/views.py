@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.core.files.images import get_image_dimensions
-from django.db.models import Avg, Count, Max, Sum
+from django.db.models import Avg, Case, CharField, Count, Max, Q, Sum, Value, When
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -81,6 +81,69 @@ def _ensure_traveler(request):
         messages.error(request, 'Traveler access only.')
         return False
     return True
+
+
+TRAVELER_CATEGORY_LABELS = {
+    'adventure': 'Adventure',
+    'cultural': 'Cultural',
+    'trekking': 'Trekking',
+}
+TRAVELER_CATEGORY_SLUGS = tuple(TRAVELER_CATEGORY_LABELS.keys())
+
+
+def _traveler_category_expression():
+    trekking_match = (
+        Q(title__icontains='trek')
+        | Q(description__icontains='trek')
+        | Q(itinerary__icontains='trek')
+        | Q(title__icontains='base camp')
+        | Q(description__icontains='base camp')
+        | Q(title__icontains='hike')
+        | Q(description__icontains='hike')
+    )
+    cultural_match = (
+        Q(title__icontains='cultural')
+        | Q(description__icontains='cultural')
+        | Q(itinerary__icontains='cultural')
+        | Q(title__icontains='heritage')
+        | Q(description__icontains='heritage')
+        | Q(title__icontains='temple')
+        | Q(description__icontains='temple')
+        | Q(title__icontains='monastery')
+        | Q(description__icontains='monastery')
+    )
+    return Case(
+        When(trekking_match, then=Value('trekking')),
+        When(cultural_match, then=Value('cultural')),
+        default=Value('adventure'),
+        output_field=CharField(),
+    )
+
+
+def _traveler_package_queryset():
+    return (
+        Package.objects.filter(is_active=True)
+        .select_related('vendor')
+        .prefetch_related('images')
+        .annotate(
+            review_count=Count('reviews', distinct=True),
+            avg_rating=Avg('reviews__rating'),
+            booking_count=Count(
+                'bookings',
+                filter=Q(bookings__status='confirmed'),
+                distinct=True,
+            ),
+            category_slug=_traveler_category_expression(),
+        )
+    )
+
+
+def _add_category_labels(packages):
+    for package in packages:
+        package.category_label = TRAVELER_CATEGORY_LABELS.get(
+            getattr(package, 'category_slug', 'adventure'),
+            'Adventure',
+        )
 
 
 def _append_package_images(package, uploaded_images):
@@ -773,6 +836,125 @@ def vendor_package_edit(request, package_id):
 
 @never_cache
 @login_required(login_url='traveler_login')
+def traveler_home(request):
+    if not _ensure_traveler(request):
+        return redirect('traveler_login')
+
+    profile = _get_traveler_profile(request.user)
+    if profile is None:
+        profile = TravelerProfile.objects.create(user=request.user)
+
+    search_query = (request.GET.get('q') or '').strip()
+    selected_category = (request.GET.get('category') or 'all').strip().lower()
+    if selected_category not in {'all', *TRAVELER_CATEGORY_SLUGS}:
+        selected_category = 'all'
+
+    base_packages = _traveler_package_queryset()
+    filtered_packages = base_packages
+
+    if search_query:
+        filtered_packages = filtered_packages.filter(
+            Q(title__icontains=search_query)
+            | Q(location__icontains=search_query)
+            | Q(description__icontains=search_query)
+        )
+
+    if selected_category != 'all':
+        filtered_packages = filtered_packages.filter(category_slug=selected_category)
+
+    category_counts = {
+        'all': base_packages.count(),
+        **{slug: 0 for slug in TRAVELER_CATEGORY_SLUGS},
+    }
+    for row in base_packages.values('category_slug').annotate(total=Count('id')):
+        slug = row['category_slug']
+        if slug in category_counts:
+            category_counts[slug] = row['total']
+
+    featured_packages = list(
+        filtered_packages.order_by(
+            '-avg_rating',
+            '-review_count',
+            '-views_count',
+            '-created_at',
+        )[:4]
+    )
+    featured_ids = {package.id for package in featured_packages}
+
+    recommended_packages = list(
+        filtered_packages.exclude(id__in=featured_ids).order_by(
+            '-booking_count',
+            '-avg_rating',
+            '-review_count',
+            '-views_count',
+            '-created_at',
+        )[:4]
+    )
+
+    recommended_ids = featured_ids | {package.id for package in recommended_packages}
+    recently_added_packages = list(
+        filtered_packages.exclude(id__in=recommended_ids).order_by('-created_at')[:4]
+    )
+
+    _add_category_labels(featured_packages)
+    _add_category_labels(recommended_packages)
+    _add_category_labels(recently_added_packages)
+
+    recent_reviews = Review.objects.filter(package__is_active=True).select_related(
+        'traveler',
+        'package',
+    ).order_by('-created_at')[:6]
+
+    category_filters = [
+        {'slug': 'all', 'label': 'All', 'count': category_counts['all']},
+        *[
+            {
+                'slug': slug,
+                'label': TRAVELER_CATEGORY_LABELS[slug],
+                'count': category_counts[slug],
+            }
+            for slug in TRAVELER_CATEGORY_SLUGS
+        ],
+    ]
+
+    return render(request, 'accounts/traveler_home.html', {
+        'traveler_profile': profile,
+        'active_page': 'explore',
+        'search_query': search_query,
+        'selected_category': selected_category,
+        'category_filters': category_filters,
+        'featured_packages': featured_packages,
+        'recommended_packages': recommended_packages,
+        'recently_added_packages': recently_added_packages,
+        'recent_reviews': recent_reviews,
+        'result_count': filtered_packages.count(),
+        'can_clear_filters': bool(search_query or selected_category != 'all'),
+    })
+
+
+@never_cache
+@login_required(login_url='traveler_login')
+def traveler_bookings(request):
+    if not _ensure_traveler(request):
+        return redirect('traveler_login')
+
+    profile = _get_traveler_profile(request.user)
+    if profile is None:
+        profile = TravelerProfile.objects.create(user=request.user)
+
+    bookings = Booking.objects.filter(traveler=request.user).select_related(
+        'package',
+    ).order_by('-created_at')
+
+    return render(request, 'accounts/traveler_bookings.html', {
+        'traveler_profile': profile,
+        'bookings': bookings,
+        'active_page': 'bookings',
+    })
+
+
+@never_cache
+@login_required(login_url='traveler_login')
 def traveler_profile(request):
     if not _ensure_traveler(request):
         return redirect('traveler_login')
@@ -852,6 +1034,7 @@ def traveler_profile(request):
     ]
 
     return render(request, 'accounts/traveler_profile.html', {
+        'traveler_profile': profile,
         'profile': profile,
         'full_name': full_name,
         'traveler_reviews': traveler_reviews,
@@ -950,7 +1133,7 @@ def traveler_login(request):
                 login(request, user)
                 if _get_traveler_profile(user) is None:
                     TravelerProfile.objects.create(user=user)
-                return redirect('traveler_profile')
+                return redirect('traveler_home')
             else:
                 messages.error(request, 'Invalid credentials')
         except User.DoesNotExist:
@@ -1007,7 +1190,7 @@ def verify_otp_view(request):
             else:
                 if _get_traveler_profile(user) is None:
                     TravelerProfile.objects.create(user=user)
-                return redirect('traveler_profile')
+                return redirect('traveler_home')
         else:
             messages.error(request, 'Invalid or expired OTP')
     

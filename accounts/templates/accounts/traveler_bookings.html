@@ -1,0 +1,33 @@
+{% extends "accounts/traveler_base.html" %}
+
+{% block title %}My Bookings - Namaste Nomad{% endblock %}
+
+{% block traveler_content %}
+    <section class="card bookings-card">
+        <div class="section-head">
+            <h1>My Bookings</h1>
+            <a href="{% url 'traveler_home' %}">Explore more packages</a>
+        </div>
+
+        {% if bookings %}
+            <div class="bookings-list">
+                {% for booking in bookings %}
+                    <article class="booking-item">
+                        <div class="booking-item-main">
+                            <h3><a href="{% url 'package_detail' booking.package.id %}">{{ booking.package.title }}</a></h3>
+                            <p>{{ booking.start_date|date:"M d, Y" }} - {{ booking.end_date|date:"M d, Y" }}</p>
+                            <p>{{ booking.package.location|default:"Nepal" }}</p>
+                        </div>
+                        <div class="booking-item-meta">
+                            <span class="status-pill status-{{ booking.status }}">{{ booking.status|title }}</span>
+                            <strong>Rs {{ booking.total_price|floatformat:0 }}</strong>
+                            <span>Booked {{ booking.created_at|date:"M d, Y" }}</span>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-state">You do not have any bookings yet.</p>
+        {% endif %}
+    </section>
+{% endblock %}

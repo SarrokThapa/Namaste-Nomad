@@ -1,0 +1,241 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traveler Reviews - Namaste Nomad</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/reviews.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="landing-nav">
+        <div class="nav-container">
+            <a class="nav-brand" href="{% url 'home' %}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+                <span>Namaste Nomad</span>
+            </a>
+            <div class="nav-menu">
+                <a href="#">Destinations</a>
+                <a href="{% url 'package_list' %}">Packages</a>
+                <a href="{% url 'review_list' %}">Reviews</a>
+                <a href="{% url 'about' %}">About</a>
+                <a href="{% url 'contact' %}">Contact</a>
+            </div>
+            <div class="nav-actions">
+                <a href="{% url 'account_login_choice' %}" class="btn-ghost">Sign In</a>
+                <a href="{% url 'account_register_choice' %}" class="btn-dark">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    {% if messages %}
+        <div class="alert-stack container-landing">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <header class="reviews-hero">
+        <div class="container-landing">
+            <h1>Traveler Reviews</h1>
+            <p>Read verified traveler experiences from across Namaste Nomad packages.</p>
+        </div>
+    </header>
+
+    <main class="reviews-main">
+        <div class="container-landing reviews-layout">
+            <aside class="reviews-summary-panel">
+                <div class="reviews-summary-card">
+                    <div class="summary-score">{{ avg_rating|floatformat:1 }}</div>
+                    <div class="summary-stars" aria-label="{{ avg_rating|floatformat:1 }} out of 5 stars">
+                        {% for star in "12345" %}
+                            <span class="{% if forloop.counter <= avg_rating|default:0 %}filled{% endif %}">&#9733;</span>
+                        {% endfor %}
+                    </div>
+                    <div class="summary-count">Based on {{ total_reviews }} review{{ total_reviews|pluralize }}</div>
+
+                    <div class="summary-breakdown">
+                        {% for item in rating_breakdown %}
+                            <div class="summary-breakdown-row">
+                                <span>{{ item.stars }}</span>
+                                <span class="filled">&#9733;</span>
+                                <div class="summary-breakdown-bar">
+                                    <span style="width: {{ item.percent }}%"></span>
+                                </div>
+                                <span>{{ item.percent }}%</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% if can_review %}
+                    <a class="write-review-btn" href="#write-review">Write a Review</a>
+                {% elif not is_logged_in %}
+                    <a class="write-review-btn" href="{% url 'account_login_choice' %}">Login to Write a Review</a>
+                {% else %}
+                    <div class="traveler-only-note">Only traveler accounts can submit reviews.</div>
+                {% endif %}
+            </aside>
+
+            <section class="reviews-feed-panel">
+                <div class="reviews-feed-header">
+                    <h2>All Reviews</h2>
+                    <form method="get">
+                        <label for="review-sort">Sort</label>
+                        <select id="review-sort" name="sort" onchange="this.form.submit()">
+                            <option value="recent" {% if review_sort == 'recent' %}selected{% endif %}>Most Recent</option>
+                            <option value="highest" {% if review_sort == 'highest' %}selected{% endif %}>Highest Rated</option>
+                            <option value="lowest" {% if review_sort == 'lowest' %}selected{% endif %}>Lowest Rated</option>
+                        </select>
+                    </form>
+                </div>
+
+                <div class="all-review-list">
+                    {% if reviews %}
+                        {% for review in reviews %}
+                            <article class="all-review-card">
+                                <div class="all-review-head">
+                                    <div class="reviewer">
+                                        <div class="reviewer-avatar">
+                                            {% if review.traveler_avatar_url %}
+                                                <img src="{{ review.traveler_avatar_url }}" alt="{{ review.traveler_name }} avatar">
+                                            {% else %}
+                                                <img src="{% static 'images/default-avatar.svg' %}" alt="Reviewer avatar">
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <div class="reviewer-name">{{ review.traveler_name }}</div>
+                                            <div class="review-date">{{ review.created_at|date:"F d, Y" }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="review-stars" aria-label="{{ review.rating }} out of 5 stars">
+                                        {% for star in "12345" %}
+                                            <span class="{% if forloop.counter <= review.rating %}filled{% endif %}">&#9733;</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <p class="review-comment">{{ review.comment|default:"Great experience!" }}</p>
+                                <a class="review-package-link" href="{% url 'package_detail' review.package.id %}">{{ review.package.title }}</a>
+                            </article>
+                        {% endfor %}
+                    {% else %}
+                        <div class="review-empty">No reviews available yet.</div>
+                    {% endif %}
+                </div>
+
+                {% if page_obj.paginator.num_pages > 1 %}
+                    <nav class="reviews-pagination" aria-label="Review pages">
+                        {% if page_obj.has_previous %}
+                            <a href="?sort={{ review_sort }}&page={{ page_obj.previous_page_number }}">Previous</a>
+                        {% endif %}
+                        <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                        {% if page_obj.has_next %}
+                            <a href="?sort={{ review_sort }}&page={{ page_obj.next_page_number }}">Next</a>
+                        {% endif %}
+                    </nav>
+                {% endif %}
+
+                {% if can_review %}
+                    <section class="review-form-card" id="write-review">
+                        <div class="review-form-header">
+                            <h3>Share Your Experience</h3>
+                            <p>Your review helps other travelers choose with confidence.</p>
+                        </div>
+                        <form class="review-form" method="POST" action="{% url 'submit_review' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{% url 'review_list' %}">
+                            <div class="review-form-grid">
+                                <div class="form-field">
+                                    <label for="review-package">Trip Package</label>
+                                    <select id="review-package" name="package" required>
+                                        <option value="">Select a package</option>
+                                        {% for package in review_packages %}
+                                            <option value="{{ package.id }}">{{ package.title }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-field">
+                                    <label for="review-rating">Rating</label>
+                                    <select id="review-rating" name="rating" required>
+                                        <option value="">Select rating</option>
+                                        <option value="5">&#9733;&#9733;&#9733;&#9733;&#9733; (5)</option>
+                                        <option value="4">&#9733;&#9733;&#9733;&#9733;&#9734; (4)</option>
+                                        <option value="3">&#9733;&#9733;&#9733;&#9734;&#9734; (3)</option>
+                                        <option value="2">&#9733;&#9733;&#9734;&#9734;&#9734; (2)</option>
+                                        <option value="1">&#9733;&#9734;&#9734;&#9734;&#9734; (1)</option>
+                                    </select>
+                                </div>
+                                <div class="form-field span-2">
+                                    <label for="review-comment">Comment</label>
+                                    <textarea id="review-comment" name="comment" rows="4" placeholder="Tell others about your trip experience." required></textarea>
+                                </div>
+                            </div>
+                            <div class="review-form-actions">
+                                <button class="btn-dark" type="submit">Submit Review</button>
+                            </div>
+                        </form>
+                    </section>
+                {% endif %}
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container-landing">
+            <div class="footer-grid">
+                <div class="footer-column">
+                    <div class="footer-brand">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 19l8-14 8 14H4z"/>
+                        </svg>
+                        <span>Namaste Nomad</span>
+                    </div>
+                    <p>Your trusted companion for finding the perfect trekking adventure.</p>
+                </div>
+
+                <div class="footer-column">
+                    <h4>Company</h4>
+                    <ul>
+                        <li><a href="{% url 'about' %}">About Us</a></li>
+                        <li><a href="#">Careers</a></li>
+                        <li><a href="#">Terms &amp; Conditions</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-column">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Safety Guidelines</a></li>
+                        <li><a href="#">Cancellation Policy</a></li>
+                        <li><a href="{% url 'contact' %}">Contact Us</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-column">
+                    <h4>Destinations</h4>
+                    <ul>
+                        <li><a href="#">Nepal</a></li>
+                        <li><a href="#">Tanzania</a></li>
+                        <li><a href="#">Peru</a></li>
+                        <li><a href="#">Chile</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2026 Namaste Nomad. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

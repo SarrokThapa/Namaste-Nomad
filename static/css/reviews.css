@@ -1,0 +1,232 @@
+.reviews-hero {
+    background: linear-gradient(140deg, #d9e9f9 0%, #eef4fb 56%, #f6efe6 100%);
+    padding: 2.8rem 0 2.6rem;
+}
+
+.reviews-hero h1 {
+    font-size: 2.25rem;
+    margin-bottom: 0.45rem;
+}
+
+.reviews-hero p {
+    color: #3f4c5a;
+    font-size: 1rem;
+}
+
+.reviews-main {
+    padding: 2rem 0 4rem;
+}
+
+.reviews-layout {
+    display: grid;
+    grid-template-columns: 310px minmax(0, 1fr);
+    gap: 1.3rem;
+    align-items: start;
+}
+
+.reviews-summary-panel {
+    position: sticky;
+    top: 90px;
+}
+
+.reviews-summary-card {
+    background: #ffffff;
+    border: 1px solid #dce5f0;
+    border-radius: 1rem;
+    padding: 1.3rem;
+    box-shadow: 0 14px 28px rgba(12, 27, 42, 0.08);
+}
+
+.summary-score {
+    font-size: 2.4rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+}
+
+.summary-stars {
+    color: #c9d5e3;
+    font-size: 1rem;
+    letter-spacing: 0.06rem;
+}
+
+.summary-stars .filled {
+    color: #f5b84a;
+}
+
+.summary-count {
+    margin-top: 0.25rem;
+    color: #5b6774;
+    font-size: 0.9rem;
+}
+
+.summary-breakdown {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.summary-breakdown-row {
+    display: grid;
+    grid-template-columns: 12px 14px 1fr 38px;
+    gap: 0.45rem;
+    align-items: center;
+    color: #64748b;
+    font-size: 0.82rem;
+}
+
+.summary-breakdown-bar {
+    height: 7px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+}
+
+.summary-breakdown-bar span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: #f5b84a;
+}
+
+.write-review-btn {
+    margin-top: 0.95rem;
+    width: 100%;
+    display: inline-flex;
+    justify-content: center;
+    text-decoration: none;
+    background: #2bb3a6;
+    color: #fff;
+    border-radius: 0.7rem;
+    padding: 0.7rem 1rem;
+    font-weight: 700;
+}
+
+.write-review-btn:hover {
+    background: #21998e;
+}
+
+.traveler-only-note {
+    margin-top: 0.95rem;
+    background: #fff;
+    border: 1px dashed #cad6e2;
+    border-radius: 0.7rem;
+    padding: 0.9rem;
+    color: #55606d;
+    font-size: 0.9rem;
+}
+
+.reviews-feed-panel {
+    background: transparent;
+}
+
+.reviews-feed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.reviews-feed-header h2 {
+    font-size: 1.35rem;
+}
+
+.reviews-feed-header form {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.reviews-feed-header label {
+    font-size: 0.86rem;
+    color: #55606d;
+}
+
+.reviews-feed-header select {
+    border: 1px solid #cfd9e5;
+    border-radius: 0.45rem;
+    padding: 0.45rem 0.65rem;
+    background: #fff;
+}
+
+.all-review-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.all-review-card {
+    background: #ffffff;
+    border: 1px solid #dce5f0;
+    border-radius: 1rem;
+    padding: 1.1rem 1.2rem;
+    box-shadow: 0 12px 24px rgba(12, 27, 42, 0.07);
+}
+
+.all-review-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.9rem;
+    margin-bottom: 0.7rem;
+}
+
+.review-package-link {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #2bb3a6;
+    text-decoration: none;
+}
+
+.reviews-pagination {
+    margin-top: 1.15rem;
+    display: flex;
+    gap: 0.7rem;
+    align-items: center;
+    justify-content: center;
+}
+
+.reviews-pagination a {
+    border: 1px solid #d3dce8;
+    border-radius: 0.5rem;
+    padding: 0.42rem 0.75rem;
+    text-decoration: none;
+    color: #1f2c39;
+    background: #fff;
+}
+
+.reviews-pagination span {
+    color: #55606d;
+    font-size: 0.9rem;
+}
+
+.review-form-card {
+    margin-top: 1.35rem;
+}
+
+@media (max-width: 1080px) {
+    .reviews-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .reviews-summary-panel {
+        position: static;
+    }
+}
+
+@media (max-width: 640px) {
+    .reviews-hero h1 {
+        font-size: 1.8rem;
+    }
+
+    .all-review-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .reviews-feed-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

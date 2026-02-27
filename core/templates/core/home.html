@@ -286,91 +286,42 @@
         <div class="container-landing">
             <div class="section-header">
                 <div>
-                    <h2 class="section-title">Traveler Reviews</h2>
-                    <p class="section-subtitle">Fresh feedback from recent adventures</p>
+                    <h2 class="section-title"><a class="reviews-title-link" href="{% url 'review_list' %}">What Travelers Are Saying</a></h2>
+                    <p class="section-subtitle">Latest feedback from our traveler community.</p>
                 </div>
-                <a class="link-arrow" href="{% url 'package_list' %}">Explore trips</a>
+                <a class="link-arrow" href="{% url 'review_list' %}">View All Reviews</a>
             </div>
 
             <div class="review-grid">
                 {% if reviews %}
                     {% for review in reviews %}
-                        {% with reviewer=review.traveler.get_full_name|default:review.traveler.username|default:"Traveler" %}
-                            <article class="review-card">
-                                <div class="review-card-header">
-                                    <div class="reviewer">
-                                        <div class="reviewer-avatar">{{ reviewer|slice:":1" }}</div>
-                                        <div>
-                                            <div class="reviewer-name">{{ reviewer }}</div>
-                                            <div class="review-date">{{ review.created_at|date:"M d, Y" }}</div>
-                                        </div>
+                        <article class="review-card">
+                            <div class="review-card-header">
+                                <div class="reviewer">
+                                    <div class="reviewer-avatar">
+                                        {% if review.traveler_avatar_url %}
+                                            <img src="{{ review.traveler_avatar_url }}" alt="{{ review.traveler_name }} avatar">
+                                        {% else %}
+                                            <img src="{% static 'images/default-avatar.svg' %}" alt="Reviewer avatar">
+                                        {% endif %}
                                     </div>
-                                    <div class="review-stars" aria-label="{{ review.rating }} out of 5 stars">
-                                        {% for star in "12345" %}
-                                            <span class="{% if forloop.counter <= review.rating %}filled{% endif %}">&#9733;</span>
-                                        {% endfor %}
+                                    <div>
+                                        <div class="reviewer-name">{{ review.traveler_name }}</div>
+                                        <div class="review-date">{{ review.created_at|date:"M d, Y" }}</div>
                                     </div>
                                 </div>
-                                <p class="review-comment">{{ review.comment|default:"No comment provided." }}</p>
-                                <div class="review-package">Reviewed: {{ review.package.title }}</div>
-                            </article>
-                        {% endwith %}
+                                <div class="review-stars" aria-label="{{ review.rating }} out of 5 stars">
+                                    {% for star in "12345" %}
+                                        <span class="{% if forloop.counter <= review.rating %}filled{% endif %}">&#9733;</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <p class="review-comment">{{ review.comment|default:"Great experience!"|truncatewords:24 }}</p>
+                            <div class="review-package">{{ review.package.title }}</div>
+                        </article>
                     {% endfor %}
                 {% else %}
                     <div class="review-empty">No reviews yet. Be the first to share your experience.</div>
-                {% endif %}
-            </div>
-
-            <div class="review-form-card">
-                <div class="review-form-header">
-                    <h3>Share your experience</h3>
-                    <p>Help future travelers pick the right adventure.</p>
-                </div>
-                {% if can_review %}
-                    {% if review_packages %}
-                        <form class="review-form" method="POST" action="{% url 'submit_review' %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="next" value="{{ request.path }}">
-                            <div class="review-form-grid">
-                                <div class="form-field">
-                                    <label for="review-package">Trip Package</label>
-                                    <select id="review-package" name="package" required>
-                                        <option value="">Select a package</option>
-                                        {% for package in review_packages %}
-                                            <option value="{{ package.id }}">{{ package.title }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="form-field">
-                                    <label for="review-rating">Rating</label>
-                                    <select id="review-rating" name="rating" required>
-                                        <option value="">Select rating</option>
-                                        <option value="5">&#9733;&#9733;&#9733;&#9733;&#9733; (5)</option>
-                                        <option value="4">&#9733;&#9733;&#9733;&#9733;&#9734; (4)</option>
-                                        <option value="3">&#9733;&#9733;&#9733;&#9734;&#9734; (3)</option>
-                                        <option value="2">&#9733;&#9733;&#9734;&#9734;&#9734; (2)</option>
-                                        <option value="1">&#9733;&#9734;&#9734;&#9734;&#9734; (1)</option>
-                                    </select>
-                                </div>
-                                <div class="form-field span-2">
-                                    <label for="review-comment">Comment</label>
-                                    <textarea id="review-comment" name="comment" rows="3" placeholder="Share what made the trip memorable." required></textarea>
-                                </div>
-                            </div>
-                            <div class="review-form-actions">
-                                <button class="btn-dark" type="submit">Submit Review</button>
-                            </div>
-                        </form>
-                    {% else %}
-                        <p class="review-empty">No active packages available for review.</p>
-                    {% endif %}
-                {% else %}
-                    <div class="review-auth">
-                        <p>Want to leave a review? Login or create a traveler account.</p>
-                        <div class="review-auth-actions">
-                            <a class="btn-dark" href="{% url 'account_login_choice' %}">Login or Register</a>
-                        </div>
-                    </div>
                 {% endif %}
             </div>
         </div>

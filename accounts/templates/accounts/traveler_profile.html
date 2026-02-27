@@ -1,328 +1,211 @@
+{% extends "accounts/traveler_base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traveler Profile - Namaste Nomad</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/traveler_profile.css' %}">
-</head>
-<body>
-    <header class="traveler-topbar">
-        <a class="brand" href="{% url 'home' %}">
-            <span class="brand-mark"></span>
-            <span class="brand-name">Namaste Nomad</span>
-        </a>
-        <div class="topbar-actions">
-            <div class="user-chip">
-                <div class="chip-avatar">
+
+{% block title %}Traveler Profile - Namaste Nomad{% endblock %}
+
+{% block traveler_content %}
+    <form class="profile-form" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <section class="card profile-card">
+            <div class="profile-identity">
+                <div class="avatar-wrap">
                     {% if profile.avatar %}
                         <img src="{{ profile.avatar.url }}" alt="Traveler avatar">
                     {% else %}
                         <img src="{% static 'images/default-avatar.svg' %}" alt="Default traveler avatar">
                     {% endif %}
-                </div>
-                <span>{{ request.user.first_name|default:"Traveler" }}</span>
-                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                    <path d="M5 7l5 6 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </div>
-        </div>
-    </header>
-
-    <div class="traveler-shell">
-        <aside class="traveler-sidebar">
-            <nav class="sidebar-nav">
-                <a class="nav-item" href="#">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M3 13h8V3H3v10zM13 21h8V11h-8v10zM13 3h8v6h-8V3zM3 21h8v-6H3v6z"/>
-                        </svg>
-                    </span>
-                    Dashboard
-                </a>
-                <a class="nav-item" href="#">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <rect x="3" y="4" width="18" height="18" rx="2"/>
-                            <path d="M16 2v4M8 2v4M3 10h18"/>
-                        </svg>
-                    </span>
-                    My Bookings
-                </a>
-                <a class="nav-item" href="#">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M12 21s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 5.65-7 10-7 10z"/>
-                        </svg>
-                    </span>
-                    Wishlist
-                </a>
-                <a class="nav-item" href="#">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M12 17l-5 3 1-5-4-4 5-1 3-5 3 5 5 1-4 4 1 5-5-3z"/>
-                        </svg>
-                    </span>
-                    Reviews
-                </a>
-                <a class="nav-item" href="#">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M8 21h8"/>
-                            <path d="M12 17v4"/>
-                            <path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/>
-                        </svg>
-                    </span>
-                    Badges
-                </a>
-                <a class="nav-item" href="#">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/>
-                        </svg>
-                    </span>
-                    Community Posts
-                </a>
-                <a class="nav-item active" href="{% url 'traveler_profile' %}">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <circle cx="12" cy="8" r="4"/>
-                            <path d="M4 20c2-4 6-6 8-6s6 2 8 6"/>
-                        </svg>
-                    </span>
-                    Profile
-                </a>
-                <a class="nav-item logout" href="{% url 'logout' %}">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M10 17l5-5-5-5"/>
-                            <path d="M15 12H3"/>
-                            <path d="M11 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8"/>
-                        </svg>
-                    </span>
-                    Logout
-                </a>
-            </nav>
-        </aside>
-
-        <main class="traveler-main">
-            {% if messages %}
-                <div class="alert-stack">
-                    {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-
-            <form class="profile-form" method="POST" enctype="multipart/form-data">
-                {% csrf_token %}
-
-                <section class="card profile-card">
-                    <div class="profile-identity">
-                        <div class="avatar-wrap">
-                            {% if profile.avatar %}
-                                <img src="{{ profile.avatar.url }}" alt="Traveler avatar">
-                            {% else %}
-                                <img src="{% static 'images/default-avatar.svg' %}" alt="Default traveler avatar">
-                            {% endif %}
-                            <label class="avatar-action" title="Update photo">
-                                <input type="file" name="avatar" accept="image/*">
-                                <span>+</span>
-                            </label>
-                            {% if profile.avatar %}
-                                <button class="avatar-remove" type="submit" name="remove_avatar" value="1" aria-label="Remove profile picture" title="Remove profile picture">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                        <path d="M3 6h18"/>
-                                        <path d="M8 6V4h8v2"/>
-                                        <path d="M19 6l-1 14H6L5 6"/>
-                                        <path d="M10 11v6M14 11v6"/>
-                                    </svg>
-                                </button>
-                            {% endif %}
-                        </div>
-                        <div>
-                            <h1>{{ full_name }}</h1>
-                            <p class="handle">@{{ request.user.username }}</p>
-                            <p class="meta">Member since {{ request.user.date_joined|date:"F Y" }}</p>
-                            <span class="badge">Traveler</span>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="content-grid">
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>Personal Information</h2>
-                        </div>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>Full Name</label>
-                                <input class="form-control" type="text" name="full_name" value="{{ full_name }}">
-                            </div>
-                            <div class="form-group">
-                                <label>Email</label>
-                                <input class="form-control" type="email" name="email" value="{{ request.user.email }}">
-                            </div>
-                            <div class="form-group">
-                                <label>Phone</label>
-                                <input class="form-control" type="text" name="phone" value="{{ request.user.phone|default:'' }}">
-                            </div>
-                            <div class="form-group">
-                                <label>Date of Birth</label>
-                                <input class="form-control" type="date" name="date_of_birth" value="{{ profile.date_of_birth|date:'Y-m-d' }}">
-                            </div>
-                            <div class="form-group">
-                                <label>Gender</label>
-                                <select class="form-control" name="gender">
-                                    <option value="" {% if not profile.gender %}selected{% endif %}>Select</option>
-                                    <option value="male" {% if profile.gender == 'male' %}selected{% endif %}>Male</option>
-                                    <option value="female" {% if profile.gender == 'female' %}selected{% endif %}>Female</option>
-                                    <option value="other" {% if profile.gender == 'other' %}selected{% endif %}>Other</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Nationality</label>
-                                <input class="form-control" type="text" name="nationality" value="{{ profile.nationality|default:'' }}">
-                            </div>
-                            <div class="form-group span-2">
-                                <label>Bio</label>
-                                <textarea class="form-control" name="bio" rows="4" placeholder="Tell us about your travel style">{{ profile.bio }}</textarea>
-                            </div>
-                        </div>
-                        <div class="card-actions">
-                            <button type="submit" class="btn-primary">Save Changes</button>
-                        </div>
-                    </div>
-
-                    <div class="card activity-card">
-                        <div class="card-header">
-                            <h2>Recent Activity</h2>
-                        </div>
-                        <div class="activity-list">
-                            {% for item in activity %}
-                                <div class="activity-item">
-                                    <div class="activity-icon {{ item.variant }}">
-                                        {% if item.variant == 'review' %}
-                                            ★
-                                        {% elif item.variant == 'completed' %}
-                                            ✓
-                                        {% else %}
-                                            ✦
-                                        {% endif %}
-                                    </div>
-                                    <div>
-                                        <div class="activity-title">{{ item.title }}</div>
-                                        <div class="activity-time">{{ item.time }}</div>
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </section>
-
-                <section class="card preferences-card">
-                    <div class="card-header">
-                        <h2>Travel Preferences</h2>
-                    </div>
-                    <div class="preferences-grid">
-                        <div>
-                            <h3>Preferred Difficulty</h3>
-                            <label class="check-row"><input type="checkbox" checked> Easy</label>
-                            <label class="check-row"><input type="checkbox" checked> Medium</label>
-                            <label class="check-row"><input type="checkbox"> Hard</label>
-                        </div>
-                        <div>
-                            <h3>Preferred Regions</h3>
-                            <label class="check-row"><input type="checkbox" checked> Himalayas</label>
-                            <label class="check-row"><input type="checkbox"> Kathmandu Valley</label>
-                            <label class="check-row"><input type="checkbox" checked> Annapurna</label>
-                        </div>
-                        <div>
-                            <h3>Activities</h3>
-                            <label class="check-row"><input type="checkbox" checked> Trekking</label>
-                            <label class="check-row"><input type="checkbox"> Climbing</label>
-                            <label class="check-row"><input type="checkbox" checked> Cultural Tours</label>
-                        </div>
-                    </div>
-                </section>
-            </form>
-
-            <section class="card review-entry-card">
-                <div class="card-header">
-                    <h2>Leave a Review</h2>
-                    <p class="card-subtitle">Share your trip experience with the community.</p>
-                </div>
-                {% if review_packages %}
-                    <form class="review-form" method="POST" action="{% url 'submit_review' %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="{% url 'traveler_profile' %}">
-                        <div class="review-form-grid">
-                            <div class="form-group">
-                                <label for="profile-review-package">Trip Package</label>
-                                <select id="profile-review-package" class="form-control" name="package" required>
-                                    <option value="">Select a package</option>
-                                    {% for package in review_packages %}
-                                        <option value="{{ package.id }}">{{ package.title }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="profile-review-rating">Rating</label>
-                                <select id="profile-review-rating" class="form-control" name="rating" required>
-                                    <option value="">Select rating</option>
-                                    <option value="5">&#9733;&#9733;&#9733;&#9733;&#9733; (5)</option>
-                                    <option value="4">&#9733;&#9733;&#9733;&#9733;&#9734; (4)</option>
-                                    <option value="3">&#9733;&#9733;&#9733;&#9734;&#9734; (3)</option>
-                                    <option value="2">&#9733;&#9733;&#9734;&#9734;&#9734; (2)</option>
-                                    <option value="1">&#9733;&#9734;&#9734;&#9734;&#9734; (1)</option>
-                                </select>
-                            </div>
-                            <div class="form-group span-2">
-                                <label for="profile-review-comment">Comment</label>
-                                <textarea id="profile-review-comment" class="form-control" name="comment" rows="3" placeholder="What stood out on your trip?" required></textarea>
-                            </div>
-                        </div>
-                        <div class="card-actions">
-                            <button type="submit" class="btn-primary">Submit Review</button>
-                        </div>
-                    </form>
-                {% else %}
-                    <p class="empty-state">No active packages available for review.</p>
-                {% endif %}
-            </section>
-
-            <section class="card review-list-card">
-                <div class="card-header">
-                    <h2>Your Recent Reviews</h2>
-                </div>
-                <div class="review-list">
-                    {% if traveler_reviews %}
-                        {% for review in traveler_reviews %}
-                            <div class="review-item">
-                                <div class="review-item-header">
-                                    <div>
-                                        <div class="review-title">{{ review.package.title }}</div>
-                                        <div class="review-date">{{ review.created_at|date:"M d, Y" }}</div>
-                                    </div>
-                                    <div class="review-stars" aria-label="{{ review.rating }} out of 5 stars">
-                                        {% for star in "12345" %}
-                                            <span class="{% if forloop.counter <= review.rating %}filled{% endif %}">&#9733;</span>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                                <p class="review-comment">{{ review.comment|default:"No comment provided." }}</p>
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="empty-state">You haven't posted any reviews yet.</div>
+                    <label class="avatar-action" title="Update photo">
+                        <input type="file" name="avatar" accept="image/*">
+                        <span>+</span>
+                    </label>
+                    {% if profile.avatar %}
+                        <button class="avatar-remove" type="submit" name="remove_avatar" value="1" aria-label="Remove profile picture" title="Remove profile picture">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M3 6h18"/>
+                                <path d="M8 6V4h8v2"/>
+                                <path d="M19 6l-1 14H6L5 6"/>
+                                <path d="M10 11v6M14 11v6"/>
+                            </svg>
+                        </button>
                     {% endif %}
                 </div>
-            </section>
-        </main>
-    </div>
-</body>
-</html>
+                <div>
+                    <h1>{{ full_name }}</h1>
+                    <p class="handle">@{{ request.user.username }}</p>
+                    <p class="meta">Member since {{ request.user.date_joined|date:"F Y" }}</p>
+                    <span class="badge">Traveler</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-grid">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Personal Information</h2>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input class="form-control" type="text" name="full_name" value="{{ full_name }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input class="form-control" type="email" name="email" value="{{ request.user.email }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input class="form-control" type="text" name="phone" value="{{ request.user.phone|default:'' }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Date of Birth</label>
+                        <input class="form-control" type="date" name="date_of_birth" value="{{ profile.date_of_birth|date:'Y-m-d' }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Gender</label>
+                        <select class="form-control" name="gender">
+                            <option value="" {% if not profile.gender %}selected{% endif %}>Select</option>
+                            <option value="male" {% if profile.gender == 'male' %}selected{% endif %}>Male</option>
+                            <option value="female" {% if profile.gender == 'female' %}selected{% endif %}>Female</option>
+                            <option value="other" {% if profile.gender == 'other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Nationality</label>
+                        <input class="form-control" type="text" name="nationality" value="{{ profile.nationality|default:'' }}">
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Bio</label>
+                        <textarea class="form-control" name="bio" rows="4" placeholder="Tell us about your travel style">{{ profile.bio }}</textarea>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </div>
+
+            <div class="card activity-card">
+                <div class="card-header">
+                    <h2>Recent Activity</h2>
+                </div>
+                <div class="activity-list">
+                    {% for item in activity %}
+                        <div class="activity-item">
+                            <div class="activity-icon {{ item.variant }}">
+                                {% if item.variant == 'review' %}
+                                    &#9733;
+                                {% elif item.variant == 'completed' %}
+                                    &#10003;
+                                {% else %}
+                                    &#10022;
+                                {% endif %}
+                            </div>
+                            <div>
+                                <div class="activity-title">{{ item.title }}</div>
+                                <div class="activity-time">{{ item.time }}</div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="card preferences-card">
+            <div class="card-header">
+                <h2>Travel Preferences</h2>
+            </div>
+            <div class="preferences-grid">
+                <div>
+                    <h3>Preferred Difficulty</h3>
+                    <label class="check-row"><input type="checkbox" checked> Easy</label>
+                    <label class="check-row"><input type="checkbox" checked> Medium</label>
+                    <label class="check-row"><input type="checkbox"> Hard</label>
+                </div>
+                <div>
+                    <h3>Preferred Regions</h3>
+                    <label class="check-row"><input type="checkbox" checked> Himalayas</label>
+                    <label class="check-row"><input type="checkbox"> Kathmandu Valley</label>
+                    <label class="check-row"><input type="checkbox" checked> Annapurna</label>
+                </div>
+                <div>
+                    <h3>Activities</h3>
+                    <label class="check-row"><input type="checkbox" checked> Trekking</label>
+                    <label class="check-row"><input type="checkbox"> Climbing</label>
+                    <label class="check-row"><input type="checkbox" checked> Cultural Tours</label>
+                </div>
+            </div>
+        </section>
+    </form>
+
+    <section class="card review-entry-card">
+        <div class="card-header">
+            <h2>Leave a Review</h2>
+            <p class="card-subtitle">Share your trip experience with the community.</p>
+        </div>
+        {% if review_packages %}
+            <form class="review-form" method="POST" action="{% url 'submit_review' %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'traveler_profile' %}">
+                <div class="review-form-grid">
+                    <div class="form-group">
+                        <label for="profile-review-package">Trip Package</label>
+                        <select id="profile-review-package" class="form-control" name="package" required>
+                            <option value="">Select a package</option>
+                            {% for package in review_packages %}
+                                <option value="{{ package.id }}">{{ package.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="profile-review-rating">Rating</label>
+                        <select id="profile-review-rating" class="form-control" name="rating" required>
+                            <option value="">Select rating</option>
+                            <option value="5">&#9733;&#9733;&#9733;&#9733;&#9733; (5)</option>
+                            <option value="4">&#9733;&#9733;&#9733;&#9733;&#9734; (4)</option>
+                            <option value="3">&#9733;&#9733;&#9733;&#9734;&#9734; (3)</option>
+                            <option value="2">&#9733;&#9733;&#9734;&#9734;&#9734; (2)</option>
+                            <option value="1">&#9733;&#9734;&#9734;&#9734;&#9734; (1)</option>
+                        </select>
+                    </div>
+                    <div class="form-group span-2">
+                        <label for="profile-review-comment">Comment</label>
+                        <textarea id="profile-review-comment" class="form-control" name="comment" rows="3" placeholder="What stood out on your trip?" required></textarea>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <button type="submit" class="btn-primary">Submit Review</button>
+                </div>
+            </form>
+        {% else %}
+            <p class="empty-state">No active packages available for review.</p>
+        {% endif %}
+    </section>
+
+    <section class="card review-list-card" id="review-history">
+        <div class="card-header">
+            <h2>Your Recent Reviews</h2>
+        </div>
+        <div class="review-list">
+            {% if traveler_reviews %}
+                {% for review in traveler_reviews %}
+                    <div class="review-item">
+                        <div class="review-item-header">
+                            <div>
+                                <div class="review-title">{{ review.package.title }}</div>
+                                <div class="review-date">{{ review.created_at|date:"M d, Y" }}</div>
+                            </div>
+                            <div class="review-stars" aria-label="{{ review.rating }} out of 5 stars">
+                                {% for star in "12345" %}
+                                    <span class="{% if forloop.counter <= review.rating %}filled{% endif %}">&#9733;</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <p class="review-comment">{{ review.comment|default:"No comment provided." }}</p>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">You haven't posted any reviews yet.</div>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}

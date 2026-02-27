@@ -8,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/vendor_dashboard.css' %}">
-    <link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/vendor_dashboard.css' %}?v=20260226b">
+    <link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}?v=20260226b">
 </head>
 <body class="admin-dashboard">
     <header class="topbar admin-topbar">
@@ -19,11 +19,11 @@
         </a>
         <div class="topbar-actions">
             <div class="admin-user">
-                <div class="avatar">
+                <div class="avatar topbar-avatar">
                     {% if profile.avatar %}
-                        <img src="{{ profile.avatar.url }}" alt="Admin avatar">
+                        <img class="topbar-avatar-image" src="{{ profile.avatar.url }}" alt="Admin avatar">
                     {% else %}
-                        <img src="{% static 'images/default-avatar.svg' %}" alt="Default admin avatar">
+                        <img class="topbar-avatar-image" src="{% static 'images/default-avatar.svg' %}" alt="Default admin avatar">
                     {% endif %}
                 </div>
                 <span>{{ request.user.first_name|default:"Admin" }}</span>

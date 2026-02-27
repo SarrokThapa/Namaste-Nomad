@@ -1,22 +1,43 @@
 # core/views.py
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Avg, Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
+from accounts.models import TravelerProfile
 from .forms import ReviewForm
 from .models import Package, Review
 
+
+def _prepare_review_cards(review_queryset):
+    reviews = list(review_queryset)
+    traveler_ids = [review.traveler_id for review in reviews if review.traveler_id]
+    profiles_by_user = TravelerProfile.objects.filter(user_id__in=traveler_ids).in_bulk(field_name='user_id')
+
+    for review in reviews:
+        traveler = review.traveler
+        review.traveler_name = "Traveler"
+        review.traveler_avatar_url = ""
+
+        if traveler:
+            full_name = traveler.get_full_name().strip()
+            review.traveler_name = full_name or traveler.username or "Traveler"
+            profile = profiles_by_user.get(review.traveler_id)
+            if profile and profile.avatar:
+                review.traveler_avatar_url = profile.avatar.url
+
+    return reviews
+
+
 def home(request):
     """Landing page"""
-    reviews = Review.objects.select_related('traveler', 'package').order_by('-created_at')[:6]
-    review_packages = Package.objects.filter(is_active=True).order_by('title')
-    can_review = request.user.is_authenticated and getattr(request.user, 'user_type', '') == 'traveler'
+    reviews = _prepare_review_cards(
+        Review.objects.select_related('traveler', 'package').order_by('-created_at')[:5]
+    )
     return render(request, 'core/home.html', {
         'reviews': reviews,
-        'review_packages': review_packages,
-        'can_review': can_review,
     })
 
 def package_list(request):
@@ -107,14 +128,65 @@ def contact(request):
     return render(request, 'core/contact.html')
 
 
+def review_list(request):
+    sort = (request.GET.get('sort') or 'recent').lower()
+    reviews_base = Review.objects.select_related('traveler', 'package')
+    if sort == 'highest':
+        reviews_base = reviews_base.order_by('-rating', '-created_at')
+    elif sort == 'lowest':
+        reviews_base = reviews_base.order_by('rating', '-created_at')
+    else:
+        sort = 'recent'
+        reviews_base = reviews_base.order_by('-created_at')
+
+    summary = reviews_base.aggregate(avg_rating=Avg('rating'), total_reviews=Count('id'))
+    total_reviews = summary.get('total_reviews') or 0
+    avg_rating = summary.get('avg_rating') or 0
+
+    rating_counts = {
+        item['rating']: item['total']
+        for item in reviews_base.values('rating').annotate(total=Count('id'))
+    }
+    rating_breakdown = []
+    for stars in range(5, 0, -1):
+        count = rating_counts.get(stars, 0)
+        percent = int(round((count / total_reviews) * 100)) if total_reviews else 0
+        rating_breakdown.append({
+            'stars': stars,
+            'count': count,
+            'percent': percent,
+        })
+
+    paginator = Paginator(reviews_base, 8)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    reviews = _prepare_review_cards(page_obj.object_list)
+
+    can_review = request.user.is_authenticated and getattr(request.user, 'user_type', '') == 'traveler'
+    review_packages = Package.objects.filter(is_active=True).order_by('title')
+    is_logged_in = request.user.is_authenticated
+
+    return render(request, 'core/reviews.html', {
+        'reviews': reviews,
+        'page_obj': page_obj,
+        'review_sort': sort,
+        'rating_breakdown': rating_breakdown,
+        'avg_rating': avg_rating,
+        'total_reviews': total_reviews,
+        'can_review': can_review,
+        'is_logged_in': is_logged_in,
+        'review_packages': review_packages,
+    })
+
+
 @login_required(login_url='account_login_choice')
 def submit_review(request):
+    next_url = request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('review_list')
     if request.method != 'POST':
-        return redirect('home')
+        return redirect(next_url)
 
     if getattr(request.user, 'user_type', '') != 'traveler':
         messages.error(request, 'Traveler access only.')
-        return redirect('home')
+        return redirect(next_url)
 
     review_packages = Package.objects.filter(is_active=True)
     form = ReviewForm(request.POST, package_queryset=review_packages)
@@ -126,5 +198,4 @@ def submit_review(request):
     else:
         messages.error(request, 'Please provide a rating and comment.')
 
-    next_url = request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('home')
     return redirect(next_url)
