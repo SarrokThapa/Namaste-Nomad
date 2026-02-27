@@ -22,21 +22,16 @@
 
     <div class="post-caption">{{ post.caption|linebreaksbr }}</div>
 
+    <div class="post-engagement">
+        <div class="engagement-actions">
+            <span class="engage-item">Like</span>
+            <span class="engage-item">Comment</span>
+        </div>
+        <span class="engagement-count">{{ post.prepared_comments|length }} comment{{ post.prepared_comments|length|pluralize }}</span>
+    </div>
+
     <div class="post-comments">
         <h3>Comments</h3>
-
-        {% if request.user.is_authenticated %}
-            <form method="POST" action="{% url 'community_comment_create' post.id %}" class="comment-form">
-                {% csrf_token %}
-                <input type="hidden" name="next" value="{{ request.path }}#post-{{ post.id }}">
-                <textarea name="body" rows="2" placeholder="Write a comment..." required></textarea>
-                <button type="submit" class="btn-dark">Post Comment</button>
-            </form>
-        {% else %}
-            <div class="comment-login-note">
-                <a href="{% url 'account_login_choice' %}">Login</a> to comment on this post.
-            </div>
-        {% endif %}
 
         <div class="comment-list">
             {% if post.prepared_comments %}
@@ -62,5 +57,18 @@
                 <p class="empty-comments">No comments yet.</p>
             {% endif %}
         </div>
+
+        {% if request.user.is_authenticated %}
+            <form method="POST" action="{% url 'community_comment_create' post.id %}" class="comment-form">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}#post-{{ post.id }}">
+                <textarea name="body" rows="2" placeholder="Write a comment..." required></textarea>
+                <button type="submit" class="btn-dark">Post Comment</button>
+            </form>
+        {% else %}
+            <div class="comment-login-note">
+                <a href="{% url 'account_login_choice' %}">Login</a> to comment on this post.
+            </div>
+        {% endif %}
     </div>
 </article>
