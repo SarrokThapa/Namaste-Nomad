@@ -1,0 +1,173 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community Feed - Namaste Nomad</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/community.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="landing-nav">
+        <div class="nav-container">
+            <a class="nav-brand" href="{% url 'home' %}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+                <span>Namaste Nomad</span>
+            </a>
+            <div class="nav-menu">
+                <a href="{% url 'home' %}">Home</a>
+                <a href="#">Destinations</a>
+                <a href="{% url 'package_list' %}">Packages</a>
+                <a href="{% url 'community_feed' %}" class="nav-active">Explore</a>
+                <a href="{% url 'review_list' %}">Reviews</a>
+                <a href="{% url 'about' %}">About</a>
+            </div>
+            <div class="nav-actions">
+                {% if request.user.is_authenticated %}
+                    <a href="{% url 'logout' %}" class="btn-dark">Logout</a>
+                {% else %}
+                    <a href="{% url 'account_login_choice' %}" class="btn-ghost">Sign In</a>
+                    <a href="{% url 'account_register_choice' %}" class="btn-dark">Sign Up</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    {% if messages %}
+        <div class="alert-stack container-landing">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <main class="community-page">
+        <section class="community-hero">
+            <div class="container-landing">
+                <h1>Explore Community</h1>
+                <p>Share your travel moments and connect with other travelers through photos and comments.</p>
+            </div>
+        </section>
+
+        <section class="container-landing community-shell">
+            <div class="new-post-card">
+                <div class="new-post-header">
+                    <h2>Create a Post</h2>
+                    {% if not request.user.is_authenticated %}
+                        <a href="{% url 'account_login_choice' %}" class="btn-outline-dark">Login to Post</a>
+                    {% endif %}
+                </div>
+
+                {% if request.user.is_authenticated %}
+                    <form method="POST" action="{% url 'community_post_create' %}" enctype="multipart/form-data" class="new-post-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{% url 'community_feed' %}">
+                        <div class="new-post-grid">
+                            <div class="form-field">
+                                <label for="post-image">Upload Photo</label>
+                                <input id="post-image" type="file" name="image" accept="image/*" required>
+                            </div>
+                            <div class="form-field">
+                                <label for="post-caption">Caption</label>
+                                <textarea id="post-caption" name="caption" rows="3" placeholder="Write about your travel moment..." required></textarea>
+                            </div>
+                        </div>
+                        <div class="new-post-actions">
+                            <button type="submit" class="btn-dark">Share Post</button>
+                        </div>
+                    </form>
+                {% else %}
+                    <p class="auth-note">
+                        You can browse posts without logging in. To create a post or comment, please
+                        <a href="{% url 'account_login_choice' %}">sign in</a> or
+                        <a href="{% url 'account_register_choice' %}">create an account</a>.
+                    </p>
+                {% endif %}
+            </div>
+
+            <div class="post-feed">
+                {% if posts %}
+                    {% for post in posts %}
+                        <article class="post-card" id="post-{{ post.id }}">
+                            <div class="post-head">
+                                <div class="post-author">
+                                    <div class="author-avatar">
+                                        {% if post.author_avatar_url %}
+                                            <img src="{{ post.author_avatar_url }}" alt="{{ post.author_name }} avatar">
+                                        {% else %}
+                                            <img src="{% static 'images/default-avatar.svg' %}" alt="Default avatar">
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <div class="author-name">{{ post.author_name }}</div>
+                                        <div class="post-date">{{ post.created_at|date:"M d, Y · h:i A" }}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="post-image-wrap">
+                                <img src="{{ post.image.url }}" alt="Post by {{ post.author_name }}">
+                            </div>
+
+                            <div class="post-caption">{{ post.caption|linebreaksbr }}</div>
+
+                            <div class="post-comments">
+                                <h3>Comments</h3>
+
+                                {% if request.user.is_authenticated %}
+                                    <form method="POST" action="{% url 'community_comment_create' post.id %}" class="comment-form">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{% url 'community_feed' %}#post-{{ post.id }}">
+                                        <textarea name="body" rows="2" placeholder="Write a comment..." required></textarea>
+                                        <button type="submit" class="btn-dark">Post Comment</button>
+                                    </form>
+                                {% else %}
+                                    <div class="comment-login-note">
+                                        <a href="{% url 'account_login_choice' %}">Login</a> to comment on this post.
+                                    </div>
+                                {% endif %}
+
+                                <div class="comment-list">
+                                    {% if post.prepared_comments %}
+                                        {% for comment in post.prepared_comments %}
+                                            <div class="comment-item">
+                                                <div class="comment-avatar">
+                                                    {% if comment.author_avatar_url %}
+                                                        <img src="{{ comment.author_avatar_url }}" alt="{{ comment.author_name }} avatar">
+                                                    {% else %}
+                                                        <img src="{% static 'images/default-avatar.svg' %}" alt="Default avatar">
+                                                    {% endif %}
+                                                </div>
+                                                <div class="comment-content">
+                                                    <div class="comment-meta">
+                                                        <strong>{{ comment.author_name }}</strong>
+                                                        <span>{{ comment.created_at|date:"M d, Y · h:i A" }}</span>
+                                                    </div>
+                                                    <p>{{ comment.body }}</p>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <p class="empty-comments">No comments yet.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </article>
+                    {% endfor %}
+                {% else %}
+                    <div class="post-card empty-posts">
+                        No community posts yet. Be the first to share your travel moment.
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>

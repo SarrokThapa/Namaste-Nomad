@@ -107,3 +107,37 @@ class Review(models.Model):
 
     def __str__(self):
         return f"{self.package.title} - {self.rating}"
+
+
+class Post(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='community_posts',
+    )
+    image = models.ImageField(upload_to='community_posts/')
+    caption = models.TextField(max_length=2200)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class Comment(models.Model):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='community_comments',
+    )
+    body = models.TextField(max_length=800)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('created_at',)
+
+    def __str__(self):
+        return f"{self.user.username} on post #{self.post_id}"

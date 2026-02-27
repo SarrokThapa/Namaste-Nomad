@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Booking, Package, Review
+from .models import Booking, Comment, Package, Post, Review
 
 
 @admin.register(Package)
@@ -21,3 +21,17 @@ class ReviewAdmin(admin.ModelAdmin):
     list_display = ('package', 'traveler', 'rating', 'created_at')
     list_filter = ('rating', 'created_at')
     search_fields = ('package__title', 'traveler__email')
+
+
+@admin.register(Post)
+class PostAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('user__username', 'user__email', 'caption')
+
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'post', 'user', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('post__caption', 'user__username', 'user__email', 'body')

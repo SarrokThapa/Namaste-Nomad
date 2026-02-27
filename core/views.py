@@ -1,40 +1,79 @@
 # core/views.py
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from accounts.models import TravelerProfile
-from .forms import ReviewForm
-from .models import Package, Review
+from .forms import CommentForm, PostForm, ReviewForm
+from .models import Comment, Package, Post, Review
+
+
+def _safe_related(instance, attribute_name):
+    try:
+        return getattr(instance, attribute_name)
+    except ObjectDoesNotExist:
+        return None
+
+
+def _user_display_name(user):
+    if not user:
+        return "Traveler"
+    full_name = user.get_full_name().strip()
+    return full_name or user.username or "Traveler"
+
+
+def _user_avatar_url(user):
+    if not user:
+        return ""
+
+    user_type = getattr(user, 'user_type', '')
+    if user_type == 'traveler':
+        profile = _safe_related(user, 'traveler_profile')
+        if profile and profile.avatar:
+            return profile.avatar.url
+    elif user_type == 'vendor':
+        profile = _safe_related(user, 'vendor_profile')
+        if profile and profile.logo:
+            return profile.logo.url
+    elif user_type == 'admin':
+        profile = _safe_related(user, 'admin_profile')
+        if profile and profile.avatar:
+            return profile.avatar.url
+
+    return ""
 
 
 def _prepare_review_cards(review_queryset):
     reviews = list(review_queryset)
-    traveler_ids = [review.traveler_id for review in reviews if review.traveler_id]
-    profiles_by_user = TravelerProfile.objects.filter(user_id__in=traveler_ids).in_bulk(field_name='user_id')
 
     for review in reviews:
         traveler = review.traveler
-        review.traveler_name = "Traveler"
-        review.traveler_avatar_url = ""
-
-        if traveler:
-            full_name = traveler.get_full_name().strip()
-            review.traveler_name = full_name or traveler.username or "Traveler"
-            profile = profiles_by_user.get(review.traveler_id)
-            if profile and profile.avatar:
-                review.traveler_avatar_url = profile.avatar.url
+        review.traveler_name = _user_display_name(traveler)
+        review.traveler_avatar_url = _user_avatar_url(traveler)
 
     return reviews
+
+
+def _prepare_feed_posts(post_queryset):
+    posts = list(post_queryset)
+    for post in posts:
+        post.author_name = _user_display_name(post.user)
+        post.author_avatar_url = _user_avatar_url(post.user)
+        post.prepared_comments = list(post.comments.all())
+        for comment in post.prepared_comments:
+            comment.author_name = _user_display_name(comment.user)
+            comment.author_avatar_url = _user_avatar_url(comment.user)
+
+    return posts
 
 
 def home(request):
     """Landing page"""
     reviews = _prepare_review_cards(
-        Review.objects.select_related('traveler', 'package').order_by('-created_at')[:5]
+        Review.objects.select_related('traveler', 'traveler__traveler_profile', 'package').order_by('-created_at')[:5]
     )
     return render(request, 'core/home.html', {
         'reviews': reviews,
@@ -130,7 +169,7 @@ def contact(request):
 
 def review_list(request):
     sort = (request.GET.get('sort') or 'recent').lower()
-    reviews_base = Review.objects.select_related('traveler', 'package')
+    reviews_base = Review.objects.select_related('traveler', 'traveler__traveler_profile', 'package')
     if sort == 'highest':
         reviews_base = reviews_base.order_by('-rating', '-created_at')
     elif sort == 'lowest':
@@ -176,6 +215,68 @@ def review_list(request):
         'is_logged_in': is_logged_in,
         'review_packages': review_packages,
     })
+
+
+def community_feed(request):
+    comment_queryset = Comment.objects.select_related(
+        'user',
+        'user__traveler_profile',
+        'user__vendor_profile',
+        'user__admin_profile',
+    ).order_by('-created_at')
+
+    posts = _prepare_feed_posts(
+        Post.objects.select_related(
+            'user',
+            'user__traveler_profile',
+            'user__vendor_profile',
+            'user__admin_profile',
+        ).prefetch_related(
+            Prefetch('comments', queryset=comment_queryset)
+        )
+    )
+
+    return render(request, 'core/community_feed.html', {
+        'posts': posts,
+    })
+
+
+@login_required(login_url='account_login_choice')
+def community_post_create(request):
+    next_url = request.POST.get('next') or reverse('community_feed')
+    if request.method != 'POST':
+        return redirect(next_url)
+
+    form = PostForm(request.POST, request.FILES)
+    if form.is_valid():
+        post = form.save(commit=False)
+        post.user = request.user
+        post.save()
+        messages.success(request, 'Post shared successfully.')
+    else:
+        messages.error(request, 'Please upload an image and add a caption.')
+
+    return redirect(next_url)
+
+
+@login_required(login_url='account_login_choice')
+def community_comment_create(request, post_id):
+    next_url = request.POST.get('next') or f"{reverse('community_feed')}#post-{post_id}"
+    if request.method != 'POST':
+        return redirect(next_url)
+
+    post = get_object_or_404(Post, id=post_id)
+    form = CommentForm(request.POST)
+    if form.is_valid():
+        comment = form.save(commit=False)
+        comment.post = post
+        comment.user = request.user
+        comment.save()
+        messages.success(request, 'Comment added.')
+    else:
+        messages.error(request, 'Please write a comment before submitting.')
+
+    return redirect(next_url)
 
 
 @login_required(login_url='account_login_choice')
