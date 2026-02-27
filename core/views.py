@@ -7,6 +7,7 @@ from django.db.models import Avg, Count, Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
+from accounts.models import TravelerProfile
 from .forms import CommentForm, PostForm, ReviewForm
 from .models import Comment, Package, Post, Review
 
@@ -68,6 +69,33 @@ def _prepare_feed_posts(post_queryset):
             comment.author_avatar_url = _user_avatar_url(comment.user)
 
     return posts
+
+
+def _community_posts():
+    comment_queryset = Comment.objects.select_related(
+        'user',
+        'user__traveler_profile',
+        'user__vendor_profile',
+        'user__admin_profile',
+    ).order_by('-created_at')
+
+    return _prepare_feed_posts(
+        Post.objects.select_related(
+            'user',
+            'user__traveler_profile',
+            'user__vendor_profile',
+            'user__admin_profile',
+        ).prefetch_related(
+            Prefetch('comments', queryset=comment_queryset)
+        )
+    )
+
+
+def _get_or_create_traveler_profile(user):
+    profile = _safe_related(user, 'traveler_profile')
+    if profile is None:
+        profile = TravelerProfile.objects.create(user=user)
+    return profile
 
 
 def home(request):
@@ -218,26 +246,30 @@ def review_list(request):
 
 
 def community_feed(request):
-    comment_queryset = Comment.objects.select_related(
-        'user',
-        'user__traveler_profile',
-        'user__vendor_profile',
-        'user__admin_profile',
-    ).order_by('-created_at')
-
-    posts = _prepare_feed_posts(
-        Post.objects.select_related(
-            'user',
-            'user__traveler_profile',
-            'user__vendor_profile',
-            'user__admin_profile',
-        ).prefetch_related(
-            Prefetch('comments', queryset=comment_queryset)
-        )
-    )
+    posts = _community_posts()
 
     return render(request, 'core/community_feed.html', {
         'posts': posts,
+        'is_dashboard': False,
+        'force_show_post_form': False,
+    })
+
+
+@login_required(login_url='traveler_login')
+def community_dashboard(request):
+    if getattr(request.user, 'user_type', '') != 'traveler':
+        messages.error(request, 'Traveler access only.')
+        return redirect('home')
+
+    traveler_profile = _get_or_create_traveler_profile(request.user)
+    posts = _community_posts()
+
+    return render(request, 'core/community_dashboard.html', {
+        'posts': posts,
+        'is_dashboard': True,
+        'force_show_post_form': True,
+        'traveler_profile': traveler_profile,
+        'active_page': 'community',
     })
 
 

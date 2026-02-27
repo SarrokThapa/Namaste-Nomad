@@ -1,0 +1,19 @@
+{% extends "accounts/traveler_base.html" %}
+{% load static %}
+
+{% block title %}Community Dashboard - Namaste Nomad{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/community.css' %}">
+{% endblock %}
+
+{% block traveler_content %}
+    <section class="dashboard-community-head">
+        <h1>Community Posts</h1>
+        <p>Share your travel moments and join ongoing discussions with other users.</p>
+    </section>
+
+    <section class="community-shell community-shell-dashboard">
+        {% include "core/includes/community_stream.html" %}
+    </section>
+{% endblock %}

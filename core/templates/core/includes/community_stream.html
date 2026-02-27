@@ -1,0 +1,46 @@
+<div class="new-post-card">
+    <div class="new-post-header">
+        <h2>Create a Post</h2>
+        {% if not request.user.is_authenticated and not force_show_post_form %}
+            <a href="{% url 'account_login_choice' %}" class="btn-outline-dark">Login to Post</a>
+        {% endif %}
+    </div>
+
+    {% if request.user.is_authenticated or force_show_post_form %}
+        <form method="POST" action="{% url 'community_post_create' %}" enctype="multipart/form-data" class="new-post-form">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <div class="new-post-grid">
+                <div class="form-field">
+                    <label for="post-image">Upload Photo</label>
+                    <input id="post-image" type="file" name="image" accept="image/*" required>
+                </div>
+                <div class="form-field">
+                    <label for="post-caption">Caption</label>
+                    <textarea id="post-caption" name="caption" rows="3" placeholder="Write about your travel moment..." required></textarea>
+                </div>
+            </div>
+            <div class="new-post-actions">
+                <button type="submit" class="btn-dark">Post Now</button>
+            </div>
+        </form>
+    {% else %}
+        <p class="auth-note">
+            You can browse posts without logging in. To create a post or comment, please
+            <a href="{% url 'account_login_choice' %}">sign in</a> or
+            <a href="{% url 'account_register_choice' %}">create an account</a>.
+        </p>
+    {% endif %}
+</div>
+
+<div class="post-feed">
+    {% if posts %}
+        {% for post in posts %}
+            {% include "core/includes/community_post_card.html" with post=post %}
+        {% endfor %}
+    {% else %}
+        <div class="post-card empty-posts">
+            No community posts yet. Be the first to share your travel moment.
+        </div>
+    {% endif %}
+</div>
