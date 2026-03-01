@@ -9,6 +9,7 @@ class PackageForm(forms.ModelForm):
         model = Package
         fields = [
             'title',
+            'category',
             'location',
             'price',
             'duration_days',
@@ -24,6 +25,7 @@ class PackageForm(forms.ModelForm):
         ]
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Everest Base Camp Trek'}),
+            'category': forms.Select(attrs={'class': 'form-control'}),
             'location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Khumbu, Nepal'}),
             'price': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '1899'}),
             'duration_days': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '14'}),
@@ -38,11 +40,17 @@ class PackageForm(forms.ModelForm):
             'is_active': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
         }
         labels = {
+            'category': 'Category',
             'duration_days': 'Duration (days)',
             'group_size': 'Group Size',
             'image_url': 'Cover Image URL',
             'is_active': 'Publish package',
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['category'].required = True
+        self.fields['category'].choices = [('', 'Select category')] + list(Package.CATEGORY_CHOICES)
 
 
 class VendorProfileForm(forms.ModelForm):

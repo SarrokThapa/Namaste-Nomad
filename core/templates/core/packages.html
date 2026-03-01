@@ -22,6 +22,8 @@
             </a>
             <div class="nav-menu">
                 <a href="#">Destinations</a>
+                <a href="{% url 'package_treks' %}">Treks</a>
+                <a href="{% url 'package_tours' %}">Tours</a>
                 <a href="{% url 'package_list' %}">Packages</a>
                 <a href="{% url 'community_feed' %}">Explore</a>
                 <a href="{% url 'about' %}">About</a>
@@ -38,8 +40,8 @@
 
     <header class="packages-hero">
         <div class="packages-hero-content">
-            <h1>Nepal Treks &amp; Tours</h1>
-            <p>Explore the Himalayas with trusted local operators.</p>
+            <h1>{{ page_title|default:"Nepal Treks & Tours" }}</h1>
+            <p>{{ page_subtitle|default:"Explore the Himalayas with trusted local operators." }}</p>
             <div class="packages-filter">
                 <input type="text" placeholder="Search destinations or treks">
                 <select>
@@ -96,7 +98,7 @@
                     </article>
                 {% endfor %}
             {% else %}
-                <div class="packages-empty">No packages available right now.</div>
+                <div class="packages-empty">{{ empty_message|default:"No packages available right now." }}</div>
             {% endif %}
         </div>
     </section>

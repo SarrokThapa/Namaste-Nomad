@@ -10,6 +10,12 @@ class Package(models.Model):
         ('challenging', 'Challenging'),
         ('expedition', 'Expedition'),
     )
+    CATEGORY_TREK = 'TREK'
+    CATEGORY_TOUR = 'TOUR'
+    CATEGORY_CHOICES = (
+        (CATEGORY_TREK, 'Trek'),
+        (CATEGORY_TOUR, 'Tour'),
+    )
 
     vendor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -17,6 +23,7 @@ class Package(models.Model):
         related_name='vendor_packages',
     )
     title = models.CharField(max_length=200)
+    category = models.CharField(max_length=10, choices=CATEGORY_CHOICES, default=CATEGORY_TREK)
     location = models.CharField(max_length=120, blank=True)
     description = models.TextField(blank=True)
     itinerary = models.TextField(blank=True)

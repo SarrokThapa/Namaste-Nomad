@@ -134,14 +134,53 @@ def home(request):
         'reviews': reviews,
     })
 
-def package_list(request):
-    packages = Package.objects.filter(is_active=True).prefetch_related('images').annotate(
+
+def _public_package_queryset():
+    return Package.objects.filter(is_active=True).prefetch_related('images').annotate(
         review_count=Count('reviews', distinct=True),
         avg_rating=Avg('reviews__rating'),
     ).order_by('-created_at')
+
+
+def _render_package_list(request, category=None):
+    packages = _public_package_queryset()
+    package_scope = 'all'
+    page_title = 'Nepal Treks & Tours'
+    page_subtitle = 'Explore the Himalayas with trusted local operators.'
+    empty_message = 'No packages available right now.'
+
+    if category == Package.CATEGORY_TREK:
+        packages = packages.filter(category="TREK")
+        package_scope = 'treks'
+        page_title = 'Nepal Treks'
+        page_subtitle = 'Browse trekking adventures curated by local experts.'
+        empty_message = 'No trek packages available right now.'
+    elif category == Package.CATEGORY_TOUR:
+        packages = packages.filter(category="TOUR")
+        package_scope = 'tours'
+        page_title = 'Nepal Tours'
+        page_subtitle = 'Browse curated tour experiences across Nepal.'
+        empty_message = 'No tour packages available right now.'
+
     return render(request, 'core/packages.html', {
         'packages': packages,
+        'package_scope': package_scope,
+        'page_title': page_title,
+        'page_subtitle': page_subtitle,
+        'empty_message': empty_message,
     })
+
+
+def package_list(request):
+    return _render_package_list(request)
+
+
+def trek_package_list(request):
+    return _render_package_list(request, category=Package.CATEGORY_TREK)
+
+
+def tour_package_list(request):
+    return _render_package_list(request, category=Package.CATEGORY_TOUR)
 
 def package_detail(request, package_id):
     package = get_object_or_404(Package.objects.prefetch_related('images'), id=package_id)

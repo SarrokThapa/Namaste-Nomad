@@ -31,6 +31,10 @@
             {{ form.title }}
         </div>
         <div class="form-group">
+            <label for="{{ form.category.id_for_label }}">Category</label>
+            {{ form.category }}
+        </div>
+        <div class="form-group">
             <label for="{{ form.location.id_for_label }}">Location</label>
             {{ form.location }}
         </div>
