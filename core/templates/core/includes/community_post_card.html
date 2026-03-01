@@ -24,10 +24,32 @@
 
     <div class="post-engagement">
         <div class="engagement-actions">
-            <span class="engage-item">Like</span>
-            <span class="engage-item">Comment</span>
+            {% if request.user.is_authenticated %}
+                <form method="POST" action="{% url 'community_post_like_toggle' post.id %}" class="like-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.path }}#post-{{ post.id }}">
+                    <button type="submit" class="engage-item like-btn {% if post.is_liked_by_current_user %}liked{% endif %}" aria-label="Like post">
+                        <svg class="heart-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5A4.5 4.5 0 0 1 6.5 4C8.24 4 9.91 4.81 11 6.09 12.09 4.81 13.76 4 15.5 4A4.5 4.5 0 0 1 20 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                        </svg>
+                        <span>{{ post.like_count }} like{{ post.like_count|pluralize }}</span>
+                    </button>
+                </form>
+            {% else %}
+                <a href="{% url 'account_login_choice' %}" class="engage-item like-btn like-link" aria-label="Login to like this post">
+                    <svg class="heart-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5A4.5 4.5 0 0 1 6.5 4C8.24 4 9.91 4.81 11 6.09 12.09 4.81 13.76 4 15.5 4A4.5 4.5 0 0 1 20 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                    <span>{{ post.like_count }} like{{ post.like_count|pluralize }}</span>
+                </a>
+            {% endif %}
+            {% if request.user.is_authenticated %}
+                <a href="#post-comment-form-{{ post.id }}" class="engage-item">Comment</a>
+            {% else %}
+                <a href="{% url 'account_login_choice' %}" class="engage-item">Comment</a>
+            {% endif %}
         </div>
-        <span class="engagement-count">{{ post.prepared_comments|length }} comment{{ post.prepared_comments|length|pluralize }}</span>
+        <span class="engagement-count">{{ post.comment_count }} comment{{ post.comment_count|pluralize }}</span>
     </div>
 
     <div class="post-comments">
@@ -50,6 +72,40 @@
                                 <span>{{ comment.created_at|date:"M d, Y · h:i A" }}</span>
                             </div>
                             <p>{{ comment.body }}</p>
+
+                            {% if comment.prepared_replies %}
+                                <div class="reply-list">
+                                    {% for reply in comment.prepared_replies %}
+                                        <div class="reply-item">
+                                            <div class="comment-avatar">
+                                                {% if reply.author_avatar_url %}
+                                                    <img src="{{ reply.author_avatar_url }}" alt="{{ reply.author_name }} avatar">
+                                                {% else %}
+                                                    <img src="{% static 'images/default-avatar.svg' %}" alt="Default avatar">
+                                                {% endif %}
+                                            </div>
+                                            <div class="comment-content">
+                                                <div class="comment-meta">
+                                                    <strong>{{ reply.author_name }}</strong>
+                                                    <span class="owner-reply-badge">Post Owner</span>
+                                                    <span>{{ reply.created_at|date:"M d, Y · h:i A" }}</span>
+                                                </div>
+                                                <p>{{ reply.body }}</p>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            {% if request.user.is_authenticated and request.user.id == post.user_id %}
+                                <form method="POST" action="{% url 'community_comment_create' post.id %}" class="comment-reply-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.path }}#post-{{ post.id }}">
+                                    <input type="hidden" name="parent_id" value="{{ comment.id }}">
+                                    <textarea name="body" rows="1" placeholder="Reply as post owner..." required></textarea>
+                                    <button type="submit" class="btn-dark">Reply</button>
+                                </form>
+                            {% endif %}
                         </div>
                     </div>
                 {% endfor %}
@@ -59,7 +115,7 @@
         </div>
 
         {% if request.user.is_authenticated %}
-            <form method="POST" action="{% url 'community_comment_create' post.id %}" class="comment-form">
+            <form method="POST" action="{% url 'community_comment_create' post.id %}" class="comment-form" id="post-comment-form-{{ post.id }}">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.path }}#post-{{ post.id }}">
                 <textarea name="body" rows="2" placeholder="Write a comment..." required></textarea>

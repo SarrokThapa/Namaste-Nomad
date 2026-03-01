@@ -115,6 +115,11 @@ class Post(models.Model):
         on_delete=models.CASCADE,
         related_name='community_posts',
     )
+    likes = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='liked_community_posts',
+        blank=True,
+    )
     image = models.ImageField(upload_to='community_posts/')
     caption = models.TextField(max_length=2200)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -128,6 +133,13 @@ class Post(models.Model):
 
 class Comment(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        related_name='replies',
+        null=True,
+        blank=True,
+    )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

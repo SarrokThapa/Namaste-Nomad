@@ -1,5 +1,6 @@
 # core/views.py
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
@@ -58,26 +59,50 @@ def _prepare_review_cards(review_queryset):
     return reviews
 
 
-def _prepare_feed_posts(post_queryset):
+def _prepare_feed_posts(post_queryset, viewer=None):
     posts = list(post_queryset)
+    viewer_id = viewer.id if getattr(viewer, 'is_authenticated', False) else None
+
     for post in posts:
         post.author_name = _user_display_name(post.user)
         post.author_avatar_url = _user_avatar_url(post.user)
-        post.prepared_comments = list(post.comments.all())
-        for comment in post.prepared_comments:
+
+        like_user_ids = {user.id for user in post.likes.all()}
+        post.like_count = len(like_user_ids)
+        post.is_liked_by_current_user = viewer_id in like_user_ids if viewer_id else False
+
+        all_comments = list(post.comments.all())
+        post.comment_count = len(all_comments)
+        comment_lookup = {}
+        top_level_comments = []
+
+        for comment in all_comments:
             comment.author_name = _user_display_name(comment.user)
             comment.author_avatar_url = _user_avatar_url(comment.user)
+            comment.prepared_replies = []
+            comment_lookup[comment.id] = comment
+
+        for comment in all_comments:
+            if comment.parent_id:
+                parent = comment_lookup.get(comment.parent_id)
+                if parent:
+                    parent.prepared_replies.append(comment)
+            else:
+                top_level_comments.append(comment)
+
+        post.prepared_comments = top_level_comments
 
     return posts
 
 
-def _community_posts():
+def _community_posts(viewer=None):
+    user_model = get_user_model()
     comment_queryset = Comment.objects.select_related(
         'user',
         'user__traveler_profile',
         'user__vendor_profile',
         'user__admin_profile',
-    ).order_by('-created_at')
+    ).order_by('created_at')
 
     return _prepare_feed_posts(
         Post.objects.select_related(
@@ -86,8 +111,10 @@ def _community_posts():
             'user__vendor_profile',
             'user__admin_profile',
         ).prefetch_related(
-            Prefetch('comments', queryset=comment_queryset)
-        )
+            Prefetch('comments', queryset=comment_queryset),
+            Prefetch('likes', queryset=user_model.objects.only('id')),
+        ),
+        viewer=viewer,
     )
 
 
@@ -246,7 +273,7 @@ def review_list(request):
 
 
 def community_feed(request):
-    posts = _community_posts()
+    posts = _community_posts(viewer=request.user)
 
     return render(request, 'core/community_feed.html', {
         'posts': posts,
@@ -262,7 +289,7 @@ def community_dashboard(request):
         return redirect('home')
 
     traveler_profile = _get_or_create_traveler_profile(request.user)
-    posts = _community_posts()
+    posts = _community_posts(viewer=request.user)
 
     return render(request, 'core/community_dashboard.html', {
         'posts': posts,
@@ -303,10 +330,35 @@ def community_comment_create(request, post_id):
         comment = form.save(commit=False)
         comment.post = post
         comment.user = request.user
+        parent_id = request.POST.get('parent_id')
+        if parent_id:
+            parent_comment = get_object_or_404(Comment, id=parent_id, post=post)
+            if parent_comment.parent_id:
+                messages.error(request, 'Replies can only be added to top-level comments.')
+                return redirect(next_url)
+            if request.user.id != post.user_id:
+                messages.error(request, 'Only the original poster can reply to comments.')
+                return redirect(next_url)
+            comment.parent = parent_comment
         comment.save()
         messages.success(request, 'Comment added.')
     else:
         messages.error(request, 'Please write a comment before submitting.')
+
+    return redirect(next_url)
+
+
+@login_required(login_url='account_login_choice')
+def community_post_like_toggle(request, post_id):
+    next_url = request.POST.get('next') or f"{reverse('community_feed')}#post-{post_id}"
+    if request.method != 'POST':
+        return redirect(next_url)
+
+    post = get_object_or_404(Post, id=post_id)
+    if post.likes.filter(id=request.user.id).exists():
+        post.likes.remove(request.user)
+    else:
+        post.likes.add(request.user)
 
     return redirect(next_url)
 

@@ -117,7 +117,8 @@
 
 .new-post-form input[type="file"],
 .new-post-form textarea,
-.comment-form textarea {
+.comment-form textarea,
+.comment-reply-form textarea {
     border: 1px solid #d5dfeb;
     border-radius: 0.7rem;
     padding: 0.62rem 0.75rem;
@@ -129,7 +130,8 @@
 
 .new-post-form textarea:focus,
 .new-post-form input[type="file"]:focus,
-.comment-form textarea:focus {
+.comment-form textarea:focus,
+.comment-reply-form textarea:focus {
     outline: none;
     border-color: var(--accent-2, #2bb3a6);
     box-shadow: 0 0 0 3px rgba(43, 179, 166, 0.15);
@@ -267,12 +269,58 @@
 .engagement-actions {
     display: flex;
     gap: 0.7rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.like-form {
+    margin: 0;
 }
 
 .engage-item {
     font-size: 0.86rem;
     font-weight: 600;
     color: #334155;
+    text-decoration: none;
+    border: none;
+    background: transparent;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+}
+
+.engage-item:hover {
+    color: #0f172a;
+}
+
+.like-btn .heart-icon {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    fill: transparent;
+    transition: fill 0.2s ease, stroke 0.2s ease, transform 0.2s ease;
+}
+
+.like-btn:hover,
+.like-btn:focus-visible {
+    color: #e11d48;
+    outline: none;
+}
+
+.like-btn:hover .heart-icon,
+.like-btn:focus-visible .heart-icon {
+    transform: scale(1.04);
+}
+
+.like-btn.liked {
+    color: #e11d48;
+}
+
+.like-btn.liked .heart-icon {
+    fill: currentColor;
 }
 
 .engagement-count {
@@ -366,6 +414,47 @@
     line-height: 1.5;
 }
 
+.reply-list {
+    margin-top: 0.58rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.52rem;
+}
+
+.reply-item {
+    display: flex;
+    gap: 0.58rem;
+    align-items: flex-start;
+    padding: 0.55rem;
+    border: 1px solid #e7eef7;
+    border-radius: 0.7rem;
+    background: #ffffff;
+}
+
+.owner-reply-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: #dbf7f2;
+    color: #0f766e;
+    font-size: 0.72rem !important;
+    font-weight: 700;
+    padding: 0.08rem 0.45rem;
+}
+
+.comment-reply-form {
+    margin-top: 0.58rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.comment-reply-form button {
+    align-self: flex-end;
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+}
+
 .empty-comments,
 .empty-posts {
     color: #607085;
@@ -387,6 +476,10 @@
     }
 
     .comment-form button {
+        width: 100%;
+    }
+
+    .comment-reply-form button {
         width: 100%;
     }
 
