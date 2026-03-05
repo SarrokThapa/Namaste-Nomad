@@ -118,13 +118,27 @@
                                 {{ booking.traveler.get_full_name|default:"Traveler" }}
                             </div>
                             <div class="booking-meta">
-                                {{ booking.package.title }} - {{ booking.start_date|date:"M d" }} - {{ booking.end_date|date:"M d" }}
+                                {{ booking.package.title }} -
+                                {{ booking.travel_date|date:"M d, Y" }} -
+                                {{ booking.number_of_people }} traveler{{ booking.number_of_people|pluralize }}
                             </div>
                         </div>
                         <div class="booking-actions">
                             <span class="status {{ booking.status }}">{{ booking.status|title }}</span>
-                            <button class="btn small success">Confirm</button>
-                            <button class="btn small danger">Cancel</button>
+                            {% if booking.status != 'confirmed' %}
+                                <form method="POST" action="{% url 'vendor_booking_status_update' booking.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.path }}">
+                                    <button type="submit" name="status" value="confirmed" class="btn small success">Confirm</button>
+                                </form>
+                            {% endif %}
+                            {% if booking.status != 'cancelled' %}
+                                <form method="POST" action="{% url 'vendor_booking_status_update' booking.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.path }}">
+                                    <button type="submit" name="status" value="cancelled" class="btn small danger">Cancel</button>
+                                </form>
+                            {% endif %}
                         </div>
                     </div>
                 {% endfor %}

@@ -1,0 +1,82 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Confirmation - Namaste Nomad</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/packages.css' %}?v=20260301b">
+</head>
+<body class="packages-body">
+    <nav class="landing-nav">
+        <div class="nav-container">
+            <a class="nav-brand" href="{% url 'home' %}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+                <span>Namaste Nomad</span>
+            </a>
+            <div class="nav-menu">
+                <a href="#">Destinations</a>
+                <a href="{% url 'package_treks' %}">Treks</a>
+                <a href="{% url 'package_tours' %}">Tours</a>
+                <a href="{% url 'package_list' %}">Packages</a>
+                <a href="{% url 'community_feed' %}">Explore</a>
+                <a href="{% url 'about' %}">About</a>
+                <a href="{% url 'blog_list' %}">Blog</a>
+                <a href="{% url 'contact' %}">Contact</a>
+            </div>
+            <div class="nav-actions">
+                <a href="{% url 'traveler_bookings' %}" class="btn-dark">My Bookings</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="booking-shell">
+        <section class="booking-confirm-card">
+            <h1>Booking Confirmed</h1>
+            <p>Your request has been submitted successfully. The vendor will review and confirm shortly.</p>
+            <div class="booking-confirm-grid">
+                <div>
+                    <span>Package</span>
+                    <strong>{{ booking.package.title }}</strong>
+                </div>
+                <div>
+                    <span>Travel Date</span>
+                    <strong>{{ booking.travel_date|date:"M d, Y" }}</strong>
+                </div>
+                <div>
+                    <span>Number of People</span>
+                    <strong>{{ booking.number_of_people }}</strong>
+                </div>
+                <div>
+                    <span>Total Price</span>
+                    <strong>Rs {{ booking.total_price|floatformat:0 }}</strong>
+                </div>
+                <div>
+                    <span>Status</span>
+                    <strong>{{ booking.status|title }}</strong>
+                </div>
+                <div>
+                    <span>Booked On</span>
+                    <strong>{{ booking.created_at|date:"M d, Y" }}</strong>
+                </div>
+            </div>
+            {% if booking.special_notes %}
+                <div class="booking-notes">
+                    <span>Special Notes</span>
+                    <p>{{ booking.special_notes }}</p>
+                </div>
+            {% endif %}
+            <div class="booking-form-actions">
+                <a href="{% url 'traveler_bookings' %}" class="btn-primary">Go to My Bookings</a>
+                <a href="{% url 'package_detail' booking.package.id %}" class="btn-outline-dark">Back to Package</a>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

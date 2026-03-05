@@ -18,6 +18,7 @@ urlpatterns = [
     path('vendor/profile/', views.vendor_profile, name='vendor_profile'),
     path('vendor/packages/', views.vendor_packages, name='vendor_packages'),
     path('vendor/bookings/', views.vendor_bookings, name='vendor_bookings'),
+    path('vendor/bookings/<int:booking_id>/status/', views.vendor_booking_status_update, name='vendor_booking_status_update'),
     path('vendor/reviews/', views.vendor_reviews, name='vendor_reviews'),
     path('vendor/analytics/', views.vendor_analytics, name='vendor_analytics'),
     path('vendor/settings/', views.vendor_settings, name='vendor_settings'),

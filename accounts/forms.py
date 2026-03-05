@@ -13,6 +13,7 @@ class PackageForm(forms.ModelForm):
             'location',
             'price',
             'duration_days',
+            'available_slots',
             'difficulty',
             'group_size',
             'best_season',
@@ -29,6 +30,7 @@ class PackageForm(forms.ModelForm):
             'location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Khumbu, Nepal'}),
             'price': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '1899'}),
             'duration_days': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '14'}),
+            'available_slots': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '12'}),
             'difficulty': forms.Select(attrs={'class': 'form-control'}),
             'group_size': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '10'}),
             'best_season': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Mar-May, Sep-Nov'}),
@@ -42,6 +44,7 @@ class PackageForm(forms.ModelForm):
         labels = {
             'category': 'Category',
             'duration_days': 'Duration (days)',
+            'available_slots': 'Available Slots',
             'group_size': 'Group Size',
             'image_url': 'Cover Image URL',
             'is_active': 'Publish package',

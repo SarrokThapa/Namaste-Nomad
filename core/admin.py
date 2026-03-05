@@ -11,8 +11,17 @@ class PackageAdmin(admin.ModelAdmin):
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ('package', 'traveler', 'status', 'source', 'start_date', 'end_date', 'total_price')
-    list_filter = ('status', 'source', 'start_date')
+    list_display = (
+        'package',
+        'traveler',
+        'status',
+        'source',
+        'travel_date',
+        'number_of_people',
+        'total_price',
+        'created_at',
+    )
+    list_filter = ('status', 'source', 'travel_date', 'created_at')
     search_fields = ('package__title', 'traveler__email')
 
 

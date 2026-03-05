@@ -1,6 +1,7 @@
 from django import forms
+from django.utils import timezone
 
-from .models import Comment, Post, Review
+from .models import Booking, Comment, Post, Review
 
 
 class ReviewForm(forms.ModelForm):
@@ -38,3 +39,47 @@ class CommentForm(forms.ModelForm):
                 'placeholder': 'Write a comment...',
             }),
         }
+
+
+class BookingForm(forms.ModelForm):
+    class Meta:
+        model = Booking
+        fields = ['number_of_people', 'travel_date', 'special_notes']
+        widgets = {
+            'number_of_people': forms.NumberInput(attrs={'min': 1}),
+            'travel_date': forms.DateInput(attrs={'type': 'date'}),
+            'special_notes': forms.Textarea(attrs={
+                'rows': 3,
+                'placeholder': 'Add any special requests (optional).',
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.package = kwargs.pop('package', None)
+        super().__init__(*args, **kwargs)
+        self.fields['special_notes'].required = False
+
+    def clean_travel_date(self):
+        travel_date = self.cleaned_data['travel_date']
+        if travel_date < timezone.localdate():
+            raise forms.ValidationError('Please select a valid future travel date.')
+        return travel_date
+
+    def clean_number_of_people(self):
+        number_of_people = self.cleaned_data['number_of_people']
+        if number_of_people < 1:
+            raise forms.ValidationError('At least one traveler is required.')
+        return number_of_people
+
+    def clean(self):
+        cleaned_data = super().clean()
+        number_of_people = cleaned_data.get('number_of_people')
+
+        if self.package and number_of_people:
+            if number_of_people > self.package.available_slots:
+                self.add_error(
+                    'number_of_people',
+                    f'Only {self.package.available_slots} slot(s) are currently available.',
+                )
+
+        return cleaned_data

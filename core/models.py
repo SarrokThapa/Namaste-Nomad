@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -32,6 +34,7 @@ class Package(models.Model):
     duration_days = models.PositiveSmallIntegerField(blank=True, null=True)
     difficulty = models.CharField(max_length=20, choices=DIFFICULTY_CHOICES, blank=True)
     group_size = models.PositiveSmallIntegerField(blank=True, null=True)
+    available_slots = models.PositiveIntegerField(default=10)
     best_season = models.CharField(max_length=100, blank=True)
     image_url = models.URLField(blank=True)
     price = models.DecimalField(
@@ -82,8 +85,11 @@ class Booking(models.Model):
         null=True,
         blank=True,
     )
-    start_date = models.DateField()
-    end_date = models.DateField()
+    number_of_people = models.PositiveIntegerField(default=1)
+    travel_date = models.DateField(default=date.today)
+    special_notes = models.TextField(blank=True)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='direct')
     total_price = models.DecimalField(
@@ -92,6 +98,16 @@ class Booking(models.Model):
         validators=[MinValueValidator(0)],
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.package_id:
+            self.total_price = (self.package.price or 0) * self.number_of_people
+        if self.travel_date:
+            if not self.start_date:
+                self.start_date = self.travel_date
+            if not self.end_date:
+                self.end_date = self.travel_date
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.package.title} ({self.status})"

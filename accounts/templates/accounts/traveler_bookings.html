@@ -15,8 +15,11 @@
                     <article class="booking-item">
                         <div class="booking-item-main">
                             <h3><a href="{% url 'package_detail' booking.package.id %}">{{ booking.package.title }}</a></h3>
-                            <p>{{ booking.start_date|date:"M d, Y" }} - {{ booking.end_date|date:"M d, Y" }}</p>
-                            <p>{{ booking.package.location|default:"Nepal" }}</p>
+                            <p>Travel date: {{ booking.travel_date|date:"M d, Y" }}</p>
+                            <p>{{ booking.number_of_people }} traveler{{ booking.number_of_people|pluralize }} · {{ booking.package.location|default:"Nepal" }}</p>
+                            {% if booking.special_notes %}
+                                <p>Note: {{ booking.special_notes|truncatechars:90 }}</p>
+                            {% endif %}
                         </div>
                         <div class="booking-item-meta">
                             <span class="status-pill status-{{ booking.status }}">{{ booking.status|title }}</span>

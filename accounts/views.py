@@ -8,6 +8,8 @@ from django.contrib.auth.decorators import login_required
 from django.core.files.images import get_image_dimensions
 from django.db.models import Avg, Case, CharField, Count, Max, Q, Sum, Value, When
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect
@@ -81,6 +83,17 @@ def _ensure_traveler(request):
         messages.error(request, 'Traveler access only.')
         return False
     return True
+
+
+def _safe_next_url(request, fallback_name):
+    candidate = (request.POST.get('next') or request.GET.get('next') or '').strip()
+    if candidate and url_has_allowed_host_and_scheme(
+        url=candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+    return reverse(fallback_name)
 
 
 TRAVELER_CATEGORY_LABELS = {
@@ -323,9 +336,9 @@ def vendor_dashboard(request):
         pie_gradient = f"conic-gradient({', '.join(segments)})"
 
     upcoming_bookings = vendor_bookings.filter(
-        start_date__gte=today,
-        start_date__lte=today + timedelta(days=14),
-    ).exclude(status='cancelled').order_by('start_date')[:3]
+        travel_date__gte=today,
+        travel_date__lte=today + timedelta(days=14),
+    ).exclude(status='cancelled').order_by('travel_date')[:3]
 
     package_performance = vendor_packages.annotate(
         booking_count=Count('bookings'),
@@ -376,12 +389,62 @@ def vendor_bookings(request):
         return redirect('vendor_login')
 
     vendor_profile = _get_vendor_profile(request.user)
-    bookings = Booking.objects.filter(package__vendor=request.user).order_by('-created_at')
+    bookings = Booking.objects.filter(package__vendor=request.user).select_related(
+        'package',
+        'traveler',
+    ).order_by('-created_at')
     return render(request, 'accounts/vendor_bookings.html', {
         'vendor_profile': vendor_profile,
         'active_page': 'bookings',
         'bookings': bookings,
     })
+
+
+@never_cache
+@login_required(login_url='vendor_login')
+@csrf_protect
+def vendor_booking_status_update(request, booking_id):
+    if not _ensure_vendor(request):
+        return redirect('vendor_login')
+
+    next_url = request.POST.get('next') or reverse('vendor_bookings')
+    if request.method != 'POST':
+        return redirect(next_url)
+
+    booking = get_object_or_404(
+        Booking.objects.select_related('package'),
+        id=booking_id,
+        package__vendor=request.user,
+    )
+    requested_status = (request.POST.get('status') or '').strip().lower()
+
+    if requested_status not in {'confirmed', 'cancelled'}:
+        messages.error(request, 'Invalid booking action.')
+        return redirect(next_url)
+
+    if booking.status == requested_status:
+        return redirect(next_url)
+
+    package = booking.package
+
+    if requested_status == 'cancelled' and booking.status != 'cancelled':
+        package.available_slots += booking.number_of_people
+        package.save(update_fields=['available_slots'])
+
+    if requested_status == 'confirmed' and booking.status == 'cancelled':
+        if booking.number_of_people > package.available_slots:
+            messages.error(
+                request,
+                f'Cannot confirm booking. Only {package.available_slots} slot(s) are currently available.',
+            )
+            return redirect(next_url)
+        package.available_slots -= booking.number_of_people
+        package.save(update_fields=['available_slots'])
+
+    booking.status = requested_status
+    booking.save(update_fields=['status'])
+    messages.success(request, f'Booking marked as {requested_status}.')
+    return redirect(next_url)
 
 
 @never_cache
@@ -1124,6 +1187,7 @@ def traveler_login(request):
     if request.method == 'POST':
         email = request.POST.get('email')
         password = request.POST.get('password')
+        next_url = _safe_next_url(request, 'traveler_home')
         
         try:
             user = User.objects.get(email=email, user_type='traveler')
@@ -1133,7 +1197,7 @@ def traveler_login(request):
                 login(request, user)
                 if _get_traveler_profile(user) is None:
                     TravelerProfile.objects.create(user=user)
-                return redirect('traveler_home')
+                return redirect(next_url)
             else:
                 messages.error(request, 'Invalid credentials')
         except User.DoesNotExist:

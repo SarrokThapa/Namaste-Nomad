@@ -242,7 +242,16 @@
                 <h2>From</h2>
                 <div class="price-amount">Rs {{ package.price|floatformat:0 }}</div>
                 <p>Per traveler (estimate)</p>
-                <button class="btn-primary">Check Availability</button>
+                <p>{{ package.available_slots }} slot{{ package.available_slots|pluralize }} left</p>
+                {% if request.user.is_authenticated %}
+                    {% if can_book %}
+                        <a href="{% url 'package_book' package.id %}" class="btn-primary">Book Now</a>
+                    {% else %}
+                        <a href="{% url 'account_login_choice' %}" class="btn-primary">Login as Traveler to Book</a>
+                    {% endif %}
+                {% else %}
+                    <a href="{% url 'account_login_choice' %}?next={% url 'package_book' package.id %}" class="btn-primary">Book Now</a>
+                {% endif %}
                 <button class="btn-outline-dark">Contact Vendor</button>
             </div>
 

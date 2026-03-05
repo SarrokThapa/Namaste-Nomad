@@ -48,7 +48,7 @@
                     <li>Save wishlists</li>
                     <li>Leave reviews</li>
                 </ul>
-                <a class="choice-btn" href="{% url 'traveler_login' %}">Login as Traveler</a>
+                <a class="choice-btn" href="{% url 'traveler_login' %}{% if request.GET.next %}?next={{ request.GET.next|urlencode }}{% endif %}">Login as Traveler</a>
             </article>
 
             <article class="choice-card">
@@ -66,7 +66,7 @@
                     <li>Review analytics</li>
                     <li>Grow your reach</li>
                 </ul>
-                <a class="choice-btn" href="{% url 'vendor_login' %}">Login as Vendor</a>
+                <a class="choice-btn" href="{% url 'vendor_login' %}{% if request.GET.next %}?next={{ request.GET.next|urlencode }}{% endif %}">Login as Vendor</a>
             </article>
         </section>
     </main>

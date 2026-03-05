@@ -6,14 +6,16 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Avg, Count, Prefetch
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import TravelerProfile
-from .forms import CommentForm, PostForm, ReviewForm
-from .models import Comment, Package, Post, Review
+from .forms import BookingForm, CommentForm, PostForm, ReviewForm
+from .models import Booking, Comment, Package, Post, Review
 
 BLOG_POSTS = [
     {
@@ -354,6 +356,7 @@ def package_detail(request, package_id):
         })
 
     can_review = request.user.is_authenticated and getattr(request.user, 'user_type', '') == 'traveler'
+    can_book = request.user.is_authenticated and getattr(request.user, 'user_type', '') == 'traveler'
     facts = [
         {
             'label': 'Duration',
@@ -362,6 +365,10 @@ def package_detail(request, package_id):
         {
             'label': 'Difficulty',
             'value': package.get_difficulty_display() if package.difficulty else 'Contact vendor',
+        },
+        {
+            'label': 'Available Slots',
+            'value': str(package.available_slots),
         },
         {
             'label': 'Group Size',
@@ -385,12 +392,73 @@ def package_detail(request, package_id):
         'rating_breakdown': rating_breakdown,
         'review_sort': sort,
         'can_review': can_review,
+        'can_book': can_book,
         'facts': facts,
         'inclusions': inclusions,
         'exclusions': exclusions,
         'itinerary_points': itinerary_points,
         'images': images,
     })
+
+
+@login_required(login_url='account_login_choice')
+def package_book(request, package_id):
+    package = get_object_or_404(Package, id=package_id, is_active=True)
+
+    if getattr(request.user, 'user_type', '') != 'traveler':
+        messages.error(request, 'Only traveler accounts can create bookings.')
+        return redirect('package_detail', package_id=package.id)
+
+    if request.method == 'POST':
+        form = BookingForm(request.POST, package=package)
+        if form.is_valid():
+            with transaction.atomic():
+                locked_package = Package.objects.select_for_update().get(id=package.id)
+                number_of_people = form.cleaned_data['number_of_people']
+
+                if number_of_people > locked_package.available_slots:
+                    form.add_error(
+                        'number_of_people',
+                        f'Only {locked_package.available_slots} slot(s) are currently available.',
+                    )
+                else:
+                    booking = form.save(commit=False)
+                    booking.package = locked_package
+                    booking.traveler = request.user
+                    booking.status = 'pending'
+                    booking.source = 'direct'
+                    booking.save()
+
+                    locked_package.available_slots -= number_of_people
+                    locked_package.save(update_fields=['available_slots'])
+
+                    messages.success(request, 'Booking created successfully.')
+                    return redirect('booking_confirmation', booking_id=booking.id)
+    else:
+        form = BookingForm(
+            package=package,
+            initial={
+                'number_of_people': 1,
+                'travel_date': timezone.localdate(),
+            },
+        )
+
+    return render(request, 'core/booking_form.html', {
+        'package': package,
+        'form': form,
+        'estimated_total': package.price,
+    })
+
+
+@login_required(login_url='account_login_choice')
+def booking_confirmation(request, booking_id):
+    booking = get_object_or_404(
+        Booking.objects.select_related('package', 'traveler'),
+        id=booking_id,
+        traveler=request.user,
+    )
+    return render(request, 'core/booking_confirmation.html', {'booking': booking})
+
 
 def about(request):
     """About page"""

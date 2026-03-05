@@ -1,0 +1,143 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book {{ package.title }} - Namaste Nomad</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/packages.css' %}?v=20260301b">
+</head>
+<body class="packages-body">
+    <nav class="landing-nav">
+        <div class="nav-container">
+            <a class="nav-brand" href="{% url 'home' %}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+                <span>Namaste Nomad</span>
+            </a>
+            <div class="nav-menu">
+                <a href="#">Destinations</a>
+                <a href="{% url 'package_treks' %}">Treks</a>
+                <a href="{% url 'package_tours' %}">Tours</a>
+                <a href="{% url 'package_list' %}">Packages</a>
+                <a href="{% url 'community_feed' %}">Explore</a>
+                <a href="{% url 'about' %}">About</a>
+                <a href="{% url 'blog_list' %}">Blog</a>
+                <a href="{% url 'contact' %}">Contact</a>
+            </div>
+            <div class="nav-actions">
+                <a href="{% url 'account_login_choice' %}" class="btn-ghost">Sign In</a>
+                <a href="{% url 'account_register_choice' %}" class="btn-dark">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    {% if messages %}
+        <div class="alert-stack container-landing">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <main class="booking-shell">
+        <section class="booking-summary-card">
+            <h1>Book Your Package</h1>
+            <p class="booking-summary-title">{{ package.title }}</p>
+            <p class="booking-summary-meta">
+                {{ package.location|default:"Nepal" }}
+                {% if package.duration_days %} · {{ package.duration_days }} day{{ package.duration_days|pluralize }}{% endif %}
+            </p>
+            <div class="booking-summary-grid">
+                <div>
+                    <span>Price Per Person</span>
+                    <strong>Rs {{ package.price|floatformat:0 }}</strong>
+                </div>
+                <div>
+                    <span>Available Slots</span>
+                    <strong>{{ package.available_slots }}</strong>
+                </div>
+                <div>
+                    <span>Status</span>
+                    <strong>Pending Confirmation</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="booking-form-card">
+            <h2>Booking Details</h2>
+            <form method="POST">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="booking-form-errors">
+                        {% for error in form.non_field_errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="booking-form-grid">
+                    <div class="form-field">
+                        <label for="{{ form.number_of_people.id_for_label }}">Number of People</label>
+                        {{ form.number_of_people }}
+                        {% if form.number_of_people.errors %}
+                            <div class="field-error">{{ form.number_of_people.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-field">
+                        <label for="{{ form.travel_date.id_for_label }}">Travel Date</label>
+                        {{ form.travel_date }}
+                        {% if form.travel_date.errors %}
+                            <div class="field-error">{{ form.travel_date.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-field span-2">
+                        <label for="{{ form.special_notes.id_for_label }}">Special Notes (Optional)</label>
+                        {{ form.special_notes }}
+                        {% if form.special_notes.errors %}
+                            <div class="field-error">{{ form.special_notes.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="booking-total">
+                    <span>Estimated Total</span>
+                    <strong id="estimatedTotal">Rs {{ estimated_total|floatformat:0 }}</strong>
+                </div>
+
+                <div class="booking-form-actions">
+                    <button type="submit" class="btn-primary" {% if package.available_slots == 0 %}disabled{% endif %}>Confirm Booking</button>
+                    <a href="{% url 'package_detail' package.id %}" class="btn-outline-dark">Back to Package</a>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        (() => {
+            const peopleInput = document.getElementById('{{ form.number_of_people.id_for_label }}');
+            const totalNode = document.getElementById('estimatedTotal');
+            const price = Number('{{ package.price|floatformat:2 }}');
+
+            if (!peopleInput || !totalNode || Number.isNaN(price)) return;
+
+            const updateTotal = () => {
+                const people = Math.max(parseInt(peopleInput.value || '1', 10), 1);
+                const total = price * people;
+                totalNode.textContent = `Rs ${Math.round(total).toLocaleString()}`;
+            };
+
+            peopleInput.addEventListener('input', updateTotal);
+            updateTotal();
+        })();
+    </script>
+</body>
+</html>

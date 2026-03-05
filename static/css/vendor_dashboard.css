@@ -530,6 +530,10 @@ body {
     justify-content: flex-end;
 }
 
+.booking-actions form {
+    margin: 0;
+}
+
 .status {
     font-size: 0.7rem;
     padding: 0.25rem 0.6rem;

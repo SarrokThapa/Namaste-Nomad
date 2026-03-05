@@ -650,6 +650,169 @@ body.packages-body {
     gap: 1rem;
 }
 
+.booking-shell {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 2.5rem 2rem 4rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.2rem;
+}
+
+.booking-summary-card,
+.booking-form-card,
+.booking-confirm-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.05);
+}
+
+.booking-summary-card h1,
+.booking-confirm-card h1 {
+    font-size: 1.45rem;
+    margin-bottom: 0.5rem;
+}
+
+.booking-summary-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+}
+
+.booking-summary-meta {
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+.booking-summary-grid,
+.booking-confirm-grid {
+    margin-top: 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 0.75rem;
+}
+
+.booking-summary-grid div,
+.booking-confirm-grid div {
+    border: 1px solid #e6ebf2;
+    border-radius: 0.8rem;
+    padding: 0.7rem;
+    background: #f8fafc;
+}
+
+.booking-summary-grid span,
+.booking-confirm-grid span {
+    color: #667085;
+    font-size: 0.8rem;
+}
+
+.booking-summary-grid strong,
+.booking-confirm-grid strong {
+    display: block;
+    margin-top: 0.2rem;
+    color: #111827;
+}
+
+.booking-form-card h2 {
+    font-size: 1.2rem;
+    margin-bottom: 0.9rem;
+}
+
+.booking-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.booking-form-grid .span-2 {
+    grid-column: span 2;
+}
+
+.booking-form-card .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.booking-form-card label {
+    font-size: 0.86rem;
+    color: #566273;
+    font-weight: 600;
+}
+
+.booking-form-card input,
+.booking-form-card textarea {
+    border: 1px solid #d1d5db;
+    border-radius: 0.6rem;
+    padding: 0.62rem 0.72rem;
+    font-size: 0.92rem;
+    background: #fff;
+}
+
+.booking-form-card input:focus,
+.booking-form-card textarea:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+}
+
+.booking-total {
+    margin-top: 1rem;
+    border-top: 1px solid #edf1f6;
+    padding-top: 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.booking-total span {
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+.booking-total strong {
+    font-size: 1.1rem;
+}
+
+.booking-form-actions {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.booking-form-errors,
+.field-error {
+    color: #b91c1c;
+    font-size: 0.84rem;
+}
+
+.booking-notes {
+    margin-top: 1rem;
+    border: 1px solid #e6ebf2;
+    border-radius: 0.8rem;
+    padding: 0.8rem;
+    background: #f8fafc;
+}
+
+.booking-notes span {
+    color: #6b7280;
+    font-size: 0.82rem;
+}
+
+.booking-notes p {
+    margin-top: 0.3rem;
+    color: #1f2937;
+    line-height: 1.6;
+}
+
+.btn-primary:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
 @media (max-width: 980px) {
     .packages-filter {
         grid-template-columns: 1fr;
@@ -670,6 +833,14 @@ body.packages-body {
 
     .review-layout {
         grid-template-columns: 1fr;
+    }
+
+    .booking-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .booking-form-grid .span-2 {
+        grid-column: span 1;
     }
 }
 
