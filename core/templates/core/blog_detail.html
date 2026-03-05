@@ -1,0 +1,78 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ post.title }} - Namaste Nomad Blog</title>
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/about_blog.css' %}?v=20260301a">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="landing-nav">
+        <div class="nav-container">
+            <a class="nav-brand" href="{% url 'home' %}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+                <span>Namaste Nomad</span>
+            </a>
+            <div class="nav-menu">
+                <a href="#">Destinations</a>
+                <a href="{% url 'package_treks' %}">Treks</a>
+                <a href="{% url 'package_tours' %}">Tours</a>
+                <a href="{% url 'package_list' %}">Packages</a>
+                <a href="{% url 'community_feed' %}">Explore</a>
+                <a href="{% url 'about' %}">About</a>
+                <a href="{% url 'blog_list' %}" class="nav-active">Blog</a>
+                <a href="{% url 'contact' %}">Contact</a>
+            </div>
+            <div class="nav-actions">
+                <a href="{% url 'account_login_choice' %}" class="btn-ghost">Sign In</a>
+                <a href="{% url 'account_register_choice' %}" class="btn-dark">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="info-page">
+        <section class="info-hero">
+            <div class="container-landing">
+                <h1>{{ post.title }}</h1>
+                <p>{{ post.published_on|date:"F d, Y" }} · {{ post.read_time }}</p>
+            </div>
+        </section>
+
+        <section class="container-landing info-section">
+            <article class="blog-article">
+                <div class="blog-article-image">
+                    <img src="{% static post.image_path %}" alt="{{ post.title }}">
+                </div>
+                <p class="blog-article-intro">{{ post.intro }}</p>
+
+                {% for section in post.sections %}
+                    <section class="blog-article-section">
+                        <h2>{{ section.heading }}</h2>
+                        <p>{{ section.body }}</p>
+                    </section>
+                {% endfor %}
+
+                <div class="blog-article-actions">
+                    <a href="{% url 'blog_list' %}" class="btn-outline-dark">Back to Blog</a>
+                    <a href="{% url 'package_list' %}" class="btn-dark">Explore Packages</a>
+                </div>
+            </article>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container-landing">
+            <div class="footer-bottom">
+                <p>&copy; 2026 Namaste Nomad. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,16 +1,156 @@
 # core/views.py
+from datetime import date
+
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db.models import Avg, Count, Prefetch
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from accounts.models import TravelerProfile
 from .forms import CommentForm, PostForm, ReviewForm
 from .models import Comment, Package, Post, Review
+
+BLOG_POSTS = [
+    {
+        'slug': 'top-5-treks-in-nepal',
+        'title': 'Top 5 Treks in Nepal',
+        'excerpt': 'A practical guide to Nepal\'s most iconic routes, from Everest to Tilicho.',
+        'published_on': date(2026, 2, 18),
+        'read_time': '6 min read',
+        'image_path': 'images/featured/everest-base-camp.jpg',
+        'intro': (
+            'Nepal offers trekking routes for every type of traveler. If you are planning your first '
+            'high-altitude adventure, start with trails that combine scenic value, accessible logistics, '
+            'and reliable local support.'
+        ),
+        'sections': [
+            {
+                'heading': '1. Everest Base Camp Trek',
+                'body': (
+                    'Best for dramatic Himalayan views and classic lodge trekking. It is physically '
+                    'demanding, but the route has excellent tea-house infrastructure.'
+                ),
+            },
+            {
+                'heading': '2. Annapurna Circuit',
+                'body': (
+                    'Best for diversity. You pass through subtropical valleys, alpine regions, and '
+                    'high mountain passes in a single itinerary.'
+                ),
+            },
+            {
+                'heading': '3. Manaslu Circuit',
+                'body': (
+                    'Best for remote trail experience. Visitor numbers are lower, and the cultural '
+                    'immersion in mountain villages is exceptional.'
+                ),
+            },
+            {
+                'heading': '4. Tilicho Lake Trek',
+                'body': (
+                    'Best for short high-impact adventure. The turquoise alpine lake setting is one of '
+                    'the most memorable viewpoints in Nepal.'
+                ),
+            },
+            {
+                'heading': '5. Langtang Valley Trek',
+                'body': (
+                    'Best for accessibility from Kathmandu. It combines mountain scenery with strong '
+                    'Tamang cultural heritage.'
+                ),
+            },
+        ],
+    },
+    {
+        'slug': 'best-time-to-visit-annapurna',
+        'title': 'Best Time to Visit Annapurna',
+        'excerpt': 'When to go, what to expect by season, and how weather affects your itinerary.',
+        'published_on': date(2026, 1, 27),
+        'read_time': '5 min read',
+        'image_path': 'images/featured/annapurna-circuit.jpg',
+        'intro': (
+            'Annapurna is possible in most seasons, but weather patterns can change your experience '
+            'significantly. Choosing the right season improves visibility, trail comfort, and safety.'
+        ),
+        'sections': [
+            {
+                'heading': 'Spring (March to May)',
+                'body': (
+                    'Rhododendron forests bloom, temperatures are moderate, and the skies are often clear. '
+                    'This is one of the most popular windows for Annapurna.'
+                ),
+            },
+            {
+                'heading': 'Autumn (September to November)',
+                'body': (
+                    'Post-monsoon air quality and mountain visibility are excellent. Trails are busy, '
+                    'but logistics are very reliable.'
+                ),
+            },
+            {
+                'heading': 'Winter (December to February)',
+                'body': (
+                    'Lower traffic and quiet trails can be great, but high passes may be icy or blocked. '
+                    'Use experienced local operators for route planning.'
+                ),
+            },
+            {
+                'heading': 'Monsoon (June to August)',
+                'body': (
+                    'Frequent rain, leeches, and cloud cover make this the most challenging season. '
+                    'Some lower routes are still possible with flexible planning.'
+                ),
+            },
+        ],
+    },
+    {
+        'slug': 'hidden-lakes-in-nepal',
+        'title': 'Hidden Lakes in Nepal',
+        'excerpt': 'Lesser-known alpine lakes worth adding to your itinerary beyond the popular routes.',
+        'published_on': date(2025, 12, 9),
+        'read_time': '7 min read',
+        'image_path': 'images/featured/tilicho-lake.jpg',
+        'intro': (
+            'Beyond the famous circuits, Nepal has remarkable high-altitude lakes with quieter trails '
+            'and unique landscapes. These destinations are perfect for photographers and slow travelers.'
+        ),
+        'sections': [
+            {
+                'heading': 'Kapuche Lake',
+                'body': (
+                    'Known as one of the lowest glacial lakes in the world, Kapuche offers dramatic scenery '
+                    'with relatively short approach treks.'
+                ),
+            },
+            {
+                'heading': 'Dudh Pokhari',
+                'body': (
+                    'A sacred alpine lake in the Lamjung region. The route is peaceful and culturally rich, '
+                    'especially during local festival periods.'
+                ),
+            },
+            {
+                'heading': 'Gokyo Lakes',
+                'body': (
+                    'Not exactly hidden but often overshadowed by EBC itineraries. The turquoise lake chain '
+                    'and Gokyo Ri viewpoint are exceptional.'
+                ),
+            },
+            {
+                'heading': 'Rara Lake',
+                'body': (
+                    'Nepal\'s largest lake with deep blue water and pine forests. It requires longer travel '
+                    'logistics but rewards you with a very different landscape.'
+                ),
+            },
+        ],
+    },
+]
 
 
 def _safe_related(instance, attribute_name):
@@ -255,6 +395,19 @@ def package_detail(request, package_id):
 def about(request):
     """About page"""
     return render(request, 'core/about.html')
+
+
+def blog_list(request):
+    posts = sorted(BLOG_POSTS, key=lambda item: item['published_on'], reverse=True)
+    return render(request, 'core/blog.html', {'posts': posts})
+
+
+def blog_detail(request, slug):
+    post = next((item for item in BLOG_POSTS if item['slug'] == slug), None)
+    if post is None:
+        raise Http404('Blog post not found.')
+    return render(request, 'core/blog_detail.html', {'post': post})
+
 
 def contact(request):
     """Contact page"""

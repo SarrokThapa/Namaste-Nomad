@@ -1,0 +1,75 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Namaste Nomad Blog</title>
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/about_blog.css' %}?v=20260301a">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="landing-nav">
+        <div class="nav-container">
+            <a class="nav-brand" href="{% url 'home' %}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+                <span>Namaste Nomad</span>
+            </a>
+            <div class="nav-menu">
+                <a href="#">Destinations</a>
+                <a href="{% url 'package_treks' %}">Treks</a>
+                <a href="{% url 'package_tours' %}">Tours</a>
+                <a href="{% url 'package_list' %}">Packages</a>
+                <a href="{% url 'community_feed' %}">Explore</a>
+                <a href="{% url 'about' %}">About</a>
+                <a href="{% url 'blog_list' %}" class="nav-active">Blog</a>
+                <a href="{% url 'contact' %}">Contact</a>
+            </div>
+            <div class="nav-actions">
+                <a href="{% url 'account_login_choice' %}" class="btn-ghost">Sign In</a>
+                <a href="{% url 'account_register_choice' %}" class="btn-dark">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="info-page">
+        <section class="info-hero">
+            <div class="container-landing">
+                <h1>Travel Blog</h1>
+                <p>Guides, insights, and route ideas for your next Nepal journey.</p>
+            </div>
+        </section>
+
+        <section class="container-landing info-section">
+            <div class="blog-grid">
+                {% for post in posts %}
+                    <a class="blog-card" href="{% url 'blog_detail' post.slug %}">
+                        <div class="blog-card-image">
+                            <img src="{% static post.image_path %}" alt="{{ post.title }}">
+                        </div>
+                        <div class="blog-card-body">
+                            <div class="blog-card-meta">{{ post.published_on|date:"F d, Y" }} · {{ post.read_time }}</div>
+                            <h2>{{ post.title }}</h2>
+                            <p>{{ post.excerpt }}</p>
+                            <span class="blog-read-link">Read article</span>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container-landing">
+            <div class="footer-bottom">
+                <p>&copy; 2026 Namaste Nomad. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

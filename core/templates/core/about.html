@@ -1,0 +1,142 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Namaste Nomad</title>
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/about_blog.css' %}?v=20260301a">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="landing-nav">
+        <div class="nav-container">
+            <a class="nav-brand" href="{% url 'home' %}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+                <span>Namaste Nomad</span>
+            </a>
+            <div class="nav-menu">
+                <a href="#">Destinations</a>
+                <a href="{% url 'package_treks' %}">Treks</a>
+                <a href="{% url 'package_tours' %}">Tours</a>
+                <a href="{% url 'package_list' %}">Packages</a>
+                <a href="{% url 'community_feed' %}">Explore</a>
+                <a href="{% url 'about' %}" class="nav-active">About</a>
+                <a href="{% url 'blog_list' %}">Blog</a>
+                <a href="{% url 'contact' %}">Contact</a>
+            </div>
+            <div class="nav-actions">
+                <a href="{% url 'account_login_choice' %}" class="btn-ghost">Sign In</a>
+                <a href="{% url 'account_register_choice' %}" class="btn-dark">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="info-page">
+        <section class="info-hero">
+            <div class="container-landing">
+                <h1>About Namaste Nomad</h1>
+                <p>
+                    Namaste Nomad is a travel platform built to help travelers discover authentic Nepal
+                    experiences through trusted local vendors.
+                </p>
+            </div>
+        </section>
+
+        <section class="container-landing info-section intro-block">
+            <p>
+                We bring together travelers, trekking operators, and tour providers in one place.
+                From high-altitude treks to cultural day tours, Namaste Nomad makes it easier to find,
+                compare, and book journeys that match your travel style.
+            </p>
+        </section>
+
+        <section class="container-landing info-section mission-vision-grid">
+            <article class="info-card">
+                <h2>Our Mission</h2>
+                <p>
+                    To help travelers discover Nepal through local vendors by making quality trek and tour
+                    options transparent, accessible, and easy to book.
+                </p>
+            </article>
+            <article class="info-card">
+                <h2>Our Vision</h2>
+                <p>
+                    To become the most trusted bridge between travelers and local tour operators, creating
+                    meaningful travel while supporting local tourism communities.
+                </p>
+            </article>
+        </section>
+
+        <section class="container-landing info-section">
+            <div class="section-headline">
+                <h2>Why Choose Namaste Nomad</h2>
+            </div>
+            <div class="feature-grid">
+                <article class="feature-card">
+                    <h3>Trusted Vendors</h3>
+                    <p>Work with verified operators who know Nepal routes, logistics, and safety standards.</p>
+                </article>
+                <article class="feature-card">
+                    <h3>Local Experiences</h3>
+                    <p>Access culturally rich itineraries and region-specific experiences beyond generic tours.</p>
+                </article>
+                <article class="feature-card">
+                    <h3>Easy Booking</h3>
+                    <p>Compare packages quickly and move from discovery to booking with a simple flow.</p>
+                </article>
+                <article class="feature-card">
+                    <h3>Community</h3>
+                    <p>Learn from real traveler reviews and community posts before selecting your trip.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="container-landing info-section">
+            <div class="section-headline">
+                <h2>Meet the Team</h2>
+            </div>
+            <div class="team-grid">
+                <article class="team-card">
+                    <div class="team-avatar">AS</div>
+                    <h3>Asha Sharma</h3>
+                    <p>Product & Operations</p>
+                </article>
+                <article class="team-card">
+                    <div class="team-avatar">RK</div>
+                    <h3>Rabin Karki</h3>
+                    <p>Partnerships Lead</p>
+                </article>
+                <article class="team-card">
+                    <div class="team-avatar">SP</div>
+                    <h3>Sita Pradhan</h3>
+                    <p>Traveler Success</p>
+                </article>
+                <article class="team-card">
+                    <div class="team-avatar">DN</div>
+                    <h3>Dipesh Neupane</h3>
+                    <p>Engineering</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="container-landing cta-block">
+            <h2>Ready to Plan Your Nepal Adventure?</h2>
+            <a href="{% url 'package_list' %}" class="btn-dark">Explore Packages</a>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container-landing">
+            <div class="footer-bottom">
+                <p>&copy; 2026 Namaste Nomad. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

@@ -16,5 +16,7 @@ urlpatterns = [
     path('reviews/', views.review_list, name='review_list'),
     path('reviews/submit/', views.submit_review, name='submit_review'),
     path('about/', views.about, name='about'),
+    path('blog/', views.blog_list, name='blog_list'),
+    path('blog/<slug:slug>/', views.blog_detail, name='blog_detail'),
     path('contact/', views.contact, name='contact'),
 ]
