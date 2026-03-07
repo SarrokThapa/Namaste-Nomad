@@ -1,13 +1,14 @@
 # core/views.py
-from datetime import date
+from datetime import date, timedelta
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Avg, Count, Prefetch
+from django.db.models import Avg, Count, F, Prefetch
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -16,6 +17,12 @@ from django.utils import timezone
 from accounts.models import TravelerProfile
 from .forms import BookingForm, CommentForm, PostForm, ReviewForm
 from .models import Booking, Comment, Package, Post, Review
+from .payments import (
+    StripeError,
+    create_checkout_session,
+    expire_checkout_session,
+    retrieve_checkout_session,
+)
 
 BLOG_POSTS = [
     {
@@ -267,6 +274,79 @@ def _get_or_create_traveler_profile(user):
     return profile
 
 
+def _stripe_checkout_ttl_minutes():
+    try:
+        minutes = int(getattr(settings, 'STRIPE_CHECKOUT_TTL_MINUTES', 30))
+    except (TypeError, ValueError):
+        minutes = 30
+    return max(minutes, 30)
+
+
+def _booking_payment_expires_at():
+    return timezone.now() + timedelta(minutes=_stripe_checkout_ttl_minutes())
+
+
+def _expire_stale_pending_bookings(package_id=None):
+    stale_bookings = Booking.objects.select_for_update().filter(
+        status=Booking.STATUS_PAYMENT_PENDING,
+        payment_status=Booking.PAYMENT_STATUS_PENDING,
+        payment_expires_at__isnull=False,
+        payment_expires_at__lt=timezone.now(),
+    )
+    if package_id is not None:
+        stale_bookings = stale_bookings.filter(package_id=package_id)
+
+    for stale_booking in stale_bookings:
+        Package.objects.filter(id=stale_booking.package_id).update(
+            available_slots=F('available_slots') + stale_booking.number_of_people,
+        )
+        stale_booking.status = Booking.STATUS_CANCELLED
+        stale_booking.payment_status = Booking.PAYMENT_STATUS_EXPIRED
+        stale_booking.payment_expires_at = None
+        stale_booking.save(update_fields=['status', 'payment_status', 'payment_expires_at'])
+
+
+def _cancel_unpaid_booking(booking, payment_status):
+    if (
+        booking.status == Booking.STATUS_PAYMENT_PENDING
+        and booking.payment_status == Booking.PAYMENT_STATUS_PENDING
+    ):
+        Package.objects.filter(id=booking.package_id).update(
+            available_slots=F('available_slots') + booking.number_of_people,
+        )
+    booking.status = Booking.STATUS_CANCELLED
+    booking.payment_status = payment_status
+    booking.payment_expires_at = None
+    booking.save(update_fields=['status', 'payment_status', 'payment_expires_at'])
+
+
+def _complete_paid_booking(booking, session_data):
+    booking.status = Booking.STATUS_PENDING
+    booking.payment_status = Booking.PAYMENT_STATUS_PAID
+    booking.payment_reference = (
+        session_data.get('payment_intent')
+        or session_data.get('id')
+        or booking.payment_reference
+    )
+    booking.stripe_checkout_session_id = (
+        session_data.get('id')
+        or booking.stripe_checkout_session_id
+    )
+    if not booking.paid_at:
+        booking.paid_at = timezone.now()
+    booking.payment_expires_at = None
+    booking.save(
+        update_fields=[
+            'status',
+            'payment_status',
+            'payment_reference',
+            'stripe_checkout_session_id',
+            'paid_at',
+            'payment_expires_at',
+        ]
+    )
+
+
 def home(request):
     """Landing page"""
     reviews = _prepare_review_cards(
@@ -409,10 +489,15 @@ def package_book(request, package_id):
         messages.error(request, 'Only traveler accounts can create bookings.')
         return redirect('package_detail', package_id=package.id)
 
+    with transaction.atomic():
+        _expire_stale_pending_bookings(package_id=package.id)
+    package.refresh_from_db(fields=['available_slots'])
+
     if request.method == 'POST':
         form = BookingForm(request.POST, package=package)
         if form.is_valid():
             with transaction.atomic():
+                _expire_stale_pending_bookings(package_id=package.id)
                 locked_package = Package.objects.select_for_update().get(id=package.id)
                 number_of_people = form.cleaned_data['number_of_people']
 
@@ -425,21 +510,61 @@ def package_book(request, package_id):
                     booking = form.save(commit=False)
                     booking.package = locked_package
                     booking.traveler = request.user
-                    booking.status = 'pending'
+                    booking.status = Booking.STATUS_PAYMENT_PENDING
+                    booking.payment_method = Booking.PAYMENT_METHOD_STRIPE
+                    booking.payment_status = Booking.PAYMENT_STATUS_PENDING
                     booking.source = 'direct'
+                    booking.payment_expires_at = _booking_payment_expires_at()
                     booking.save()
 
                     locked_package.available_slots -= number_of_people
                     locked_package.save(update_fields=['available_slots'])
 
-                    messages.success(request, 'Booking created successfully.')
-                    return redirect('booking_confirmation', booking_id=booking.id)
+            if form.errors:
+                package.refresh_from_db(fields=['available_slots'])
+            else:
+                success_url = (
+                    request.build_absolute_uri(
+                        reverse('booking_confirmation', kwargs={'booking_id': booking.id}),
+                    )
+                    + '?session_id={CHECKOUT_SESSION_ID}'
+                )
+                cancel_url = request.build_absolute_uri(
+                    reverse('booking_checkout_cancel', kwargs={'booking_id': booking.id}),
+                )
+                try:
+                    session_data = create_checkout_session(
+                        booking=booking,
+                        success_url=success_url,
+                        cancel_url=cancel_url,
+                    )
+                    checkout_url = session_data.get('url')
+                    if not checkout_url:
+                        raise StripeError('Stripe did not return a checkout URL.')
+                except StripeError as exc:
+                    with transaction.atomic():
+                        locked_booking = Booking.objects.select_for_update().get(id=booking.id)
+                        _cancel_unpaid_booking(
+                            locked_booking,
+                            Booking.PAYMENT_STATUS_CANCELLED,
+                        )
+                    form.add_error(None, str(exc))
+                    package.refresh_from_db(fields=['available_slots'])
+                else:
+                    booking.stripe_checkout_session_id = session_data.get('id', '')
+                    booking.payment_reference = (
+                        session_data.get('payment_intent')
+                        or session_data.get('id', '')
+                    )
+                    booking.save(update_fields=['stripe_checkout_session_id', 'payment_reference'])
+                    return redirect(checkout_url)
     else:
         form = BookingForm(
             package=package,
             initial={
                 'number_of_people': 1,
                 'travel_date': timezone.localdate(),
+                'payment_method': Booking.PAYMENT_METHOD_STRIPE,
             },
         )
 
@@ -457,7 +582,86 @@ def booking_confirmation(request, booking_id):
         id=booking_id,
         traveler=request.user,
     )
+
+    if booking.payment_status != Booking.PAYMENT_STATUS_PAID:
+        session_id = request.GET.get('session_id') or booking.stripe_checkout_session_id
+        if session_id:
+            try:
+                session_data = retrieve_checkout_session(session_id)
+            except StripeError as exc:
+                messages.warning(request, f'Payment verification is still pending: {exc}')
+            else:
+                is_paid = (
+                    session_data.get('status') == 'complete'
+                    and session_data.get('payment_status') == 'paid'
+                    and str(session_data.get('client_reference_id')) == str(booking.id)
+                )
+                if is_paid:
+                    with transaction.atomic():
+                        locked_booking = get_object_or_404(
+                            Booking.objects.select_for_update().select_related('package', 'traveler'),
+                            id=booking_id,
+                            traveler=request.user,
+                        )
+                        if (
+                            locked_booking.status == Booking.STATUS_PAYMENT_PENDING
+                            and locked_booking.payment_status != Booking.PAYMENT_STATUS_PAID
+                        ):
+                            _complete_paid_booking(locked_booking, session_data)
+                        booking = locked_booking
+                    if booking.payment_status == Booking.PAYMENT_STATUS_PAID:
+                        messages.success(
+                            request,
+                            'Stripe payment received. Your booking is now waiting for vendor confirmation.',
+                        )
+                    else:
+                        messages.warning(
+                            request,
+                            'This booking is no longer awaiting payment. Please contact support if you were charged.',
+                        )
+                else:
+                    messages.warning(
+                        request,
+                        'Your Stripe checkout is not marked as paid yet.',
+                    )
+
     return render(request, 'core/booking_confirmation.html', {'booking': booking})
+
+
+@login_required(login_url='account_login_choice')
+def booking_checkout_cancel(request, booking_id):
+    booking = get_object_or_404(
+        Booking.objects.select_related('package'),
+        id=booking_id,
+        traveler=request.user,
+    )
+
+    if booking.payment_status == Booking.PAYMENT_STATUS_PAID:
+        return redirect('booking_confirmation', booking_id=booking.id)
+
+    with transaction.atomic():
+        locked_booking = get_object_or_404(
+            Booking.objects.select_for_update().select_related('package'),
+            id=booking_id,
+            traveler=request.user,
+        )
+        if locked_booking.payment_status == Booking.PAYMENT_STATUS_PENDING:
+            _cancel_unpaid_booking(
+                locked_booking,
+                Booking.PAYMENT_STATUS_CANCELLED,
+            )
+
+    if booking.stripe_checkout_session_id:
+        try:
+            expire_checkout_session(booking.stripe_checkout_session_id)
+        except StripeError:
+            pass
+
+    messages.info(
+        request,
+        'Stripe checkout was cancelled. Your reserved slots were released.',
+    )
+    return redirect('package_book', package_id=booking.package_id)
 
 
 def about(request):

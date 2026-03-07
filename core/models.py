@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -64,10 +65,35 @@ class PackageImage(models.Model):
 
 
 class Booking(models.Model):
+    STATUS_PAYMENT_PENDING = 'payment_pending'
+    STATUS_PENDING = 'pending'
+    STATUS_CONFIRMED = 'confirmed'
+    STATUS_CANCELLED = 'cancelled'
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('confirmed', 'Confirmed'),
-        ('cancelled', 'Cancelled'),
+        (STATUS_PAYMENT_PENDING, 'Payment Pending'),
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_CONFIRMED, 'Confirmed'),
+        (STATUS_CANCELLED, 'Cancelled'),
+    ]
+
+    PAYMENT_METHOD_STRIPE = 'stripe'
+    PAYMENT_METHOD_ESEWA = 'esewa'
+    PAYMENT_METHOD_KHALTI = 'khalti'
+    PAYMENT_METHOD_CHOICES = [
+        (PAYMENT_METHOD_STRIPE, 'Stripe'),
+        (PAYMENT_METHOD_ESEWA, 'eSewa'),
+        (PAYMENT_METHOD_KHALTI, 'Khalti'),
+    ]
+
+    PAYMENT_STATUS_PENDING = 'pending'
+    PAYMENT_STATUS_PAID = 'paid'
+    PAYMENT_STATUS_CANCELLED = 'cancelled'
+    PAYMENT_STATUS_EXPIRED = 'expired'
+    PAYMENT_STATUS_CHOICES = [
+        (PAYMENT_STATUS_PENDING, 'Pending'),
+        (PAYMENT_STATUS_PAID, 'Paid'),
+        (PAYMENT_STATUS_CANCELLED, 'Cancelled'),
+        (PAYMENT_STATUS_EXPIRED, 'Expired'),
     ]
 
     SOURCE_CHOICES = [
@@ -90,7 +116,21 @@ class Booking(models.Model):
     special_notes = models.TextField(blank=True)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PAYMENT_PENDING)
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default=PAYMENT_METHOD_STRIPE,
+    )
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PAYMENT_STATUS_CHOICES,
+        default=PAYMENT_STATUS_PENDING,
+    )
+    payment_reference = models.CharField(max_length=255, blank=True)
+    stripe_checkout_session_id = models.CharField(max_length=255, blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    payment_expires_at = models.DateTimeField(null=True, blank=True)
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='direct')
     total_price = models.DecimalField(
         max_digits=10,
@@ -101,7 +141,10 @@ class Booking(models.Model):
 
     def save(self, *args, **kwargs):
         if self.package_id:
-            self.total_price = (self.package.price or 0) * self.number_of_people
+            package_price = self.package.price or Decimal('0')
+            if not isinstance(package_price, Decimal):
+                package_price = Decimal(str(package_price))
+            self.total_price = package_price * self.number_of_people
         if self.travel_date:
             if not self.start_date:
                 self.start_date = self.travel_date

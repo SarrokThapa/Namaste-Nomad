@@ -546,6 +546,12 @@ body {
     color: var(--warning);
 }
 
+.status.payment_pending,
+.status.payment-pending {
+    background: rgba(59, 130, 246, 0.15);
+    color: #1d4ed8;
+}
+
 .status.confirmed {
     background: rgba(34, 197, 94, 0.15);
     color: var(--success);

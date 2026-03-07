@@ -17,14 +17,18 @@
                             <h3><a href="{% url 'package_detail' booking.package.id %}">{{ booking.package.title }}</a></h3>
                             <p>Travel date: {{ booking.travel_date|date:"M d, Y" }}</p>
                             <p>{{ booking.number_of_people }} traveler{{ booking.number_of_people|pluralize }} · {{ booking.package.location|default:"Nepal" }}</p>
+                            <p>Payment: {{ booking.get_payment_status_display }} via {{ booking.get_payment_method_display }}</p>
                             {% if booking.special_notes %}
                                 <p>Note: {{ booking.special_notes|truncatechars:90 }}</p>
                             {% endif %}
                         </div>
                         <div class="booking-item-meta">
-                            <span class="status-pill status-{{ booking.status }}">{{ booking.status|title }}</span>
+                            <span class="status-pill status-{{ booking.status }}">{{ booking.get_status_display }}</span>
                             <strong>Rs {{ booking.total_price|floatformat:0 }}</strong>
                             <span>Booked {{ booking.created_at|date:"M d, Y" }}</span>
+                            {% if booking.payment_status == 'paid' %}
+                                <a href="{% url 'booking_confirmation' booking.id %}">View receipt</a>
+                            {% endif %}
                         </div>
                     </article>
                 {% endfor %}

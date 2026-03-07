@@ -36,10 +36,24 @@
         </div>
     </nav>
 
+    {% if messages %}
+        <div class="alert-stack container-landing">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
     <main class="booking-shell">
         <section class="booking-confirm-card">
-            <h1>Booking Confirmed</h1>
-            <p>Your request has been submitted successfully. The vendor will review and confirm shortly.</p>
+            <h1>{% if booking.payment_status == 'paid' %}Booking Payment Confirmed{% else %}Booking Reserved{% endif %}</h1>
+            <p>
+                {% if booking.payment_status == 'paid' %}
+                    Your Stripe payment was received successfully. The vendor will review and confirm the trip shortly.
+                {% else %}
+                    Your booking is still waiting for Stripe payment confirmation.
+                {% endif %}
+            </p>
             <div class="booking-confirm-grid">
                 <div>
                     <span>Package</span>
@@ -58,12 +72,24 @@
                     <strong>Rs {{ booking.total_price|floatformat:0 }}</strong>
                 </div>
                 <div>
-                    <span>Status</span>
-                    <strong>{{ booking.status|title }}</strong>
+                    <span>Booking Status</span>
+                    <strong>{{ booking.get_status_display }}</strong>
+                </div>
+                <div>
+                    <span>Payment Method</span>
+                    <strong>{{ booking.get_payment_method_display }}</strong>
+                </div>
+                <div>
+                    <span>Payment Status</span>
+                    <strong>{{ booking.get_payment_status_display }}</strong>
                 </div>
                 <div>
                     <span>Booked On</span>
                     <strong>{{ booking.created_at|date:"M d, Y" }}</strong>
+                </div>
+                <div>
+                    <span>Paid On</span>
+                    <strong>{% if booking.paid_at %}{{ booking.paid_at|date:"M d, Y" }}{% else %}Not paid yet{% endif %}</strong>
                 </div>
             </div>
             {% if booking.special_notes %}

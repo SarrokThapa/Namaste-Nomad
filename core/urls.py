@@ -15,6 +15,7 @@ urlpatterns = [
     path('packages/<int:package_id>/book/', views.package_book, name='package_book'),
     path('packages/<int:package_id>/', views.package_detail, name='package_detail'),
     path('bookings/<int:booking_id>/confirmation/', views.booking_confirmation, name='booking_confirmation'),
+    path('bookings/<int:booking_id>/cancel/', views.booking_checkout_cancel, name='booking_checkout_cancel'),
     path('reviews/', views.review_list, name='review_list'),
     path('reviews/submit/', views.submit_review, name='submit_review'),
     path('about/', views.about, name='about'),

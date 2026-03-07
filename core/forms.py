@@ -44,7 +44,7 @@ class CommentForm(forms.ModelForm):
 class BookingForm(forms.ModelForm):
     class Meta:
         model = Booking
-        fields = ['number_of_people', 'travel_date', 'special_notes']
+        fields = ['number_of_people', 'travel_date', 'special_notes', 'payment_method']
         widgets = {
             'number_of_people': forms.NumberInput(attrs={'min': 1}),
             'travel_date': forms.DateInput(attrs={'type': 'date'}),
@@ -52,12 +52,14 @@ class BookingForm(forms.ModelForm):
                 'rows': 3,
                 'placeholder': 'Add any special requests (optional).',
             }),
+            'payment_method': forms.HiddenInput(),
         }
 
     def __init__(self, *args, **kwargs):
         self.package = kwargs.pop('package', None)
         super().__init__(*args, **kwargs)
         self.fields['special_notes'].required = False
+        self.fields['payment_method'].initial = Booking.PAYMENT_METHOD_STRIPE
 
     def clean_travel_date(self):
         travel_date = self.cleaned_data['travel_date']
@@ -70,6 +72,15 @@ class BookingForm(forms.ModelForm):
         if number_of_people < 1:
             raise forms.ValidationError('At least one traveler is required.')
         return number_of_people
+
+    def clean_payment_method(self):
+        payment_method = (
+            self.cleaned_data.get('payment_method')
+            or Booking.PAYMENT_METHOD_STRIPE
+        ).strip().lower()
+        if payment_method != Booking.PAYMENT_METHOD_STRIPE:
+            raise forms.ValidationError('Stripe is the only payment method available right now.')
+        return payment_method
 
     def clean(self):
         cleaned_data = super().clean()

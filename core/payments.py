@@ -1,0 +1,89 @@
+import json
+from decimal import Decimal, ROUND_HALF_UP
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote, urlencode
+from urllib.request import Request, urlopen
+
+from django.conf import settings
+
+
+class StripeError(Exception):
+    pass
+
+
+def _amount_to_minor_units(amount):
+    decimal_amount = Decimal(amount)
+    return int((decimal_amount * Decimal('100')).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+
+
+def _stripe_request(method, path, payload=None):
+    if not settings.STRIPE_SECRET_KEY:
+        raise StripeError('Stripe is not configured. Add STRIPE_SECRET_KEY to your .env file or environment.')
+
+    body = None
+    headers = {
+        'Authorization': f'Bearer {settings.STRIPE_SECRET_KEY}',
+    }
+    if payload is not None:
+        body = urlencode(payload).encode('utf-8')
+        headers['Content-Type'] = 'application/x-www-form-urlencoded'
+
+    request = Request(
+        url=f'https://api.stripe.com/v1{path}',
+        data=body,
+        headers=headers,
+        method=method,
+    )
+
+    try:
+        with urlopen(request, timeout=15) as response:
+            return json.loads(response.read().decode('utf-8'))
+    except HTTPError as exc:
+        payload = exc.read().decode('utf-8', errors='replace')
+        try:
+            error_payload = json.loads(payload)
+        except json.JSONDecodeError as error:
+            raise StripeError('Stripe request failed.') from error
+        raise StripeError(error_payload.get('error', {}).get('message') or 'Stripe request failed.') from exc
+    except URLError as exc:
+        raise StripeError('Unable to reach Stripe right now. Please try again.') from exc
+
+
+def create_checkout_session(*, booking, success_url, cancel_url):
+    description = (
+        f'{booking.number_of_people} traveler(s) · '
+        f'{booking.travel_date:%b %d, %Y} · '
+        f'{booking.package.location or "Nepal"}'
+    )
+    payload = [
+        ('mode', 'payment'),
+        ('success_url', success_url),
+        ('cancel_url', cancel_url),
+        ('payment_method_types[0]', 'card'),
+        ('client_reference_id', str(booking.id)),
+        ('metadata[booking_id]', str(booking.id)),
+        ('metadata[package_id]', str(booking.package_id)),
+        ('line_items[0][quantity]', str(booking.number_of_people)),
+        ('line_items[0][price_data][currency]', settings.STRIPE_CURRENCY),
+        ('line_items[0][price_data][unit_amount]', str(_amount_to_minor_units(booking.package.price))),
+        ('line_items[0][price_data][product_data][name]', booking.package.title),
+        ('line_items[0][price_data][product_data][description]', description),
+    ]
+
+    if booking.payment_expires_at:
+        payload.append(('expires_at', str(int(booking.payment_expires_at.timestamp()))))
+
+    if booking.traveler and booking.traveler.email:
+        payload.append(('customer_email', booking.traveler.email))
+
+    return _stripe_request('POST', '/checkout/sessions', payload)
+
+
+def retrieve_checkout_session(session_id):
+    safe_session_id = quote(session_id, safe='')
+    return _stripe_request('GET', f'/checkout/sessions/{safe_session_id}')
+
+
+def expire_checkout_session(session_id):
+    safe_session_id = quote(session_id, safe='')
+    return _stripe_request('POST', f'/checkout/sessions/{safe_session_id}/expire', [])

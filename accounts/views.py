@@ -425,13 +425,20 @@ def vendor_booking_status_update(request, booking_id):
     if booking.status == requested_status:
         return redirect(next_url)
 
+    if (
+        requested_status == Booking.STATUS_CONFIRMED
+        and booking.payment_status != Booking.PAYMENT_STATUS_PAID
+    ):
+        messages.error(request, 'Only paid bookings can be confirmed.')
+        return redirect(next_url)
+
     package = booking.package
 
-    if requested_status == 'cancelled' and booking.status != 'cancelled':
+    if requested_status == Booking.STATUS_CANCELLED and booking.status != Booking.STATUS_CANCELLED:
         package.available_slots += booking.number_of_people
         package.save(update_fields=['available_slots'])
 
-    if requested_status == 'confirmed' and booking.status == 'cancelled':
+    if requested_status == Booking.STATUS_CONFIRMED and booking.status == Booking.STATUS_CANCELLED:
         if booking.number_of_people > package.available_slots:
             messages.error(
                 request,

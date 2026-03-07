@@ -64,7 +64,7 @@
                 </div>
                 <div>
                     <span>Status</span>
-                    <strong>Pending Confirmation</strong>
+                    <strong>Stripe Checkout</strong>
                 </div>
             </div>
         </section>
@@ -73,6 +73,7 @@
             <h2>Booking Details</h2>
             <form method="POST">
                 {% csrf_token %}
+                {{ form.payment_method }}
 
                 {% if form.non_field_errors %}
                     <div class="booking-form-errors">
@@ -108,13 +109,18 @@
                     </div>
                 </div>
 
+                <div class="booking-notes">
+                    <span>Payment Method</span>
+                    <p>Stripe is active for bookings right now. eSewa and Khalti can be added later without changing the booking flow.</p>
+                </div>
+
                 <div class="booking-total">
                     <span>Estimated Total</span>
                     <strong id="estimatedTotal">Rs {{ estimated_total|floatformat:0 }}</strong>
                 </div>
 
                 <div class="booking-form-actions">
-                    <button type="submit" class="btn-primary" {% if package.available_slots == 0 %}disabled{% endif %}>Confirm Booking</button>
+                    <button type="submit" class="btn-primary" {% if package.available_slots == 0 %}disabled{% endif %}>Continue to Stripe</button>
                     <a href="{% url 'package_detail' package.id %}" class="btn-outline-dark">Back to Package</a>
                 </div>
             </form>

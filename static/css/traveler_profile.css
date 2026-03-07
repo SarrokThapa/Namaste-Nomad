@@ -910,6 +910,11 @@ body {
     color: #92400e;
 }
 
+.status-payment_pending {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
 .status-confirmed {
     background: #dcfce7;
     color: #166534;

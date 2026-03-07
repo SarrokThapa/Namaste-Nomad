@@ -15,13 +15,15 @@ class BookingAdmin(admin.ModelAdmin):
         'package',
         'traveler',
         'status',
+        'payment_method',
+        'payment_status',
         'source',
         'travel_date',
         'number_of_people',
         'total_price',
         'created_at',
     )
-    list_filter = ('status', 'source', 'travel_date', 'created_at')
+    list_filter = ('status', 'payment_method', 'payment_status', 'source', 'travel_date', 'created_at')
     search_fields = ('package__title', 'traveler__email')
 
 

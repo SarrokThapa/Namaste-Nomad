@@ -120,17 +120,20 @@
                             <div class="booking-meta">
                                 {{ booking.package.title }} -
                                 {{ booking.travel_date|date:"M d, Y" }} -
-                                {{ booking.number_of_people }} traveler{{ booking.number_of_people|pluralize }}
+                                {{ booking.number_of_people }} traveler{{ booking.number_of_people|pluralize }} -
+                                {{ booking.get_payment_status_display }} via {{ booking.get_payment_method_display }}
                             </div>
                         </div>
                         <div class="booking-actions">
-                            <span class="status {{ booking.status }}">{{ booking.status|title }}</span>
-                            {% if booking.status != 'confirmed' %}
+                            <span class="status {{ booking.status }}">{{ booking.get_status_display }}</span>
+                            {% if booking.status != 'confirmed' and booking.payment_status == 'paid' %}
                                 <form method="POST" action="{% url 'vendor_booking_status_update' booking.id %}">
                                     {% csrf_token %}
                                     <input type="hidden" name="next" value="{{ request.path }}">
                                     <button type="submit" name="status" value="confirmed" class="btn small success">Confirm</button>
                                 </form>
+                            {% elif booking.status != 'cancelled' and booking.payment_status != 'paid' %}
+                                <span class="status payment-pending">Waiting for payment</span>
                             {% endif %}
                             {% if booking.status != 'cancelled' %}
                                 <form method="POST" action="{% url 'vendor_booking_status_update' booking.id %}">
