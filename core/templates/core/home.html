@@ -102,113 +102,35 @@
             </div>
 
             <div class="trek-grid">
-                <article class="trek-card">
-                    <div class="trek-image trek-everest">
-                        <span class="tag">Featured</span>
-                    </div>
-                    <div class="trek-body">
-                        <h3>Everest Base Camp Trek</h3>
-                        <p class="trek-meta">Nepal | 14 days</p>
-                        <div class="trek-rating">
-                            <span class="stars">*****</span>
-                            <span>4.9 (512 reviews)</span>
-                        </div>
-                        <div class="trek-footer">
-                            <span class="trek-price">$1,899</span>
-                            <a class="btn-outline-dark" href="{% url 'package_list' %}">View Details</a>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="trek-card">
-                    <div class="trek-image trek-annapurna">
-                        <span class="tag">Featured</span>
-                    </div>
-                    <div class="trek-body">
-                        <h3>Annapurna Circuit</h3>
-                        <p class="trek-meta">Nepal | 12 days</p>
-                        <div class="trek-rating">
-                            <span class="stars">*****</span>
-                            <span>4.8 (430 reviews)</span>
-                        </div>
-                        <div class="trek-footer">
-                            <span class="trek-price">$1,599</span>
-                            <a class="btn-outline-dark" href="{% url 'package_list' %}">View Details</a>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="trek-card">
-                    <div class="trek-image trek-manaslu">
-                        <span class="tag">Featured</span>
-                    </div>
-                    <div class="trek-body">
-                        <h3>Manaslu Circuit Trek</h3>
-                        <p class="trek-meta">Nepal | 14 days</p>
-                        <div class="trek-rating">
-                            <span class="stars">*****</span>
-                            <span>4.8 (220 reviews)</span>
-                        </div>
-                        <div class="trek-footer">
-                            <span class="trek-price">$1,999</span>
-                            <a class="btn-outline-dark" href="{% url 'package_list' %}">View Details</a>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="trek-card">
-                    <div class="trek-image trek-tilicho">
-                        <span class="tag">Featured</span>
-                    </div>
-                    <div class="trek-body">
-                        <h3>Tilicho Lake Trek</h3>
-                        <p class="trek-meta">Nepal | 10 days</p>
-                        <div class="trek-rating">
-                            <span class="stars">*****</span>
-                            <span>4.7 (190 reviews)</span>
-                        </div>
-                        <div class="trek-footer">
-                            <span class="trek-price">$1,399</span>
-                            <a class="btn-outline-dark" href="{% url 'package_list' %}">View Details</a>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="trek-card">
-                    <div class="trek-image trek-lumbini">
-                        <span class="tag">Featured</span>
-                    </div>
-                    <div class="trek-body">
-                        <h3>Lumbini Heritage Tour</h3>
-                        <p class="trek-meta">Lumbini | 3 days</p>
-                        <div class="trek-rating">
-                            <span class="stars">*****</span>
-                            <span>4.6 (142 reviews)</span>
-                        </div>
-                        <div class="trek-footer">
-                            <span class="trek-price">$399</span>
-                            <a class="btn-outline-dark" href="{% url 'package_list' %}">View Details</a>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="trek-card">
-                    <div class="trek-image trek-swayambhu">
-                        <span class="tag">Featured</span>
-                    </div>
-                    <div class="trek-body">
-                        <h3>Swayambhunath &amp; Valley Tour</h3>
-                        <p class="trek-meta">Kathmandu | 1 day</p>
-                        <div class="trek-rating">
-                            <span class="stars">*****</span>
-                            <span>4.7 (318 reviews)</span>
-                        </div>
-                        <div class="trek-footer">
-                            <span class="trek-price">$149</span>
-                            <a class="btn-outline-dark" href="{% url 'package_list' %}">View Details</a>
-                        </div>
-                    </div>
-                </article>
+                {% if featured_packages %}
+                    {% for package in featured_packages %}
+                        <article class="trek-card">
+                            {% with cover=package.images.all|first %}
+                                <div class="trek-image" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
+                                    <span class="tag">Featured</span>
+                                </div>
+                            {% endwith %}
+                            <div class="trek-body">
+                                <h3>{{ package.title }}</h3>
+                                <p class="trek-meta">
+                                    {{ package.location|default:"Nepal" }} |
+                                    {{ package.vendor.get_full_name|default:package.vendor.username }}
+                                    {% if package.duration_days %} | {{ package.duration_days }} days{% endif %}
+                                </p>
+                                <div class="trek-rating">
+                                    <span class="stars">★★★★★</span>
+                                    <span>{{ package.avg_rating|default:0|floatformat:1 }} ({{ package.review_count|default:0 }} reviews)</span>
+                                </div>
+                                <div class="trek-footer">
+                                    <span class="trek-price">Rs {{ package.price|floatformat:0 }}</span>
+                                    <a class="btn-outline-dark" href="{% url 'package_detail' package.id %}">View Details</a>
+                                </div>
+                            </div>
+                        </article>
+                    {% endfor %}
+                {% else %}
+                    <div class="review-empty">No featured packages available right now.</div>
+                {% endif %}
             </div>
         </div>
     </section>

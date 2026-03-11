@@ -47,6 +47,7 @@ class Package(models.Model):
         validators=[MinValueValidator(0)],
     )
     is_active = models.BooleanField(default=True)
+    is_featured = models.BooleanField(default=False)
     views_count = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 

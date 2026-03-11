@@ -17,11 +17,13 @@ urlpatterns = [
     path('vendor/dashboard/', views.vendor_dashboard, name='vendor_dashboard'),
     path('vendor/profile/', views.vendor_profile, name='vendor_profile'),
     path('vendor/packages/', views.vendor_packages, name='vendor_packages'),
+    path('vendor/packages/<int:package_id>/feature/', views.vendor_feature_toggle, name='vendor_feature_toggle'),
     path('vendor/bookings/', views.vendor_bookings, name='vendor_bookings'),
     path('vendor/bookings/<int:booking_id>/status/', views.vendor_booking_status_update, name='vendor_booking_status_update'),
     path('vendor/reviews/', views.vendor_reviews, name='vendor_reviews'),
     path('vendor/analytics/', views.vendor_analytics, name='vendor_analytics'),
     path('vendor/settings/', views.vendor_settings, name='vendor_settings'),
+    path('vendor/subscriptions/<int:plan_id>/purchase/', views.vendor_subscription_purchase, name='vendor_subscription_purchase'),
     
     path('admin/login/', views.admin_login, name='admin_login'),
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
@@ -29,6 +31,8 @@ urlpatterns = [
     path('admin/vendors/<int:vendor_id>/', views.admin_vendor_detail, name='admin_vendor_detail'),
     path('admin/vendors/<int:vendor_id>/action/', views.admin_vendor_action, name='admin_vendor_action'),
     path('admin/packages/<int:package_id>/toggle/', views.admin_package_toggle, name='admin_package_toggle'),
+    path('admin/packages/<int:package_id>/feature/', views.admin_feature_toggle, name='admin_feature_toggle'),
+    path('admin/subscriptions/plans/new/', views.admin_subscription_plan_create, name='admin_subscription_plan_create'),
 
     path('verify-otp/', views.verify_otp_view, name='verify_otp'),
     path('resend-otp/', views.resend_otp, name='resend_otp'),

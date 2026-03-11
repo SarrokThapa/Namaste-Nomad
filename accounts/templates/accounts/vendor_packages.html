@@ -30,11 +30,23 @@
                             {% if package.duration_days %}- {{ package.duration_days }} days{% endif %}
                             - Price Rs {{ package.price|floatformat:0 }} - Views {{ package.views_count }} - Bookings {{ package.booking_count }} -
                             {% if package.is_active %}Active{% else %}Paused{% endif %}
+                            {% if package.is_featured %}- Featured{% endif %}
                         </div>
                     </div>
                     <div class="package-actions">
                         <a class="btn small neutral" href="{% url 'vendor_package_edit' package.id %}">Edit</a>
                         <a class="btn small secondary" href="{% url 'package_detail' package.id %}">View</a>
+                        {% if active_subscription %}
+                            <form method="POST" action="{% url 'vendor_feature_toggle' package.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                {% if package.is_featured %}
+                                    <button class="btn small secondary" type="submit">Unfeature</button>
+                                {% else %}
+                                    <button class="btn small success" type="submit">Feature</button>
+                                {% endif %}
+                            </form>
+                        {% endif %}
                     </div>
                 </div>
             {% endfor %}
@@ -43,4 +55,17 @@
         {% endif %}
     </div>
 </section>
+
+{% if not active_subscription %}
+    <div class="empty-state">Activate a vendor subscription to feature packages on the homepage.</div>
+{% else %}
+    <div class="empty-state">
+        Featured packages: {{ featured_count }}
+        {% if featured_limit %}
+            / {{ featured_limit }}
+        {% else %}
+            (Unlimited)
+        {% endif %}
+    </div>
+{% endif %}
 {% endblock %}

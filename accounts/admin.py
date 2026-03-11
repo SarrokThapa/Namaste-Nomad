@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, VendorProfile, OTP
+from .models import User, VendorProfile, OTP, VendorSubscription, VendorSubscriptionPlan
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
@@ -39,3 +39,27 @@ class OTPAdmin(admin.ModelAdmin):
     list_filter = ('is_used', 'created_at')
     search_fields = ('user__email', 'otp_code')
     readonly_fields = ('created_at', 'expires_at')
+
+
+@admin.register(VendorSubscriptionPlan)
+class VendorSubscriptionPlanAdmin(admin.ModelAdmin):
+    list_display = ('name', 'price', 'duration_days', 'max_featured_packages', 'is_active', 'created_at')
+    list_filter = ('is_active', 'created_at')
+    search_fields = ('name',)
+
+
+@admin.register(VendorSubscription)
+class VendorSubscriptionAdmin(admin.ModelAdmin):
+    list_display = (
+        'vendor',
+        'plan_name',
+        'price',
+        'duration_days',
+        'max_featured_packages',
+        'start_date',
+        'end_date',
+        'status',
+        'created_at',
+    )
+    list_filter = ('status', 'start_date', 'end_date', 'created_at')
+    search_fields = ('vendor__email', 'plan_name')

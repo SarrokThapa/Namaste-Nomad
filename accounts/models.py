@@ -1,7 +1,9 @@
-from django.db import models
-from django.contrib.auth.models import AbstractUser
-from django.utils import timezone
 from datetime import timedelta
+
+from django.conf import settings
+from django.contrib.auth.models import AbstractUser
+from django.db import models
+from django.utils import timezone
 
 class User(AbstractUser):
     USER_TYPE_CHOICES = (
@@ -86,3 +88,103 @@ class OTP(models.Model):
     
     def __str__(self):
         return f"OTP for {self.user.email} - {self.otp_code}"
+
+
+class VendorSubscriptionPlan(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    duration_days = models.PositiveIntegerField()
+    max_featured_packages = models.PositiveIntegerField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('price', 'duration_days', 'name')
+
+    def __str__(self):
+        return self.name
+
+
+class VendorSubscription(models.Model):
+    STATUS_ACTIVE = 'active'
+    STATUS_EXPIRED = 'expired'
+    STATUS_CHOICES = (
+        (STATUS_ACTIVE, 'Active'),
+        (STATUS_EXPIRED, 'Expired'),
+    )
+
+    vendor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='vendor_subscriptions',
+    )
+    plan = models.ForeignKey(
+        VendorSubscriptionPlan,
+        on_delete=models.SET_NULL,
+        related_name='subscriptions',
+        blank=True,
+        null=True,
+    )
+    plan_name = models.CharField(max_length=100)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    duration_days = models.PositiveIntegerField()
+    max_featured_packages = models.PositiveIntegerField(blank=True, null=True)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-start_date', '-id')
+
+    def is_active(self, on_date=None):
+        check_date = on_date or timezone.localdate()
+        return (
+            self.status == self.STATUS_ACTIVE
+            and self.start_date <= check_date <= self.end_date
+        )
+
+    @classmethod
+    def expire_overdue(cls, vendor=None):
+        today = timezone.localdate()
+        overdue = cls.objects.filter(status=cls.STATUS_ACTIVE, end_date__lt=today)
+        if vendor is not None:
+            overdue = overdue.filter(vendor=vendor)
+        vendor_ids = list(overdue.values_list('vendor_id', flat=True).distinct())
+        overdue.update(status=cls.STATUS_EXPIRED)
+
+        if vendor_ids:
+            active_vendor_ids = set(
+                cls.objects.filter(
+                    vendor_id__in=vendor_ids,
+                    status=cls.STATUS_ACTIVE,
+                    start_date__lte=today,
+                    end_date__gte=today,
+                ).values_list('vendor_id', flat=True)
+            )
+            vendors_to_unfeature = [vendor_id for vendor_id in vendor_ids if vendor_id not in active_vendor_ids]
+            if vendors_to_unfeature:
+                from core.models import Package
+                Package.objects.filter(
+                    vendor_id__in=vendors_to_unfeature,
+                    is_featured=True,
+                ).update(is_featured=False)
+        return vendor_ids
+
+    @classmethod
+    def active_for_vendor(cls, vendor):
+        cls.expire_overdue(vendor=vendor)
+        today = timezone.localdate()
+        return (
+            cls.objects.filter(
+                vendor=vendor,
+                status=cls.STATUS_ACTIVE,
+                start_date__lte=today,
+                end_date__gte=today,
+            )
+            .order_by('-end_date', '-start_date')
+            .first()
+        )
+
+    def __str__(self):
+        return f"{self.vendor.email} - {self.plan_name} ({self.status})"

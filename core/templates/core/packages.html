@@ -68,7 +68,9 @@
                     <article class="package-card">
                         {% with cover=package.images.all|first %}
                             <div class="package-image" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
-                                <span class="package-pill">Top Pick</span>
+                                <span class="package-pill {% if package.is_featured %}featured{% endif %}">
+                                    {% if package.is_featured %}Featured{% else %}Top Pick{% endif %}
+                                </span>
                                 {% if package.season_badge %}
                                     <span class="package-pill season-badge">{{ package.season_badge }}</span>
                                 {% endif %}

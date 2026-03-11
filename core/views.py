@@ -14,7 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import TravelerProfile
+from accounts.models import TravelerProfile, VendorSubscription
 from .forms import BookingForm, CommentForm, PostForm, ReviewForm
 from .models import Booking, Comment, Package, Post, Review
 from .payments import (
@@ -349,11 +349,33 @@ def _complete_paid_booking(booking, session_data):
 
 def home(request):
     """Landing page"""
+    VendorSubscription.expire_overdue()
+    today = timezone.localdate()
+    active_vendor_ids = VendorSubscription.objects.filter(
+        status=VendorSubscription.STATUS_ACTIVE,
+        start_date__lte=today,
+        end_date__gte=today,
+    ).values_list('vendor_id', flat=True).distinct()
+    featured_packages = (
+        Package.objects.filter(
+            is_active=True,
+            is_featured=True,
+            vendor_id__in=active_vendor_ids,
+        )
+        .select_related('vendor')
+        .prefetch_related('images')
+        .annotate(
+            review_count=Count('reviews', distinct=True),
+            avg_rating=Avg('reviews__rating'),
+        )
+        .order_by('-created_at', '-views_count', '-avg_rating')[:6]
+    )
     reviews = _prepare_review_cards(
         Review.objects.select_related('traveler', 'traveler__traveler_profile', 'package').order_by('-created_at')[:5]
     )
     return render(request, 'core/home.html', {
         'reviews': reviews,
+        'featured_packages': featured_packages,
     })
 
 
@@ -365,6 +387,7 @@ def _public_package_queryset():
 
 
 def _render_package_list(request, category=None):
+    VendorSubscription.expire_overdue()
     packages = _public_package_queryset()
     package_scope = 'all'
     page_title = 'Nepal Treks & Tours'

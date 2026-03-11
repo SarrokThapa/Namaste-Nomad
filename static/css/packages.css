@@ -95,6 +95,10 @@ body.packages-body {
     border-radius: 999px;
 }
 
+.package-pill.featured {
+    background: #f97316;
+}
+
 .package-pill.season-badge {
     left: auto;
     right: 0.8rem;

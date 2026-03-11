@@ -64,6 +64,9 @@
                         {% with cover=package.images.all|first %}
                             <a class="explore-package-media" href="{% url 'package_detail' package.id %}" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
                                 <span class="package-tag">{{ package.category_label }}</span>
+                                {% if package.is_featured %}
+                                    <span class="package-tag featured-tag">Featured</span>
+                                {% endif %}
                                 {% if package.season_badge %}
                                     <span class="package-tag season-badge">{{ package.season_badge }}</span>
                                 {% endif %}
@@ -79,6 +82,9 @@
                                 Available {{ package.available_from|date:"M d, Y"|default:"Not set" }} -
                                 {{ package.available_until|date:"M d, Y"|default:"Not set" }}
                             </p>
+                            {% if package.is_featured %}
+                                <span class="featured-pill">Featured</span>
+                            {% endif %}
                             {% if package.season_badge %}
                                 <span class="season-pill">{{ package.season_badge }}</span>
                             {% endif %}
@@ -113,6 +119,9 @@
                                 Available {{ package.available_from|date:"M d, Y"|default:"Not set" }} -
                                 {{ package.available_until|date:"M d, Y"|default:"Not set" }}
                             </p>
+                            {% if package.is_featured %}
+                                <span class="featured-pill">Featured</span>
+                            {% endif %}
                             {% if package.season_badge %}
                                 <span class="season-pill">{{ package.season_badge }}</span>
                             {% endif %}
@@ -147,6 +156,9 @@
                                 Available {{ package.available_from|date:"M d, Y"|default:"Not set" }} -
                                 {{ package.available_until|date:"M d, Y"|default:"Not set" }}
                             </p>
+                            {% if package.is_featured %}
+                                <span class="featured-pill">Featured</span>
+                            {% endif %}
                             {% if package.season_badge %}
                                 <span class="season-pill">{{ package.season_badge }}</span>
                             {% endif %}

@@ -153,6 +153,27 @@
                 <span>Publish package immediately</span>
             </label>
         </div>
+        <div class="form-group checkbox-row">
+            <label class="checkbox-label">
+                {{ form.is_featured }}
+                <span>Feature this package</span>
+            </label>
+            {% if form.is_featured.errors %}
+                <span class="field-hint danger">{{ form.is_featured.errors|striptags }}</span>
+            {% endif %}
+            {% if active_subscription %}
+                <span class="field-hint">
+                    Active plan: {{ active_subscription.plan_name }}.
+                    {% if active_subscription.max_featured_packages %}
+                        Up to {{ active_subscription.max_featured_packages }} featured package(s).
+                    {% else %}
+                        Unlimited featured packages.
+                    {% endif %}
+                </span>
+            {% else %}
+                <span class="field-hint danger">Active subscription required to feature packages.</span>
+            {% endif %}
+        </div>
     </div>
 
     <div class="form-actions">

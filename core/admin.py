@@ -4,8 +4,8 @@ from .models import Booking, Comment, Package, Post, Review
 
 @admin.register(Package)
 class PackageAdmin(admin.ModelAdmin):
-    list_display = ('title', 'vendor', 'price', 'is_active', 'views_count', 'created_at')
-    list_filter = ('is_active', 'created_at')
+    list_display = ('title', 'vendor', 'price', 'is_active', 'is_featured', 'views_count', 'created_at')
+    list_filter = ('is_active', 'is_featured', 'created_at')
     search_fields = ('title', 'vendor__email')
 
 

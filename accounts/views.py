@@ -1,11 +1,13 @@
 from calendar import monthrange
 from datetime import date, timedelta
+from decimal import Decimal, InvalidOperation
 from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.core.files.images import get_image_dimensions
+from django.db import IntegrityError
 from django.db.models import Avg, Case, CharField, Count, Max, Q, Sum, Value, When
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -15,7 +17,14 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect
 
 from core.models import Booking, Package, Review, PackageImage
-from .models import User, VendorProfile, TravelerProfile, AdminProfile
+from .models import (
+    AdminProfile,
+    TravelerProfile,
+    User,
+    VendorProfile,
+    VendorSubscription,
+    VendorSubscriptionPlan,
+)
 from .forms import PackageForm, VendorProfileForm
 from .utils import create_otp, verify_otp as verify_otp_util
 
@@ -39,6 +48,10 @@ def _get_traveler_profile(user):
         return user.traveler_profile
     except TravelerProfile.DoesNotExist:
         return None
+
+
+def _get_active_subscription(vendor):
+    return VendorSubscription.active_for_vendor(vendor)
 
 
 def _delete_stored_file(instance, field_name, file_name):
@@ -228,6 +241,10 @@ def vendor_dashboard(request):
     vendor_profile = _get_vendor_profile(request.user)
     vendor_packages = Package.objects.filter(vendor=request.user)
     vendor_bookings = Booking.objects.filter(package__vendor=request.user)
+    active_subscription = _get_active_subscription(request.user)
+    featured_count = vendor_packages.filter(is_featured=True).count()
+    featured_limit = active_subscription.max_featured_packages if active_subscription else None
+    subscription_plans = VendorSubscriptionPlan.objects.filter(is_active=True).order_by('price', 'duration_days')
 
     total_revenue = vendor_bookings.filter(status='confirmed').aggregate(
         total=Sum('vendor_amount')
@@ -355,6 +372,10 @@ def vendor_dashboard(request):
             'pending_bookings': pending_bookings,
             'average_rating': round(average_rating or 0, 1),
         },
+        'active_subscription': active_subscription,
+        'featured_count': featured_count,
+        'featured_limit': featured_limit,
+        'subscription_plans': subscription_plans,
         'weekly_revenue': weekly_revenue,
         'line_points': line_points_str,
         'daily_counts': daily_counts,
@@ -375,10 +396,16 @@ def vendor_packages(request):
     packages = Package.objects.filter(vendor=request.user).annotate(
         booking_count=Count('bookings'),
     ).order_by('-created_at')
+    active_subscription = _get_active_subscription(request.user)
+    featured_count = packages.filter(is_featured=True).count()
+    featured_limit = active_subscription.max_featured_packages if active_subscription else None
     return render(request, 'accounts/vendor_packages.html', {
         'vendor_profile': vendor_profile,
         'active_page': 'packages',
         'packages': packages,
+        'active_subscription': active_subscription,
+        'featured_count': featured_count,
+        'featured_limit': featured_limit,
     })
 
 
@@ -506,10 +533,100 @@ def vendor_settings(request):
         return redirect('vendor_login')
 
     vendor_profile = _get_vendor_profile(request.user)
+    active_subscription = _get_active_subscription(request.user)
+    subscription_plans = VendorSubscriptionPlan.objects.filter(is_active=True).order_by('price', 'duration_days')
     return render(request, 'accounts/vendor_settings.html', {
         'vendor_profile': vendor_profile,
         'active_page': 'settings',
+        'active_subscription': active_subscription,
+        'subscription_plans': subscription_plans,
     })
+
+
+@never_cache
+@login_required(login_url='vendor_login')
+@csrf_protect
+def vendor_subscription_purchase(request, plan_id):
+    if not _ensure_vendor(request):
+        return redirect('vendor_login')
+    if request.method != 'POST':
+        return redirect('vendor_settings')
+
+    plan = get_object_or_404(VendorSubscriptionPlan, id=plan_id, is_active=True)
+    VendorSubscription.expire_overdue(vendor=request.user)
+    VendorSubscription.objects.filter(
+        vendor=request.user,
+        status=VendorSubscription.STATUS_ACTIVE,
+    ).update(status=VendorSubscription.STATUS_EXPIRED)
+
+    start_date = timezone.localdate()
+    end_date = start_date + timedelta(days=max(plan.duration_days - 1, 0))
+    subscription = VendorSubscription.objects.create(
+        vendor=request.user,
+        plan=plan,
+        plan_name=plan.name,
+        price=plan.price,
+        duration_days=plan.duration_days,
+        max_featured_packages=plan.max_featured_packages,
+        start_date=start_date,
+        end_date=end_date,
+        status=VendorSubscription.STATUS_ACTIVE,
+    )
+
+    if plan.max_featured_packages is not None:
+        featured_packages = Package.objects.filter(
+            vendor=request.user,
+            is_featured=True,
+        ).order_by('-created_at')
+        allowed_ids = list(
+            featured_packages.values_list('id', flat=True)[:plan.max_featured_packages]
+        )
+        if allowed_ids:
+            Package.objects.filter(
+                vendor=request.user,
+                is_featured=True,
+            ).exclude(id__in=allowed_ids).update(is_featured=False)
+        else:
+            featured_packages.update(is_featured=False)
+
+    messages.success(
+        request,
+        f'{subscription.plan_name} subscription activated until {subscription.end_date:%b %d, %Y}.',
+    )
+    return redirect('vendor_settings')
+
+
+@never_cache
+@login_required(login_url='vendor_login')
+@csrf_protect
+def vendor_feature_toggle(request, package_id):
+    if not _ensure_vendor(request):
+        return redirect('vendor_login')
+    if request.method != 'POST':
+        return redirect('vendor_packages')
+
+    next_url = request.POST.get('next') or reverse('vendor_packages')
+    package = get_object_or_404(Package, id=package_id, vendor=request.user)
+    subscription = _get_active_subscription(request.user)
+
+    if subscription is None:
+        messages.error(request, 'Activate a subscription to feature packages.')
+        return redirect(next_url)
+
+    if not package.is_featured and subscription.max_featured_packages is not None:
+        featured_count = Package.objects.filter(vendor=request.user, is_featured=True).count()
+        if featured_count >= subscription.max_featured_packages:
+            messages.error(
+                request,
+                f'Your plan allows up to {subscription.max_featured_packages} featured package(s).',
+            )
+            return redirect(next_url)
+
+    package.is_featured = not package.is_featured
+    package.save(update_fields=['is_featured'])
+    status_label = 'featured' if package.is_featured else 'unfeatured'
+    messages.success(request, f'{package.title} {status_label}.')
+    return redirect(next_url)
 
 
 @never_cache
@@ -573,6 +690,7 @@ def vendor_profile(request):
 
 @admin_required
 def admin_dashboard(request):
+    VendorSubscription.expire_overdue()
     admin_profile = _get_admin_profile(request.user)
     vendors = User.objects.filter(user_type='vendor').select_related('vendor_profile').annotate(
         package_count=Count('vendor_packages', distinct=True),
@@ -587,6 +705,10 @@ def admin_dashboard(request):
         'package__vendor',
     ).order_by('-created_at')
     reviews = Review.objects.select_related('traveler', 'package').order_by('-created_at')
+    subscription_plans = VendorSubscriptionPlan.objects.order_by('price', 'duration_days')
+    vendor_subscriptions = VendorSubscription.objects.select_related('vendor').order_by('-created_at')
+    subscription_revenue = vendor_subscriptions.aggregate(total=Sum('price'))['total'] or 0
+    featured_packages = Package.objects.filter(is_featured=True).select_related('vendor').order_by('-created_at')
 
     platform_earnings = bookings.filter(status='confirmed').aggregate(
         total=Sum('platform_fee')
@@ -678,6 +800,7 @@ def admin_dashboard(request):
         'total_bookings': total_bookings,
         'platform_earnings': float(platform_earnings),
         'vendor_earnings': float(vendor_earnings),
+        'subscription_revenue': float(subscription_revenue),
         'total_reviews': total_reviews,
         'avg_rating': round(avg_rating or 0, 1),
         'forum_posts': 0,
@@ -690,6 +813,9 @@ def admin_dashboard(request):
         'travelers': travelers,
         'packages': packages,
         'bookings': bookings,
+        'subscription_plans': subscription_plans,
+        'vendor_subscriptions': vendor_subscriptions,
+        'featured_packages': featured_packages,
         'stats': stats,
         'revenue_points': " ".join(revenue_points),
         'revenue_labels': month_labels,
@@ -836,6 +962,86 @@ def admin_package_toggle(request, package_id):
 
 
 @admin_required
+@csrf_protect
+def admin_feature_toggle(request, package_id):
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+
+    package = get_object_or_404(Package, id=package_id)
+    if not package.is_featured:
+        subscription = VendorSubscription.active_for_vendor(package.vendor)
+        if subscription is None:
+            messages.error(request, 'Vendor has no active subscription for featuring.')
+            return redirect('admin_dashboard')
+        if subscription.max_featured_packages is not None:
+            featured_count = Package.objects.filter(
+                vendor=package.vendor,
+                is_featured=True,
+            ).count()
+            if featured_count >= subscription.max_featured_packages:
+                messages.error(
+                    request,
+                    f'{package.vendor.email} has reached the featured package limit.',
+                )
+                return redirect('admin_dashboard')
+
+    package.is_featured = not package.is_featured
+    package.save(update_fields=['is_featured'])
+
+    status_label = 'featured' if package.is_featured else 'unfeatured'
+    messages.success(request, f'{package.title} {status_label}.')
+    return redirect('admin_dashboard')
+
+
+@admin_required
+@csrf_protect
+def admin_subscription_plan_create(request):
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+
+    name = (request.POST.get('name') or '').strip()
+    price_raw = (request.POST.get('price') or '').strip()
+    duration_raw = (request.POST.get('duration_days') or '').strip()
+    limit_raw = (request.POST.get('max_featured_packages') or '').strip()
+
+    if not name or not price_raw or not duration_raw:
+        messages.error(request, 'Plan name, price, and duration are required.')
+        return redirect('admin_dashboard')
+
+    try:
+        price = Decimal(price_raw)
+        duration_days = int(duration_raw)
+        max_featured_packages = int(limit_raw) if limit_raw else None
+    except (ValueError, TypeError, InvalidOperation):
+        messages.error(request, 'Invalid subscription plan values.')
+        return redirect('admin_dashboard')
+
+    if duration_days < 1:
+        messages.error(request, 'Duration must be at least 1 day.')
+        return redirect('admin_dashboard')
+    if price < 0:
+        messages.error(request, 'Price must be a positive value.')
+        return redirect('admin_dashboard')
+    if max_featured_packages is not None and max_featured_packages < 1:
+        messages.error(request, 'Featured limit must be at least 1.')
+        return redirect('admin_dashboard')
+
+    try:
+        VendorSubscriptionPlan.objects.create(
+            name=name,
+            price=price,
+            duration_days=max(duration_days, 1),
+            max_featured_packages=max_featured_packages,
+            is_active=True,
+        )
+    except IntegrityError:
+        messages.error(request, 'A plan with that name already exists.')
+    else:
+        messages.success(request, 'Subscription plan created.')
+    return redirect('admin_dashboard')
+
+
+@admin_required
 def admin_vendor_detail(request, vendor_id):
     vendor = get_object_or_404(User, id=vendor_id, user_type='vendor')
     profile = _get_vendor_profile(vendor)
@@ -860,7 +1066,7 @@ def vendor_package_create(request):
     vendor_profile = _get_vendor_profile(request.user)
 
     if request.method == 'POST':
-        form = PackageForm(request.POST)
+        form = PackageForm(request.POST, vendor=request.user)
         if form.is_valid():
             package = form.save(commit=False)
             package.vendor = request.user
@@ -869,7 +1075,7 @@ def vendor_package_create(request):
             messages.success(request, 'Package created successfully.')
             return redirect('vendor_packages')
     else:
-        form = PackageForm()
+        form = PackageForm(vendor=request.user)
 
     return render(request, 'accounts/vendor_package_form.html', {
         'vendor_profile': vendor_profile,
@@ -877,6 +1083,7 @@ def vendor_package_create(request):
         'form': form,
         'is_edit': False,
         'existing_images': [],
+        'active_subscription': _get_active_subscription(request.user),
     })
 
 
@@ -894,7 +1101,7 @@ def vendor_package_edit(request, package_id):
     )
 
     if request.method == 'POST':
-        form = PackageForm(request.POST, instance=package)
+        form = PackageForm(request.POST, instance=package, vendor=request.user)
         if form.is_valid():
             package = form.save()
             _sync_package_images(package, request.POST, request.FILES)
@@ -902,7 +1109,7 @@ def vendor_package_edit(request, package_id):
             return redirect('vendor_package_edit', package_id=package.id)
         messages.error(request, 'Please correct the errors below.')
     else:
-        form = PackageForm(instance=package)
+        form = PackageForm(instance=package, vendor=request.user)
 
     return render(request, 'accounts/vendor_package_form.html', {
         'vendor_profile': vendor_profile,
@@ -911,6 +1118,7 @@ def vendor_package_edit(request, package_id):
         'is_edit': True,
         'package': package,
         'existing_images': package.images.all(),
+        'active_subscription': _get_active_subscription(request.user),
     })
 
 

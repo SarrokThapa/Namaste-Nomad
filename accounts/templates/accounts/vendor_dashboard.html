@@ -42,6 +42,63 @@
     </div>
 </section>
 
+<section class="card list-card">
+    <div class="card-header">
+        <h3>Subscription</h3>
+        <span class="card-meta">Featured listings</span>
+    </div>
+    {% if active_subscription %}
+        <div class="package-list">
+            <div class="package-item">
+                <div>
+                    <div class="package-name">{{ active_subscription.plan_name }}</div>
+                    <div class="package-meta">
+                        Active until {{ active_subscription.end_date|date:"M d, Y" }} -
+                        Featured {{ featured_count }}
+                        {% if featured_limit %}
+                            / {{ featured_limit }}
+                        {% else %}
+                            (Unlimited)
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="package-actions">
+                    <a class="btn small secondary" href="{% url 'vendor_settings' %}">Manage</a>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="empty-state">No active subscription.</div>
+        {% if subscription_plans %}
+            <div class="package-list">
+                {% for plan in subscription_plans %}
+                    <div class="package-item">
+                        <div>
+                            <div class="package-name">{{ plan.name }}</div>
+                            <div class="package-meta">
+                                Rs {{ plan.price|floatformat:0 }} · {{ plan.duration_days }} days ·
+                                {% if plan.max_featured_packages %}
+                                    Up to {{ plan.max_featured_packages }} featured
+                                {% else %}
+                                    Unlimited featured
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="package-actions">
+                            <form method="POST" action="{% url 'vendor_subscription_purchase' plan.id %}">
+                                {% csrf_token %}
+                                <button class="btn small success" type="submit">Buy Plan</button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">No subscription plans configured yet.</div>
+        {% endif %}
+    {% endif %}
+</section>
+
 <section class="cards-grid">
     <div class="card chart-card">
         <div class="card-header">
