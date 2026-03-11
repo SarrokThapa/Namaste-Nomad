@@ -230,7 +230,7 @@ def vendor_dashboard(request):
     vendor_bookings = Booking.objects.filter(package__vendor=request.user)
 
     total_revenue = vendor_bookings.filter(status='confirmed').aggregate(
-        total=Sum('total_price')
+        total=Sum('vendor_amount')
     )['total'] or 0
     active_packages = vendor_packages.filter(is_active=True).count()
     total_bookings = vendor_bookings.count()
@@ -254,7 +254,7 @@ def vendor_dashboard(request):
         total = vendor_bookings.filter(
             status='confirmed',
             created_at__date__range=(start, end),
-        ).aggregate(total=Sum('total_price'))['total'] or 0
+        ).aggregate(total=Sum('vendor_amount'))['total'] or 0
         total_value = float(total)
         max_revenue = max(max_revenue, total_value)
         weekly_revenue.append({
@@ -479,7 +479,7 @@ def vendor_analytics(request):
     vendor_packages = Package.objects.filter(vendor=request.user)
     vendor_bookings = Booking.objects.filter(package__vendor=request.user)
     total_revenue = vendor_bookings.filter(status='confirmed').aggregate(
-        total=Sum('total_price')
+        total=Sum('vendor_amount')
     )['total'] or 0
 
     analytics = {
@@ -580,11 +580,19 @@ def admin_dashboard(request):
     pending_vendors = vendors.filter(vendor_profile__is_approved=False)
     travelers = User.objects.filter(user_type='traveler').order_by('-date_joined')
     packages = Package.objects.select_related('vendor').order_by('-created_at')
-    bookings = Booking.objects.select_related('package', 'traveler').order_by('-created_at')
+    bookings = Booking.objects.select_related(
+        'package',
+        'traveler',
+        'vendor',
+        'package__vendor',
+    ).order_by('-created_at')
     reviews = Review.objects.select_related('traveler', 'package').order_by('-created_at')
 
-    total_revenue = bookings.filter(status='confirmed').aggregate(
-        total=Sum('total_price')
+    platform_earnings = bookings.filter(status='confirmed').aggregate(
+        total=Sum('platform_fee')
+    )['total'] or 0
+    vendor_earnings = bookings.filter(status='confirmed').aggregate(
+        total=Sum('vendor_amount')
     )['total'] or 0
     total_bookings = bookings.count()
     active_vendors = vendors.filter(is_active=True, vendor_profile__is_approved=True).count()
@@ -604,7 +612,7 @@ def admin_dashboard(request):
         total = bookings.filter(
             status='confirmed',
             created_at__date__range=(start, end),
-        ).aggregate(total=Sum('total_price'))['total'] or 0
+        ).aggregate(total=Sum('platform_fee'))['total'] or 0
         month_labels.append(start.strftime('%b'))
         month_values.append(float(total))
 
@@ -668,7 +676,8 @@ def admin_dashboard(request):
         'total_users': total_users,
         'active_vendors': active_vendors,
         'total_bookings': total_bookings,
-        'total_revenue': float(total_revenue),
+        'platform_earnings': float(platform_earnings),
+        'vendor_earnings': float(vendor_earnings),
         'total_reviews': total_reviews,
         'avg_rating': round(avg_rating or 0, 1),
         'forum_posts': 0,
@@ -680,6 +689,7 @@ def admin_dashboard(request):
         'pending_vendors': pending_vendors,
         'travelers': travelers,
         'packages': packages,
+        'bookings': bookings,
         'stats': stats,
         'revenue_points': " ".join(revenue_points),
         'revenue_labels': month_labels,

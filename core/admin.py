@@ -14,6 +14,7 @@ class BookingAdmin(admin.ModelAdmin):
     list_display = (
         'package',
         'traveler',
+        'vendor',
         'status',
         'payment_method',
         'payment_status',
@@ -21,10 +22,12 @@ class BookingAdmin(admin.ModelAdmin):
         'travel_date',
         'number_of_people',
         'total_price',
+        'vendor_amount',
+        'platform_fee',
         'created_at',
     )
     list_filter = ('status', 'payment_method', 'payment_status', 'source', 'travel_date', 'created_at')
-    search_fields = ('package__title', 'traveler__email')
+    search_fields = ('package__title', 'traveler__email', 'vendor__email')
 
 
 @admin.register(Review)

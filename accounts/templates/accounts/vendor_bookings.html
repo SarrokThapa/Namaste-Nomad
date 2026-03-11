@@ -33,7 +33,8 @@
                             {{ booking.package.title }} -
                             {{ booking.travel_date|date:"M d, Y" }} -
                             {{ booking.number_of_people }} traveler{{ booking.number_of_people|pluralize }} -
-                            Rs {{ booking.total_price|floatformat:0 }} -
+                            Total Rs {{ booking.total_price|floatformat:0 }} -
+                            Vendor earning Rs {{ booking.vendor_amount|floatformat:0 }} -
                             {{ booking.get_payment_status_display }} via {{ booking.get_payment_method_display }}
                         </div>
                     </div>

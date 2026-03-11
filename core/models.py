@@ -65,6 +65,9 @@ class PackageImage(models.Model):
 
 
 class Booking(models.Model):
+    COMMISSION_VENDOR_RATE = Decimal('0.75')
+    COMMISSION_PLATFORM_RATE = Decimal('0.25')
+
     STATUS_PAYMENT_PENDING = 'payment_pending'
     STATUS_PENDING = 'pending'
     STATUS_CONFIRMED = 'confirmed'
@@ -111,6 +114,13 @@ class Booking(models.Model):
         null=True,
         blank=True,
     )
+    vendor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='vendor_bookings',
+        null=True,
+        blank=True,
+    )
     number_of_people = models.PositiveIntegerField(default=1)
     travel_date = models.DateField(default=date.today)
     special_notes = models.TextField(blank=True)
@@ -137,19 +147,57 @@ class Booking(models.Model):
         decimal_places=2,
         validators=[MinValueValidator(0)],
     )
+    vendor_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        default=Decimal('0.00'),
+    )
+    platform_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        default=Decimal('0.00'),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
+        update_fields = kwargs.get('update_fields')
+        computed_fields = set()
+
         if self.package_id:
             package_price = self.package.price or Decimal('0')
             if not isinstance(package_price, Decimal):
                 package_price = Decimal(str(package_price))
-            self.total_price = package_price * self.number_of_people
+            new_total = package_price * self.number_of_people
+            if self.total_price != new_total:
+                self.total_price = new_total
+                computed_fields.add('total_price')
+            if not self.vendor_id:
+                self.vendor = self.package.vendor
+                computed_fields.add('vendor')
+
+        total_price = self.total_price
+        if total_price is not None:
+            if not isinstance(total_price, Decimal):
+                total_price = Decimal(str(total_price))
+            vendor_amount = (total_price * self.COMMISSION_VENDOR_RATE).quantize(Decimal('0.01'))
+            platform_fee = (total_price * self.COMMISSION_PLATFORM_RATE).quantize(Decimal('0.01'))
+            if vendor_amount + platform_fee != total_price:
+                platform_fee = total_price - vendor_amount
+            if self.vendor_amount != vendor_amount:
+                self.vendor_amount = vendor_amount
+                computed_fields.add('vendor_amount')
+            if self.platform_fee != platform_fee:
+                self.platform_fee = platform_fee
+                computed_fields.add('platform_fee')
         if self.travel_date:
             if not self.start_date:
                 self.start_date = self.travel_date
             if not self.end_date:
                 self.end_date = self.travel_date
+        if update_fields is not None and computed_fields:
+            kwargs['update_fields'] = list(set(update_fields) | computed_fields)
         super().save(*args, **kwargs)
 
     def __str__(self):
