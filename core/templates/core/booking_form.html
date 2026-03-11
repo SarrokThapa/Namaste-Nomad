@@ -63,6 +63,14 @@
                     <strong>{{ package.available_slots }}</strong>
                 </div>
                 <div>
+                    <span>Available From</span>
+                    <strong>{{ package.available_from|date:"M d, Y"|default:"Not set" }}</strong>
+                </div>
+                <div>
+                    <span>Available Until</span>
+                    <strong>{{ package.available_until|date:"M d, Y"|default:"Not set" }}</strong>
+                </div>
+                <div>
                     <span>Status</span>
                     <strong>Stripe Checkout</strong>
                 </div>
@@ -71,6 +79,11 @@
 
         <section class="booking-form-card">
             <h2>Booking Details</h2>
+            {% if not package.is_in_season %}
+                <div class="booking-form-errors">
+                    This package is currently not available for booking.
+                </div>
+            {% endif %}
             <form method="POST">
                 {% csrf_token %}
                 {{ form.payment_method }}
@@ -120,7 +133,7 @@
                 </div>
 
                 <div class="booking-form-actions">
-                    <button type="submit" class="btn-primary" {% if package.available_slots == 0 %}disabled{% endif %}>Continue to Stripe</button>
+                    <button type="submit" class="btn-primary" {% if package.available_slots == 0 or not package.is_in_season %}disabled{% endif %}>Continue to Stripe</button>
                     <a href="{% url 'package_detail' package.id %}" class="btn-outline-dark">Back to Package</a>
                 </div>
             </form>

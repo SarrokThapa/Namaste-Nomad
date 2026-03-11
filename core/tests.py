@@ -30,6 +30,8 @@ class BookingStripeFlowTests(TestCase):
             location='Khumbu',
             price='15000.00',
             available_slots=5,
+            available_from=timezone.localdate() - timedelta(days=1),
+            available_until=timezone.localdate() + timedelta(days=30),
             is_active=True,
         )
         self.travel_date = timezone.localdate() + timedelta(days=10)

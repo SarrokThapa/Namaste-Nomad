@@ -436,7 +436,8 @@ def package_detail(request, package_id):
         })
 
     can_review = request.user.is_authenticated and getattr(request.user, 'user_type', '') == 'traveler'
-    can_book = request.user.is_authenticated and getattr(request.user, 'user_type', '') == 'traveler'
+    season_open = package.is_in_season()
+    can_book = request.user.is_authenticated and getattr(request.user, 'user_type', '') == 'traveler' and season_open
     facts = [
         {
             'label': 'Duration',
@@ -449,6 +450,14 @@ def package_detail(request, package_id):
         {
             'label': 'Available Slots',
             'value': str(package.available_slots),
+        },
+        {
+            'label': 'Available From',
+            'value': package.available_from.strftime('%b %d, %Y') if package.available_from else 'Not set',
+        },
+        {
+            'label': 'Available Until',
+            'value': package.available_until.strftime('%b %d, %Y') if package.available_until else 'Not set',
         },
         {
             'label': 'Group Size',
@@ -473,6 +482,7 @@ def package_detail(request, package_id):
         'review_sort': sort,
         'can_review': can_review,
         'can_book': can_book,
+        'season_open': season_open,
         'facts': facts,
         'inclusions': inclusions,
         'exclusions': exclusions,
@@ -487,6 +497,10 @@ def package_book(request, package_id):
 
     if getattr(request.user, 'user_type', '') != 'traveler':
         messages.error(request, 'Only traveler accounts can create bookings.')
+        return redirect('package_detail', package_id=package.id)
+
+    if not package.is_in_season():
+        messages.error(request, 'This package is currently not available for booking.')
         return redirect('package_detail', package_id=package.id)
 
     with transaction.atomic():

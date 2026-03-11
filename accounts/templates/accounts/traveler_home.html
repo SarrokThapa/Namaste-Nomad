@@ -64,6 +64,9 @@
                         {% with cover=package.images.all|first %}
                             <a class="explore-package-media" href="{% url 'package_detail' package.id %}" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
                                 <span class="package-tag">{{ package.category_label }}</span>
+                                {% if package.season_badge %}
+                                    <span class="package-tag season-badge">{{ package.season_badge }}</span>
+                                {% endif %}
                             </a>
                         {% endwith %}
                         <div class="explore-package-body">
@@ -72,6 +75,13 @@
                                 <div class="package-price">Rs {{ package.price|floatformat:0 }}</div>
                             </div>
                             <p class="package-meta">{{ package.location|default:"Nepal" }}{% if package.duration_days %} · {{ package.duration_days }} days{% endif %}</p>
+                            <p class="package-meta">
+                                Available {{ package.available_from|date:"M d, Y"|default:"Not set" }} -
+                                {{ package.available_until|date:"M d, Y"|default:"Not set" }}
+                            </p>
+                            {% if package.season_badge %}
+                                <span class="season-pill">{{ package.season_badge }}</span>
+                            {% endif %}
                             <div class="package-rating">
                                 <span>{{ package.avg_rating|default:0|floatformat:1 }}</span>
                                 <span>({{ package.review_count }} review{{ package.review_count|pluralize }})</span>
@@ -99,6 +109,13 @@
                                 <div class="package-price">Rs {{ package.price|floatformat:0 }}</div>
                             </div>
                             <p class="package-meta">{{ package.category_label }} · {{ package.location|default:"Nepal" }}</p>
+                            <p class="package-meta">
+                                Available {{ package.available_from|date:"M d, Y"|default:"Not set" }} -
+                                {{ package.available_until|date:"M d, Y"|default:"Not set" }}
+                            </p>
+                            {% if package.season_badge %}
+                                <span class="season-pill">{{ package.season_badge }}</span>
+                            {% endif %}
                             <div class="package-rating">
                                 <span>{{ package.avg_rating|default:0|floatformat:1 }}</span>
                                 <span>{{ package.booking_count }} booking{{ package.booking_count|pluralize }}</span>
@@ -126,6 +143,13 @@
                                 <div class="package-price">Rs {{ package.price|floatformat:0 }}</div>
                             </div>
                             <p class="package-meta">{{ package.location|default:"Nepal" }} · Added {{ package.created_at|date:"M d, Y" }}</p>
+                            <p class="package-meta">
+                                Available {{ package.available_from|date:"M d, Y"|default:"Not set" }} -
+                                {{ package.available_until|date:"M d, Y"|default:"Not set" }}
+                            </p>
+                            {% if package.season_badge %}
+                                <span class="season-pill">{{ package.season_badge }}</span>
+                            {% endif %}
                             <a class="package-link" href="{% url 'package_detail' package.id %}">View details</a>
                         </div>
                     </article>

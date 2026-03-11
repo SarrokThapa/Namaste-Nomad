@@ -69,6 +69,9 @@
                         {% with cover=package.images.all|first %}
                             <div class="package-image" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
                                 <span class="package-pill">Top Pick</span>
+                                {% if package.season_badge %}
+                                    <span class="package-pill season-badge">{{ package.season_badge }}</span>
+                                {% endif %}
                             </div>
                         {% endwith %}
                         <div class="package-body">
@@ -79,6 +82,10 @@
                             <p class="package-meta">
                                 {{ package.location|default:"Nepal" }} · Hosted by {{ package.vendor.get_full_name|default:package.vendor.username }}
                                 {% if package.duration_days %} · {{ package.duration_days }} days{% endif %}
+                            </p>
+                            <p class="package-meta">
+                                Available {{ package.available_from|date:"M d, Y"|default:"Not set" }} -
+                                {{ package.available_until|date:"M d, Y"|default:"Not set" }}
                             </p>
                             <div class="package-rating">
                                 <span class="stars">★★★★★</span>

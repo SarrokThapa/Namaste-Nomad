@@ -744,6 +744,24 @@ body {
     padding: 0.24rem 0.6rem;
 }
 
+.package-tag.season-badge {
+    left: auto;
+    right: 0.7rem;
+    background: rgba(220, 38, 38, 0.9);
+}
+
+.season-pill {
+    display: inline-flex;
+    align-items: center;
+    background: #fee2e2;
+    color: #991b1b;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+    margin-top: 0.45rem;
+}
+
 .explore-package-body {
     padding: 1rem;
 }

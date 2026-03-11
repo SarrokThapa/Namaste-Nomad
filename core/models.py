@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 
 class Package(models.Model):
@@ -36,6 +37,8 @@ class Package(models.Model):
     difficulty = models.CharField(max_length=20, choices=DIFFICULTY_CHOICES, blank=True)
     group_size = models.PositiveSmallIntegerField(blank=True, null=True)
     available_slots = models.PositiveIntegerField(default=10)
+    available_from = models.DateField(blank=True, null=True)
+    available_until = models.DateField(blank=True, null=True)
     best_season = models.CharField(max_length=100, blank=True)
     image_url = models.URLField(blank=True)
     price = models.DecimalField(
@@ -49,6 +52,22 @@ class Package(models.Model):
 
     def __str__(self):
         return self.title
+
+    def is_in_season(self, on_date=None):
+        check_date = on_date or timezone.localdate()
+        if not self.available_from or not self.available_until:
+            return False
+        return self.available_from <= check_date <= self.available_until
+
+    def season_badge(self, on_date=None):
+        check_date = on_date or timezone.localdate()
+        if not self.available_from or not self.available_until:
+            return 'Not Available'
+        if check_date < self.available_from:
+            return 'Not Available'
+        if check_date > self.available_until:
+            return 'Season Closed'
+        return ''
 
 
 class PackageImage(models.Model):

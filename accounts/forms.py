@@ -14,6 +14,8 @@ class PackageForm(forms.ModelForm):
             'price',
             'duration_days',
             'available_slots',
+            'available_from',
+            'available_until',
             'difficulty',
             'group_size',
             'best_season',
@@ -31,6 +33,8 @@ class PackageForm(forms.ModelForm):
             'price': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '1899'}),
             'duration_days': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '14'}),
             'available_slots': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '12'}),
+            'available_from': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'available_until': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'difficulty': forms.Select(attrs={'class': 'form-control'}),
             'group_size': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '10'}),
             'best_season': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Mar-May, Sep-Nov'}),
@@ -45,6 +49,8 @@ class PackageForm(forms.ModelForm):
             'category': 'Category',
             'duration_days': 'Duration (days)',
             'available_slots': 'Available Slots',
+            'available_from': 'Available From',
+            'available_until': 'Available Until',
             'group_size': 'Group Size',
             'image_url': 'Cover Image URL',
             'is_active': 'Publish package',
@@ -54,6 +60,18 @@ class PackageForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['category'].required = True
         self.fields['category'].choices = [('', 'Select category')] + list(Package.CATEGORY_CHOICES)
+        self.fields['available_from'].required = True
+        self.fields['available_until'].required = True
+
+    def clean(self):
+        cleaned_data = super().clean()
+        available_from = cleaned_data.get('available_from')
+        available_until = cleaned_data.get('available_until')
+
+        if available_from and available_until and available_from > available_until:
+            self.add_error('available_until', 'Available until must be after the available from date.')
+
+        return cleaned_data
 
 
 class VendorProfileForm(forms.ModelForm):

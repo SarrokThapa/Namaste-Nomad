@@ -86,6 +86,9 @@ class BookingForm(forms.ModelForm):
         cleaned_data = super().clean()
         number_of_people = cleaned_data.get('number_of_people')
 
+        if self.package and not self.package.is_in_season():
+            self.add_error(None, 'This package is currently not available for booking.')
+
         if self.package and number_of_people:
             if number_of_people > self.package.available_slots:
                 self.add_error(
