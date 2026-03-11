@@ -135,6 +135,52 @@
         </div>
     </section>
 
+    <!-- Popular Treks -->
+    <section class="popular">
+        <div class="container-landing">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">Popular Trekking Packages</h2>
+                    <p class="section-subtitle">Top trekking itineraries chosen by travelers this season</p>
+                </div>
+                <a class="link-arrow" href="{% url 'package_treks' %}">Explore trekking packages</a>
+            </div>
+
+            <div class="trek-grid">
+                {% if popular_packages %}
+                    {% for package in popular_packages %}
+                        <article class="trek-card">
+                            {% with cover=package.images.all|first %}
+                                <div class="trek-image" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
+                                    <span class="tag">Popular</span>
+                                </div>
+                            {% endwith %}
+                            <div class="trek-body">
+                                <h3>{{ package.title }}</h3>
+                                <p class="trek-meta">
+                                    {{ package.location|default:"Nepal" }} |
+                                    {{ package.vendor.get_full_name|default:package.vendor.username }}
+                                    {% if package.duration_days %} | {{ package.duration_days }} days{% endif %}
+                                </p>
+                                <p class="trek-meta">{{ package.description|default:"A curated Himalayan trekking package with local guide support."|truncatewords:16 }}</p>
+                                <div class="trek-rating">
+                                    <span class="stars">★★★★★</span>
+                                    <span>{{ package.avg_rating|default:0|floatformat:1 }} ({{ package.review_count|default:0 }} reviews)</span>
+                                </div>
+                                <div class="trek-footer">
+                                    <span class="trek-price">Rs {{ package.price|floatformat:0 }}</span>
+                                    <a class="btn-outline-dark" href="{% url 'package_detail' package.id %}">View Details</a>
+                                </div>
+                            </div>
+                        </article>
+                    {% endfor %}
+                {% else %}
+                    <div class="review-empty">No trekking packages available right now.</div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
     <!-- Categories -->
     <section class="categories">
         <div class="container-landing">

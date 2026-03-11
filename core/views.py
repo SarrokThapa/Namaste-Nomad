@@ -370,12 +370,28 @@ def home(request):
         )
         .order_by('-created_at', '-views_count', '-avg_rating')[:6]
     )
+    featured_ids = list(featured_packages.values_list('id', flat=True))
+    popular_packages = (
+        Package.objects.filter(
+            is_active=True,
+            category=Package.CATEGORY_TREK,
+        )
+        .exclude(id__in=featured_ids)
+        .select_related('vendor')
+        .prefetch_related('images')
+        .annotate(
+            review_count=Count('reviews', distinct=True),
+            avg_rating=Avg('reviews__rating'),
+        )
+        .order_by('-views_count', '-avg_rating', '-created_at')[:8]
+    )
     reviews = _prepare_review_cards(
         Review.objects.select_related('traveler', 'traveler__traveler_profile', 'package').order_by('-created_at')[:5]
     )
     return render(request, 'core/home.html', {
         'reviews': reviews,
         'featured_packages': featured_packages,
+        'popular_packages': popular_packages,
     })
 
 
