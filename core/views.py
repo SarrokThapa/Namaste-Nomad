@@ -1,5 +1,6 @@
 # core/views.py
 from datetime import date, timedelta
+import re
 
 from django.conf import settings
 from django.contrib import messages
@@ -8,15 +9,16 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Avg, Count, F, Prefetch
+from django.db.models import Avg, Count, F, Prefetch, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import escape, mark_safe
 
 from accounts.models import TravelerProfile, VendorSubscription
 from .forms import BookingForm, CommentForm, PostForm, ReviewForm
-from .models import Booking, Comment, Package, Post, Review
+from .models import Booking, Comment, Package, Post, PostMedia, Review
 from .payments import (
     StripeError,
     create_checkout_session,
@@ -197,6 +199,44 @@ def _user_avatar_url(user):
     return ""
 
 
+TAG_PATTERN = re.compile(r'@([A-Za-z0-9_.+-]+)')
+
+
+def _extract_vendor_tags(caption):
+    if not caption:
+        return []
+    return list(dict.fromkeys(TAG_PATTERN.findall(caption)))
+
+
+def _caption_with_vendor_links(post):
+    caption = post.caption or ""
+    if not caption:
+        return ""
+
+    tagged_vendors = list(getattr(post, 'tagged_vendors', []).all())
+    vendor_lookup = {
+        vendor.username.lower(): (
+            vendor.username,
+            reverse('vendor_public_profile', kwargs={'vendor_id': vendor.id}),
+        )
+        for vendor in tagged_vendors
+    }
+    escaped_caption = escape(caption)
+
+    def _replace(match):
+        username = match.group(1)
+        key = username.lower()
+        if key in vendor_lookup:
+            display, url = vendor_lookup[key]
+            safe_display = escape(display)
+            return f'<a class="tagged-mention" href="{url}">@{safe_display}</a>'
+        return f'@{username}'
+
+    linked = TAG_PATTERN.sub(_replace, escaped_caption)
+    linked = linked.replace('\n', '<br>')
+    return mark_safe(linked)
+
+
 def _prepare_review_cards(review_queryset):
     reviews = list(review_queryset)
 
@@ -215,6 +255,13 @@ def _prepare_feed_posts(post_queryset, viewer=None):
     for post in posts:
         post.author_name = _user_display_name(post.user)
         post.author_avatar_url = _user_avatar_url(post.user)
+        post.caption_html = _caption_with_vendor_links(post)
+
+        media_items = list(getattr(post, 'media', []).all())
+        if not media_items and post.image:
+            media_items = [{'media_file': post.image, 'media_type': PostMedia.MEDIA_IMAGE}]
+        post.media_items = media_items
+        post.media_count = len(media_items)
 
         like_user_ids = {user.id for user in post.likes.all()}
         post.like_count = len(like_user_ids)
@@ -262,6 +309,11 @@ def _community_posts(viewer=None):
         ).prefetch_related(
             Prefetch('comments', queryset=comment_queryset),
             Prefetch('likes', queryset=user_model.objects.only('id')),
+            Prefetch(
+                'tagged_vendors',
+                queryset=user_model.objects.only('id', 'username', 'first_name', 'last_name', 'user_type'),
+            ),
+            Prefetch('media', queryset=PostMedia.objects.all()),
         ),
         viewer=viewer,
     )
@@ -828,9 +880,36 @@ def community_post_create(request):
         post = form.save(commit=False)
         post.user = request.user
         post.save()
+        media_files = form.cleaned_data.get('media_files', [])
+        for index, media_file in enumerate(media_files, start=1):
+            content_type = (getattr(media_file, 'content_type', '') or '').lower()
+            media_type = (
+                PostMedia.MEDIA_VIDEO
+                if content_type.startswith('video/')
+                else PostMedia.MEDIA_IMAGE
+            )
+            PostMedia.objects.create(
+                post=post,
+                media_file=media_file,
+                media_type=media_type,
+                order=index,
+            )
+
+        tagged_usernames = _extract_vendor_tags(post.caption)
+        if tagged_usernames:
+            vendor_query = Q()
+            for username in tagged_usernames:
+                vendor_query |= Q(username__iexact=username)
+            vendors = get_user_model().objects.filter(
+                user_type='vendor',
+            ).filter(vendor_query)
+            post.tagged_vendors.set(vendors)
+        else:
+            post.tagged_vendors.clear()
+
         messages.success(request, 'Post shared successfully.')
     else:
-        messages.error(request, 'Please upload an image and add a caption.')
+        messages.error(request, 'Please upload at least one photo or video and add a caption.')
 
     return redirect(next_url)
 

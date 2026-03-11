@@ -16,11 +16,49 @@
         </div>
     </div>
 
-    <div class="post-image-wrap">
-        <img src="{{ post.image.url }}" alt="Post by {{ post.author_name }}">
+    <div class="post-media-carousel" data-carousel>
+        {% if post.media_items %}
+            <div class="carousel-track">
+                {% for media in post.media_items %}
+                    <div class="carousel-slide">
+                        {% if media.media_type == 'video' %}
+                            <video class="carousel-media" controls preload="metadata">
+                                <source src="{{ media.media_file.url }}">
+                                Your browser does not support the video tag.
+                            </video>
+                        {% else %}
+                            <img class="carousel-media" src="{{ media.media_file.url }}" alt="Post media by {{ post.author_name }}">
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+            {% if post.media_count|default:0 > 1 %}
+                <button class="carousel-btn prev" type="button" aria-label="Previous media">
+                    <span aria-hidden="true">&#10094;</span>
+                </button>
+                <button class="carousel-btn next" type="button" aria-label="Next media">
+                    <span aria-hidden="true">&#10095;</span>
+                </button>
+                <div class="carousel-dots">
+                    {% for media in post.media_items %}
+                        <button class="carousel-dot {% if forloop.first %}active{% endif %}" type="button" aria-label="View media {{ forloop.counter }}"></button>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="carousel-empty">No media uploaded.</div>
+        {% endif %}
     </div>
 
-    <div class="post-caption">{{ post.caption|linebreaksbr }}</div>
+    <div class="post-caption">{{ post.caption_html|safe }}</div>
+    {% if post.tagged_vendors.all %}
+        <div class="post-tags">
+            <span>Tagged</span>
+            {% for vendor in post.tagged_vendors.all %}
+                <a class="tagged-mention" href="{% url 'vendor_public_profile' vendor.id %}">@{{ vendor.username }}</a>
+            {% endfor %}
+        </div>
+    {% endif %}
 
     <div class="post-engagement">
         <div class="engagement-actions">

@@ -254,8 +254,13 @@ class Post(models.Model):
         related_name='liked_community_posts',
         blank=True,
     )
-    image = models.ImageField(upload_to='community_posts/')
+    image = models.ImageField(upload_to='community_posts/', blank=True, null=True)
     caption = models.TextField(max_length=2200)
+    tagged_vendors = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='tagged_posts',
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -263,6 +268,27 @@ class Post(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class PostMedia(models.Model):
+    MEDIA_IMAGE = 'image'
+    MEDIA_VIDEO = 'video'
+    MEDIA_TYPE_CHOICES = (
+        (MEDIA_IMAGE, 'Image'),
+        (MEDIA_VIDEO, 'Video'),
+    )
+
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='media')
+    media_file = models.FileField(upload_to='community_posts/')
+    media_type = models.CharField(max_length=10, choices=MEDIA_TYPE_CHOICES, default=MEDIA_IMAGE)
+    order = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('order', 'created_at', 'id')
+
+    def __str__(self):
+        return f"PostMedia {self.post_id} ({self.media_type})"
 
 
 class Comment(models.Model):

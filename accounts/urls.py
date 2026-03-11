@@ -10,6 +10,8 @@ urlpatterns = [
     path('traveler/bookings/', views.traveler_bookings, name='traveler_bookings'),
     path('traveler/profile/', views.traveler_profile, name='traveler_profile'),
 
+    path('vendors/<int:vendor_id>/', views.vendor_public_profile, name='vendor_public_profile'),
+
     path('vendor/login/', views.vendor_login, name='vendor_login'),
     path('vendor/register/', views.vendor_register, name='vendor_register'),
     path('vendor/packages/new/', views.vendor_package_create, name='vendor_package_create'),

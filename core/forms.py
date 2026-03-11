@@ -4,6 +4,10 @@ from django.utils import timezone
 from .models import Booking, Comment, Post, Review
 
 
+class MultiFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
 class ReviewForm(forms.ModelForm):
     class Meta:
         model = Review
@@ -18,15 +22,37 @@ class ReviewForm(forms.ModelForm):
 
 
 class PostForm(forms.ModelForm):
+    media_files = forms.FileField(
+        required=True,
+        widget=MultiFileInput(attrs={
+            'multiple': True,
+            'accept': 'image/*,video/*',
+        }),
+    )
+
     class Meta:
         model = Post
-        fields = ['image', 'caption']
+        fields = ['caption']
         widgets = {
             'caption': forms.Textarea(attrs={
                 'rows': 3,
                 'placeholder': 'Write a caption for your travel moment...',
             }),
         }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        media_files = self.files.getlist('media_files')
+        if not media_files:
+            raise forms.ValidationError('Please upload at least one photo or video.')
+
+        for media_file in media_files:
+            content_type = (getattr(media_file, 'content_type', '') or '').lower()
+            if not (content_type.startswith('image/') or content_type.startswith('video/')):
+                raise forms.ValidationError('Only image or video files are allowed.')
+
+        cleaned_data['media_files'] = media_files
+        return cleaned_data
 
 
 class CommentForm(forms.ModelForm):

@@ -1057,6 +1057,26 @@ def admin_vendor_detail(request, vendor_id):
     })
 
 
+def vendor_public_profile(request, vendor_id):
+    vendor = get_object_or_404(User, id=vendor_id, user_type='vendor')
+    profile = _get_vendor_profile(vendor)
+    packages = (
+        Package.objects.filter(vendor=vendor, is_active=True)
+        .prefetch_related('images')
+        .annotate(
+            review_count=Count('reviews', distinct=True),
+            avg_rating=Avg('reviews__rating'),
+        )
+        .order_by('-created_at')
+    )
+
+    return render(request, 'accounts/vendor_public_profile.html', {
+        'vendor': vendor,
+        'vendor_profile': profile,
+        'packages': packages,
+    })
+
+
 @never_cache
 @login_required(login_url='vendor_login')
 def vendor_package_create(request):

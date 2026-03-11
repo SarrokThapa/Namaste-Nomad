@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Booking, Comment, Package, Post, Review
+from .models import Booking, Comment, Package, Post, PostMedia, Review
 
 
 @admin.register(Package)
@@ -42,6 +42,13 @@ class PostAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'created_at')
     list_filter = ('created_at',)
     search_fields = ('user__username', 'user__email', 'caption')
+
+
+@admin.register(PostMedia)
+class PostMediaAdmin(admin.ModelAdmin):
+    list_display = ('id', 'post', 'media_type', 'order', 'created_at')
+    list_filter = ('media_type', 'created_at')
+    search_fields = ('post__caption', 'post__user__username', 'post__user__email')
 
 
 @admin.register(Comment)

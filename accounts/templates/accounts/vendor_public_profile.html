@@ -1,0 +1,113 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ vendor_profile.business_name|default:vendor.get_full_name|default:vendor.username }} - Vendor Profile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/packages.css' %}">
+    <link rel="stylesheet" href="{% static 'css/vendor_public.css' %}?v=20260311a">
+</head>
+<body class="packages-body">
+    <nav class="landing-nav">
+        <div class="nav-container">
+            <a class="nav-brand" href="{% url 'home' %}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+                <span>Namaste Nomad</span>
+            </a>
+            <div class="nav-menu">
+                <a href="{% url 'home' %}">Home</a>
+                <a href="{% url 'package_treks' %}">Treks</a>
+                <a href="{% url 'package_tours' %}">Tours</a>
+                <a href="{% url 'package_list' %}">Packages</a>
+                <a href="{% url 'community_feed' %}">Explore</a>
+                <a href="{% url 'about' %}">About</a>
+            </div>
+            <div class="nav-actions">
+                {% if request.user.is_authenticated %}
+                    <a href="{% url 'logout' %}" class="btn-ghost">Logout</a>
+                {% else %}
+                    <a href="{% url 'account_login_choice' %}" class="btn-ghost">Sign In</a>
+                    <a href="{% url 'account_register_choice' %}" class="btn-dark">Sign Up</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <header class="packages-hero">
+        <div class="packages-hero-content vendor-public-hero">
+            {% if vendor_profile and vendor_profile.logo %}
+                <img class="vendor-logo" src="{{ vendor_profile.logo.url }}" alt="{{ vendor_profile.business_name|default:vendor.username }} logo">
+            {% endif %}
+            <h1>{{ vendor_profile.business_name|default:vendor.get_full_name|default:vendor.username }}</h1>
+            <p>{{ vendor_profile.tagline|default:"Trusted local operator on Namaste Nomad." }}</p>
+            {% if vendor_profile and vendor_profile.description %}
+                <p class="vendor-description">{{ vendor_profile.description|truncatewords:36 }}</p>
+            {% endif %}
+            <div class="vendor-meta">
+                {% if vendor_profile and vendor_profile.website %}
+                    <a href="{{ vendor_profile.website }}" target="_blank" rel="noopener">Website</a>
+                {% endif %}
+                {% if vendor.email %}
+                    <span>{{ vendor.email }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <section class="packages-section">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title">Packages by {{ vendor_profile.business_name|default:vendor.get_full_name|default:vendor.username }}</h2>
+                <p class="section-subtitle">Browse current listings from this vendor.</p>
+            </div>
+            <a class="link-arrow" href="{% url 'package_list' %}">All packages</a>
+        </div>
+
+        <div class="packages-grid">
+            {% if packages %}
+                {% for package in packages %}
+                    <article class="package-card">
+                        {% with cover=package.images.all|first %}
+                            <div class="package-image" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
+                                <span class="package-pill {% if package.is_featured %}featured{% endif %}">
+                                    {% if package.is_featured %}Featured{% else %}Top Pick{% endif %}
+                                </span>
+                            </div>
+                        {% endwith %}
+                        <div class="package-body">
+                            <div class="package-title-row">
+                                <h2>{{ package.title }}</h2>
+                                <span class="package-price">Rs {{ package.price|floatformat:0 }}</span>
+                            </div>
+                            <p class="package-meta">
+                                {{ package.location|default:"Nepal" }}
+                                {% if package.duration_days %} · {{ package.duration_days }} days{% endif %}
+                            </p>
+                            <div class="package-rating">
+                                <span class="stars">★★★★★</span>
+                                <span>{{ package.avg_rating|default:0|floatformat:1 }} ({{ package.review_count|default:0 }} reviews)</span>
+                            </div>
+                            <p class="package-desc">
+                                {{ package.description|default:"Customizable trek package with local guide support."|truncatewords:18 }}
+                            </p>
+                            <div class="package-actions">
+                                <a href="{% url 'package_detail' package.id %}" class="btn-outline-dark">View Details</a>
+                                <span class="package-views">{{ package.views_count }} views</span>
+                            </div>
+                        </div>
+                    </article>
+                {% endfor %}
+            {% else %}
+                <div class="packages-empty">No packages listed yet.</div>
+            {% endif %}
+        </div>
+    </section>
+</body>
+</html>
