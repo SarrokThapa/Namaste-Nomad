@@ -9,7 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Avg, Count, F, Prefetch, Q
+from django.db.models import Avg, Count, F, Max, Prefetch, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.utils.html import escape, mark_safe
 
 from accounts.models import TravelerProfile, VendorSubscription
-from .forms import BookingForm, CommentForm, PostForm, ReviewForm
+from .forms import BookingForm, CommentForm, PostEditForm, PostForm, ReviewForm
 from .models import Booking, Comment, Package, Post, PostMedia, Review
 from .payments import (
     StripeError,
@@ -202,16 +202,10 @@ def _user_avatar_url(user):
 TAG_PATTERN = re.compile(r'@([A-Za-z0-9_.+-]+)')
 
 
-def _extract_vendor_tags(caption):
-    if not caption:
-        return []
-    return list(dict.fromkeys(TAG_PATTERN.findall(caption)))
-
-
 def _caption_with_vendor_links(post):
     caption = post.caption or ""
     if not caption:
-        return ""
+        caption = ""
 
     tagged_vendors = list(getattr(post, 'tagged_vendors', []).all())
     vendor_lookup = {
@@ -233,6 +227,22 @@ def _caption_with_vendor_links(post):
         return f'@{username}'
 
     linked = TAG_PATTERN.sub(_replace, escaped_caption)
+
+    # Append tagged vendors not already mentioned in the caption.
+    if tagged_vendors:
+        mentioned = {match.group(1).lower() for match in TAG_PATTERN.finditer(caption)}
+        missing = [vendor for vendor in tagged_vendors if vendor.username.lower() not in mentioned]
+        if missing:
+            extras = " ".join(
+                f'<a class="tagged-mention" href="{reverse("vendor_public_profile", kwargs={"vendor_id": vendor.id})}">@{escape(vendor.username)}</a>'
+                for vendor in missing
+            )
+            tag_line = f'<span class="caption-tags"><span class="caption-tags-label">Tagged:</span> {extras}</span>'
+            if linked:
+                linked = f"{linked}<br>{tag_line}"
+            else:
+                linked = tag_line
+
     linked = linked.replace('\n', '<br>')
     return mark_safe(linked)
 
@@ -843,11 +853,13 @@ def review_list(request):
 
 def community_feed(request):
     posts = _community_posts(viewer=request.user)
+    vendors = get_user_model().objects.filter(user_type='vendor').select_related('vendor_profile').order_by('username')
 
     return render(request, 'core/community_feed.html', {
         'posts': posts,
         'is_dashboard': False,
         'force_show_post_form': False,
+        'vendors': vendors,
     })
 
 
@@ -859,6 +871,7 @@ def community_dashboard(request):
 
     traveler_profile = _get_or_create_traveler_profile(request.user)
     posts = _community_posts(viewer=request.user)
+    vendors = get_user_model().objects.filter(user_type='vendor').select_related('vendor_profile').order_by('username')
 
     return render(request, 'core/community_dashboard.html', {
         'posts': posts,
@@ -866,6 +879,7 @@ def community_dashboard(request):
         'force_show_post_form': True,
         'traveler_profile': traveler_profile,
         'active_page': 'community',
+        'vendors': vendors,
     })
 
 
@@ -895,14 +909,14 @@ def community_post_create(request):
                 order=index,
             )
 
-        tagged_usernames = _extract_vendor_tags(post.caption)
-        if tagged_usernames:
-            vendor_query = Q()
-            for username in tagged_usernames:
-                vendor_query |= Q(username__iexact=username)
-            vendors = get_user_model().objects.filter(
-                user_type='vendor',
-            ).filter(vendor_query)
+        tag_ids = []
+        for raw_id in request.POST.getlist('tagged_vendors'):
+            try:
+                tag_ids.append(int(raw_id))
+            except (TypeError, ValueError):
+                continue
+        if tag_ids:
+            vendors = get_user_model().objects.filter(user_type='vendor', id__in=tag_ids)
             post.tagged_vendors.set(vendors)
         else:
             post.tagged_vendors.clear()
@@ -911,6 +925,109 @@ def community_post_create(request):
     else:
         messages.error(request, 'Please upload at least one photo or video and add a caption.')
 
+    return redirect(next_url)
+
+
+@login_required(login_url='account_login_choice')
+def community_post_edit(request, post_id):
+    post = get_object_or_404(
+        Post.objects.select_related('user').prefetch_related('media', 'tagged_vendors'),
+        id=post_id,
+        user=request.user,
+    )
+    next_url = request.POST.get('next') or request.GET.get('next') or reverse('community_feed')
+    vendors = get_user_model().objects.filter(user_type='vendor').select_related('vendor_profile').order_by('username')
+
+    if request.method == 'POST':
+        form = PostEditForm(request.POST, request.FILES, instance=post)
+        if form.is_valid():
+            media_files = request.FILES.getlist('media_files')
+            remove_ids = []
+            for raw_id in request.POST.getlist('remove_media'):
+                try:
+                    remove_ids.append(int(raw_id))
+                except (TypeError, ValueError):
+                    continue
+            remove_legacy = request.POST.get('remove_legacy') == '1'
+
+            existing_media_ids = set(post.media.values_list('id', flat=True))
+            remove_ids = [media_id for media_id in remove_ids if media_id in existing_media_ids]
+            remaining = len(existing_media_ids) - len(remove_ids)
+            if post.image and not remove_legacy:
+                remaining += 1
+            remaining += len(media_files)
+
+            if remaining < 1:
+                form.add_error(None, 'Please keep at least one photo or video.')
+            else:
+                with transaction.atomic():
+                    post.caption = form.cleaned_data['caption']
+                    post.save(update_fields=['caption'])
+
+                    if remove_ids:
+                        PostMedia.objects.filter(post=post, id__in=remove_ids).delete()
+
+                    if remove_legacy and post.image:
+                        post.image.delete(save=False)
+                        post.image = None
+                        post.save(update_fields=['image'])
+
+                    if media_files:
+                        max_order = post.media.aggregate(max_order=Max('order'))['max_order'] or 0
+                        for offset, media_file in enumerate(media_files, start=1):
+                            content_type = (getattr(media_file, 'content_type', '') or '').lower()
+                            media_type = (
+                                PostMedia.MEDIA_VIDEO
+                                if content_type.startswith('video/')
+                                else PostMedia.MEDIA_IMAGE
+                            )
+                            PostMedia.objects.create(
+                                post=post,
+                                media_file=media_file,
+                                media_type=media_type,
+                                order=max_order + offset,
+                            )
+
+                    tag_ids = []
+                    for raw_id in request.POST.getlist('tagged_vendors'):
+                        try:
+                            tag_ids.append(int(raw_id))
+                        except (TypeError, ValueError):
+                            continue
+                    if tag_ids:
+                        tagged = get_user_model().objects.filter(user_type='vendor', id__in=tag_ids)
+                        post.tagged_vendors.set(tagged)
+                    else:
+                        post.tagged_vendors.clear()
+
+                messages.success(request, 'Post updated successfully.')
+                return redirect(next_url)
+        messages.error(request, 'Please correct the errors below.')
+    else:
+        form = PostEditForm(instance=post)
+
+    existing_media = list(post.media.all())
+    legacy_media = post.image
+
+    return render(request, 'core/community_post_edit.html', {
+        'post': post,
+        'form': form,
+        'vendors': vendors,
+        'existing_media': existing_media,
+        'legacy_media': legacy_media,
+        'next_url': next_url,
+        'selected_vendor_ids': {vendor.id for vendor in post.tagged_vendors.all()},
+    })
+
+
+@login_required(login_url='account_login_choice')
+def community_post_delete(request, post_id):
+    if request.method != 'POST':
+        return redirect('community_feed')
+    post = get_object_or_404(Post, id=post_id, user=request.user)
+    next_url = request.POST.get('next') or reverse('community_feed')
+    post.delete()
+    messages.success(request, 'Post deleted.')
     return redirect(next_url)
 
 

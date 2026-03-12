@@ -1,0 +1,154 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Post - Namaste Nomad</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/community.css' %}?v=20260311b">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="landing-nav">
+        <div class="nav-container">
+            <a class="nav-brand" href="{% url 'home' %}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+                <span>Namaste Nomad</span>
+            </a>
+            <div class="nav-menu">
+                <a href="{% url 'community_feed' %}" class="nav-active">Explore</a>
+            </div>
+            <div class="nav-actions">
+                <a href="{% url 'logout' %}" class="btn-dark">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    {% if messages %}
+        <div class="alert-stack container-landing">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <main class="community-page">
+        <section class="community-hero">
+            <div class="container-landing">
+                <h1>Edit Post</h1>
+                <p>Update your caption, media, or tagged vendors.</p>
+            </div>
+        </section>
+
+        <section class="container-landing community-shell">
+            <div class="new-post-card">
+                <div class="new-post-header">
+                    <h2>Edit Your Post</h2>
+                    <a href="{{ next_url }}" class="btn-outline-dark">Back to Feed</a>
+                </div>
+
+                <form method="POST" enctype="multipart/form-data" class="new-post-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ next_url }}">
+                    <div class="new-post-grid">
+                        <div class="form-field">
+                            <label>Existing Media</label>
+                            <div class="edit-media-grid">
+                                {% for media in existing_media %}
+                                    <label class="edit-media-card">
+                                        {% if media.media_type == 'video' %}
+                                            <video class="edit-media-thumb" muted>
+                                                <source src="{{ media.media_file.url }}">
+                                            </video>
+                                        {% else %}
+                                            <img class="edit-media-thumb" src="{{ media.media_file.url }}" alt="Existing media">
+                                        {% endif %}
+                                        <span class="edit-media-remove">
+                                            <input type="checkbox" name="remove_media" value="{{ media.id }}">
+                                            Remove
+                                        </span>
+                                    </label>
+                                {% endfor %}
+                                {% if legacy_media %}
+                                    <label class="edit-media-card">
+                                        <img class="edit-media-thumb" src="{{ legacy_media.url }}" alt="Existing media">
+                                        <span class="edit-media-remove">
+                                            <input type="checkbox" name="remove_legacy" value="1">
+                                            Remove
+                                        </span>
+                                    </label>
+                                {% endif %}
+                                {% if not existing_media and not legacy_media %}
+                                    <div class="edit-media-empty">No media uploaded.</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="form-field">
+                            <label for="post-media">Add More Photos / Videos</label>
+                            <input id="post-media" type="file" name="media_files" accept="image/*,video/*" multiple>
+                        </div>
+                        <div class="form-field">
+                            <label for="post-caption">Caption</label>
+                            {{ form.caption }}
+                            {% if form.caption.errors %}
+                                <div class="form-errors">{{ form.caption.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="form-field tag-picker" data-tag-picker id="tag-vendors">
+                        <label>Tag Vendors</label>
+                        <button type="button" class="btn-outline-dark tag-trigger" data-tag-trigger>Tag Vendors</button>
+                        <div class="tag-preview" data-tag-preview>Tagged: <span class="tag-preview-list">None</span></div>
+                        <div class="tag-modal" data-tag-modal>
+                            <div class="tag-modal-content">
+                                <div class="tag-modal-header">
+                                    <h3>Tag Vendors</h3>
+                                    <button type="button" class="tag-close" data-tag-close>&times;</button>
+                                </div>
+                                <input type="text" class="tag-search" placeholder="Search vendor..." data-tag-search>
+                                <div class="tag-list">
+                                    {% for vendor in vendors %}
+                                        <label class="tag-option" data-filter="{{ vendor.username|lower }} {% if vendor.vendor_profile %}{{ vendor.vendor_profile.business_name|lower }}{% endif %}">
+                                            <input type="checkbox" name="tagged_vendors" value="{{ vendor.id }}" data-tag-name="@{{ vendor.username }}" {% if vendor.id in selected_vendor_ids %}checked{% endif %}>
+                                            <span class="tag-name">@{{ vendor.username }}</span>
+                                            {% if vendor.vendor_profile and vendor.vendor_profile.business_name %}
+                                                <span class="tag-meta">{{ vendor.vendor_profile.business_name }}</span>
+                                            {% endif %}
+                                        </label>
+                                    {% endfor %}
+                                    {% if not vendors %}
+                                        <div class="tag-empty">No vendors available.</div>
+                                    {% endif %}
+                                </div>
+                                <div class="tag-modal-actions">
+                                    <button type="button" class="btn-ghost" data-tag-cancel>Cancel</button>
+                                    <button type="button" class="btn-dark" data-tag-apply>Apply Tags</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if form.non_field_errors %}
+                        <div class="form-errors">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <div class="new-post-actions">
+                        <button type="submit" class="btn-dark">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <script src="{% static 'js/community.js' %}?v=20260311b"></script>
+</body>
+</html>

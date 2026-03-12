@@ -14,11 +14,42 @@
                 <div class="form-field">
                     <label for="post-media">Upload Photos / Videos</label>
                     <input id="post-media" type="file" name="media_files" accept="image/*,video/*" multiple required>
-                    <small class="form-hint">Upload multiple media files. Tag vendors with @username in your caption.</small>
                 </div>
                 <div class="form-field">
                     <label for="post-caption">Caption</label>
                     <textarea id="post-caption" name="caption" rows="3" placeholder="Write about your travel moment..." required></textarea>
+                </div>
+            </div>
+            <div class="form-field tag-picker" data-tag-picker>
+                <label>Tag Vendors</label>
+                <button type="button" class="btn-outline-dark tag-trigger" data-tag-trigger>Tag Vendors</button>
+                <div class="tag-preview" data-tag-preview>Tagged: <span class="tag-preview-list">None</span></div>
+                <div class="tag-modal" data-tag-modal>
+                    <div class="tag-modal-content">
+                        <div class="tag-modal-header">
+                            <h3>Tag Vendors</h3>
+                            <button type="button" class="tag-close" data-tag-close>&times;</button>
+                        </div>
+                        <input type="text" class="tag-search" placeholder="Search vendor..." data-tag-search>
+                        <div class="tag-list">
+                            {% for vendor in vendors %}
+                                <label class="tag-option" data-filter="{{ vendor.username|lower }} {% if vendor.vendor_profile %}{{ vendor.vendor_profile.business_name|lower }}{% endif %}">
+                                    <input type="checkbox" name="tagged_vendors" value="{{ vendor.id }}" data-tag-name="@{{ vendor.username }}">
+                                    <span class="tag-name">@{{ vendor.username }}</span>
+                                    {% if vendor.vendor_profile and vendor.vendor_profile.business_name %}
+                                        <span class="tag-meta">{{ vendor.vendor_profile.business_name }}</span>
+                                    {% endif %}
+                                </label>
+                            {% endfor %}
+                            {% if not vendors %}
+                                <div class="tag-empty">No vendors available.</div>
+                            {% endif %}
+                        </div>
+                        <div class="tag-modal-actions">
+                            <button type="button" class="btn-ghost" data-tag-cancel>Cancel</button>
+                            <button type="button" class="btn-dark" data-tag-apply>Apply Tags</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="new-post-actions">

@@ -55,6 +55,27 @@ class PostForm(forms.ModelForm):
         return cleaned_data
 
 
+class PostEditForm(forms.ModelForm):
+    media_files = forms.FileField(
+        required=False,
+        widget=MultiFileInput(attrs={
+            'multiple': True,
+            'accept': 'image/*,video/*',
+        }),
+    )
+
+    class Meta:
+        model = Post
+        fields = ['caption']
+        widgets = {
+            'caption': forms.Textarea(attrs={
+                'rows': 3,
+                'placeholder': 'Update your caption...',
+                'id': 'post-caption',
+            }),
+        }
+
+
 class CommentForm(forms.ModelForm):
     class Meta:
         model = Comment
