@@ -1,0 +1,166 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support Conversation - Namaste Nomad</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/vendor_dashboard.css' %}?v=20260226b">
+    <link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}?v=20260226b">
+    <link rel="stylesheet" href="{% static 'css/support_chat.css' %}?v=20260312a">
+</head>
+<body class="admin-dashboard">
+    <header class="topbar admin-topbar">
+        <a class="brand" href="{% url 'home' %}">
+            <span class="brand-mark"></span>
+            <span class="brand-name">Namaste Nomad</span>
+        </a>
+        <div class="topbar-actions">
+            <div class="admin-user">
+                <div class="avatar topbar-avatar">
+                    {% if admin_profile and admin_profile.avatar %}
+                        <img class="topbar-avatar-image" src="{{ admin_profile.avatar.url }}" alt="Admin avatar">
+                    {% else %}
+                        <img class="topbar-avatar-image" src="{% static 'images/default-avatar.svg' %}" alt="Default admin avatar">
+                    {% endif %}
+                </div>
+                <span>{{ request.user.first_name|default:"Admin" }}</span>
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M5 7l5 6 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard-shell admin-shell">
+        <aside class="sidebar admin-sidebar">
+            <nav class="sidebar-nav">
+                <a class="nav-item" href="{% url 'admin_dashboard' %}">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 13h8V3H3v10zM13 21h8V11h-8v10zM13 3h8v6h-8V3zM3 21h8v-6H3v6z"/>
+                        </svg>
+                    </span>
+                    Dashboard
+                </a>
+                <a class="nav-item {% if active_page == 'support' %}active{% endif %}" href="{% url 'admin_support_inbox' %}">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/>
+                        </svg>
+                    </span>
+                    Support Inbox{% if support_inbox_unread_count %} ({{ support_inbox_unread_count }} new){% endif %}
+                </a>
+                <a class="nav-item" href="{% url 'admin_profile' %}">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="8" r="4"/>
+                            <path d="M4 20c2-4 6-6 8-6s6 2 8 6"/>
+                        </svg>
+                    </span>
+                    Profile
+                </a>
+                <a class="nav-item logout" href="{% url 'logout' %}">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10 17l5-5-5-5"/>
+                            <path d="M15 12H3"/>
+                            <path d="M11 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8"/>
+                        </svg>
+                    </span>
+                    Logout
+                </a>
+            </nav>
+        </aside>
+
+        <main class="dashboard-main admin-main">
+            {% if messages %}
+                <div class="alert-stack">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <section class="support-chat">
+                <div class="support-chat__header support-chat__header--admin">
+                    <div>
+                        <h1>{{ conversation.user_display }}</h1>
+                        <p>{{ conversation.user_role }} support conversation</p>
+                    </div>
+                    <div class="support-chat__header-meta">
+                        <span class="support-chat__status support-chat__status--{{ conversation.status }}">
+                            {{ conversation.get_status_display }}
+                        </span>
+                        {% if conversation.status == 'open' %}
+                            <form method="post" class="support-chat__close">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="close">
+                                <button type="submit" class="btn danger">Close Conversation</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="support-chat__messages" id="supportChatWindow">
+                    {% if support_messages %}
+                        {% for message in support_messages %}
+                            <div class="support-chat__message {% if message.is_admin_reply %}support-chat__message--admin{% else %}support-chat__message--user{% endif %}">
+                                <div class="support-chat__bubble">
+                                    {{ message.message|linebreaksbr }}
+                                </div>
+                                <div class="support-chat__meta">
+                                    <span>
+                                        {% if message.is_admin_reply %}
+                                            Admin
+                                        {% else %}
+                                            {{ conversation.user_display }}
+                                        {% endif %}
+                                    </span>
+                                    <span>{{ message.created_at|date:"M d, Y H:i" }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="support-chat__empty">No messages yet.</div>
+                    {% endif %}
+                </div>
+
+                <form class="support-chat__input" method="post">
+                    {% csrf_token %}
+                    <textarea
+                        name="message"
+                        rows="2"
+                        placeholder="Type your reply..."
+                        {% if conversation.status != 'open' %}disabled{% endif %}
+                    ></textarea>
+                    <button
+                        type="submit"
+                        class="support-chat__send"
+                        {% if conversation.status != 'open' %}disabled{% endif %}
+                    >
+                        Send
+                    </button>
+                </form>
+
+                {% if conversation.status != 'open' %}
+                    <div class="support-chat__notice">
+                        This conversation is closed. Reopen by creating a new conversation from the traveler or vendor side.
+                    </div>
+                {% endif %}
+            </section>
+        </main>
+    </div>
+
+    <script>
+        (() => {
+            const chatWindow = document.getElementById('supportChatWindow');
+            if (!chatWindow) return;
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        })();
+    </script>
+</body>
+</html>

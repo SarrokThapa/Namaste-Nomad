@@ -26,8 +26,12 @@ urlpatterns = [
     path('vendor/analytics/', views.vendor_analytics, name='vendor_analytics'),
     path('vendor/settings/', views.vendor_settings, name='vendor_settings'),
     path('vendor/subscriptions/<int:plan_id>/purchase/', views.vendor_subscription_purchase, name='vendor_subscription_purchase'),
+
+    path('support/chat/', views.support_chat, name='support_chat'),
     
     path('admin/login/', views.admin_login, name='admin_login'),
+    path('admin/support/', views.admin_support_inbox, name='admin_support_inbox'),
+    path('admin/support/<int:conversation_id>/', views.admin_support_chat, name='admin_support_chat'),
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('admin/profile/', views.admin_profile, name='admin_profile'),
     path('admin/vendors/<int:vendor_id>/', views.admin_vendor_detail, name='admin_vendor_detail'),

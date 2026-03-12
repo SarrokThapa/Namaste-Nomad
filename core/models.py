@@ -313,3 +313,48 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"{self.user.username} on post #{self.post_id}"
+
+
+class SupportConversation(models.Model):
+    STATUS_OPEN = 'open'
+    STATUS_CLOSED = 'closed'
+    STATUS_CHOICES = (
+        (STATUS_OPEN, 'Open'),
+        (STATUS_CLOSED, 'Closed'),
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='support_conversations',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_OPEN)
+
+    class Meta:
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        return f"SupportConversation #{self.id} ({self.user.username})"
+
+
+class SupportMessage(models.Model):
+    conversation = models.ForeignKey(
+        SupportConversation,
+        on_delete=models.CASCADE,
+        related_name='messages',
+    )
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='support_messages',
+    )
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_admin_reply = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ('created_at', 'id')
+
+    def __str__(self):
+        return f"SupportMessage #{self.id} ({self.sender.username})"

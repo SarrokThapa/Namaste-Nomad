@@ -1,0 +1,63 @@
+<section class="support-chat">
+    <div class="support-chat__header">
+        <div>
+            <h1>Support Chat</h1>
+            <p>Reach out to our admin team for booking and account support.</p>
+        </div>
+        <div class="support-chat__header-meta">
+            <div class="support-chat__user">{{ request.user.get_full_name|default:request.user.username }}</div>
+            <span class="support-chat__status support-chat__status--{{ conversation.status }}">
+                {{ conversation.get_status_display }}
+            </span>
+        </div>
+    </div>
+
+    <div class="support-chat__messages" id="supportChatWindow">
+        {% if support_messages %}
+            {% for message in support_messages %}
+                <div class="support-chat__message {% if message.is_admin_reply %}support-chat__message--admin{% else %}support-chat__message--user{% endif %}">
+                    <div class="support-chat__bubble">
+                        {{ message.message|linebreaksbr }}
+                    </div>
+                    <div class="support-chat__meta">
+                        <span>{% if message.is_admin_reply %}Admin{% else %}You{% endif %}</span>
+                        <span>{{ message.created_at|date:"M d, Y H:i" }}</span>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="support-chat__empty">Start the conversation and our support team will reply shortly.</div>
+        {% endif %}
+    </div>
+
+    <form class="support-chat__input" method="post">
+        {% csrf_token %}
+        <textarea
+            name="message"
+            rows="2"
+            placeholder="Type your message..."
+            {% if conversation.status != 'open' %}disabled{% endif %}
+        ></textarea>
+        <button
+            type="submit"
+            class="support-chat__send"
+            {% if conversation.status != 'open' %}disabled{% endif %}
+        >
+            Send
+        </button>
+    </form>
+
+    {% if conversation.status != 'open' %}
+        <div class="support-chat__notice">
+            This conversation is closed. Start a new chat from the Support menu if you need more help.
+        </div>
+    {% endif %}
+</section>
+
+<script>
+    (() => {
+        const chatWindow = document.getElementById('supportChatWindow');
+        if (!chatWindow) return;
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    })();
+</script>

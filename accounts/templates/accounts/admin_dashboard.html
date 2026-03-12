@@ -45,6 +45,14 @@
                     </span>
                     Dashboard
                 </a>
+                <a class="nav-item {% if active_page == 'support' %}active{% endif %}" href="{% url 'admin_support_inbox' %}">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/>
+                        </svg>
+                    </span>
+                    Support Inbox{% if support_inbox_unread_count %} ({{ support_inbox_unread_count }} new){% endif %}
+                </a>
                 <a class="nav-item" href="#users">
                     <span class="nav-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

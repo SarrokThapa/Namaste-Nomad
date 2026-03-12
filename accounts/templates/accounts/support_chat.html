@@ -1,0 +1,16 @@
+{% extends base_template %}
+{% load static %}
+
+{% block title %}Support Chat - Namaste Nomad{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/support_chat.css' %}?v=20260312a">
+{% endblock %}
+
+{% block content %}
+    {% include "accounts/includes/support_chat_panel.html" %}
+{% endblock %}
+
+{% block traveler_content %}
+    {% include "accounts/includes/support_chat_panel.html" %}
+{% endblock %}

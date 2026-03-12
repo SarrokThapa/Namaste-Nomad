@@ -8,7 +8,22 @@ from django.contrib.auth import authenticate, login, logout, update_session_auth
 from django.contrib.auth.decorators import login_required
 from django.core.files.images import get_image_dimensions
 from django.db import IntegrityError
-from django.db.models import Avg, Case, CharField, Count, Max, Q, Sum, Value, When
+from django.db.models import (
+    Avg,
+    BooleanField,
+    Case,
+    CharField,
+    Count,
+    DateTimeField,
+    Max,
+    OuterRef,
+    Q,
+    Subquery,
+    Sum,
+    TextField,
+    Value,
+    When,
+)
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -16,7 +31,14 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect
 
-from core.models import Booking, Package, Review, PackageImage
+from core.models import (
+    Booking,
+    Package,
+    Review,
+    PackageImage,
+    SupportConversation,
+    SupportMessage,
+)
 from .models import (
     AdminProfile,
     TravelerProfile,
@@ -230,6 +252,147 @@ def admin_required(view_func):
             return redirect('home')
         return view_func(request, *args, **kwargs)
     return never_cache(_wrapped)
+
+
+@never_cache
+@login_required(login_url='account_login_choice')
+@csrf_protect
+def support_chat(request):
+    if getattr(request.user, 'user_type', '') not in {'traveler', 'vendor'}:
+        messages.error(request, 'Traveler or Vendor access only.')
+        return redirect('home')
+
+    conversation = (
+        SupportConversation.objects.filter(
+            user=request.user,
+            status=SupportConversation.STATUS_OPEN,
+        )
+        .order_by('-created_at')
+        .first()
+    )
+    if conversation is None:
+        conversation = SupportConversation.objects.create(user=request.user)
+
+    if request.method == 'POST':
+        message_text = (request.POST.get('message') or '').strip()
+        if not message_text:
+            messages.error(request, 'Please enter a message before sending.')
+        elif conversation.status != SupportConversation.STATUS_OPEN:
+            messages.error(request, 'This support conversation is closed.')
+        else:
+            SupportMessage.objects.create(
+                conversation=conversation,
+                sender=request.user,
+                message=message_text,
+                is_admin_reply=False,
+            )
+            return redirect('support_chat')
+
+    support_messages = conversation.messages.select_related('sender').all()
+    base_template = (
+        'accounts/vendor_base.html'
+        if request.user.user_type == 'vendor'
+        else 'accounts/traveler_base.html'
+    )
+    context = {
+        'base_template': base_template,
+        'conversation': conversation,
+        'support_messages': support_messages,
+        'active_page': 'support',
+    }
+    if request.user.user_type == 'vendor':
+        context['vendor_profile'] = _get_vendor_profile(request.user)
+    else:
+        traveler_profile = _get_traveler_profile(request.user)
+        if traveler_profile is None:
+            traveler_profile = TravelerProfile.objects.create(user=request.user)
+        context['traveler_profile'] = traveler_profile
+    return render(request, 'accounts/support_chat.html', context)
+
+
+@admin_required
+def admin_support_inbox(request):
+    admin_profile = _get_admin_profile(request.user)
+    last_message_qs = SupportMessage.objects.filter(
+        conversation=OuterRef('pk'),
+    ).order_by('-created_at', '-id')
+    conversations = SupportConversation.objects.select_related('user').annotate(
+        last_message_text=Subquery(
+            last_message_qs.values('message')[:1],
+            output_field=TextField(),
+        ),
+        last_message_at=Subquery(
+            last_message_qs.values('created_at')[:1],
+            output_field=DateTimeField(),
+        ),
+        last_message_is_admin=Subquery(
+            last_message_qs.values('is_admin_reply')[:1],
+            output_field=BooleanField(),
+        ),
+    ).order_by('-last_message_at', '-created_at')
+
+    role_labels = dict(User.USER_TYPE_CHOICES)
+    unread_count = 0
+    for conversation in conversations:
+        user = conversation.user
+        conversation.user_display = user.get_full_name().strip() or user.username or user.email
+        conversation.user_role = role_labels.get(user.user_type, user.user_type.title())
+        conversation.last_message_text = conversation.last_message_text or ''
+        conversation.unread_by_admin = conversation.last_message_is_admin is False
+        if conversation.unread_by_admin:
+            unread_count += 1
+
+    return render(request, 'accounts/admin_support_inbox.html', {
+        'admin_profile': admin_profile,
+        'conversations': conversations,
+        'active_page': 'support',
+        'support_inbox_unread_count': unread_count,
+    })
+
+
+@admin_required
+@csrf_protect
+def admin_support_chat(request, conversation_id):
+    admin_profile = _get_admin_profile(request.user)
+    conversation = get_object_or_404(
+        SupportConversation.objects.select_related('user'),
+        id=conversation_id,
+    )
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').lower()
+        if action == 'close':
+            if conversation.status != SupportConversation.STATUS_CLOSED:
+                conversation.status = SupportConversation.STATUS_CLOSED
+                conversation.save(update_fields=['status'])
+                messages.success(request, 'Conversation closed.')
+            return redirect('admin_support_chat', conversation_id=conversation.id)
+
+        message_text = (request.POST.get('message') or '').strip()
+        if not message_text:
+            messages.error(request, 'Please enter a message before sending.')
+        elif conversation.status != SupportConversation.STATUS_OPEN:
+            messages.error(request, 'This support conversation is closed.')
+        else:
+            SupportMessage.objects.create(
+                conversation=conversation,
+                sender=request.user,
+                message=message_text,
+                is_admin_reply=True,
+            )
+            return redirect('admin_support_chat', conversation_id=conversation.id)
+
+    role_labels = dict(User.USER_TYPE_CHOICES)
+    user = conversation.user
+    conversation.user_display = user.get_full_name().strip() or user.username or user.email
+    conversation.user_role = role_labels.get(user.user_type, user.user_type.title())
+    support_messages = conversation.messages.select_related('sender').all()
+
+    return render(request, 'accounts/admin_support_chat.html', {
+        'admin_profile': admin_profile,
+        'conversation': conversation,
+        'support_messages': support_messages,
+        'active_page': 'support',
+    })
 
 
 @never_cache
