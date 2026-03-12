@@ -10,14 +10,9 @@ def support_context(request):
 
     user_type = getattr(user, 'user_type', '')
     if user_type in {'traveler', 'vendor'}:
-        conversation = (
-            SupportConversation.objects.filter(
-                user=user,
-                status=SupportConversation.STATUS_OPEN,
-            )
-            .order_by('-created_at')
-            .first()
-        )
+        conversation = SupportConversation.objects.filter(
+            user=user,
+        ).order_by('-created_at').first()
         if not conversation:
             return {'support_unread_count': 0}
         last_message = conversation.messages.order_by('-created_at', '-id').first()

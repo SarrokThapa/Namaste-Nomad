@@ -36,12 +36,10 @@
             name="message"
             rows="2"
             placeholder="Type your message..."
-            {% if conversation.status != 'open' %}disabled{% endif %}
         ></textarea>
         <button
             type="submit"
             class="support-chat__send"
-            {% if conversation.status != 'open' %}disabled{% endif %}
         >
             Send
         </button>
@@ -49,7 +47,7 @@
 
     {% if conversation.status != 'open' %}
         <div class="support-chat__notice">
-            This conversation is closed. Start a new chat from the Support menu if you need more help.
+            This conversation is closed. Send a new message to open a fresh support thread.
         </div>
     {% endif %}
 </section>

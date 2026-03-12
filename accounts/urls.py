@@ -28,6 +28,8 @@ urlpatterns = [
     path('vendor/subscriptions/<int:plan_id>/purchase/', views.vendor_subscription_purchase, name='vendor_subscription_purchase'),
 
     path('support/chat/', views.support_chat, name='support_chat'),
+    path('support/widget/', views.support_widget_data, name='support_widget_data'),
+    path('support/widget/send/', views.support_widget_send, name='support_widget_send'),
     
     path('admin/login/', views.admin_login, name='admin_login'),
     path('admin/support/', views.admin_support_inbox, name='admin_support_inbox'),

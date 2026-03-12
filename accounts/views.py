@@ -24,6 +24,7 @@ from django.db.models import (
     Value,
     When,
 )
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -254,6 +255,17 @@ def admin_required(view_func):
     return never_cache(_wrapped)
 
 
+def _get_latest_support_conversation(user):
+    return SupportConversation.objects.filter(user=user).order_by('-created_at').first()
+
+
+def _get_or_create_support_conversation(user):
+    conversation = _get_latest_support_conversation(user)
+    if conversation is None:
+        conversation = SupportConversation.objects.create(user=user)
+    return conversation
+
+
 @never_cache
 @login_required(login_url='account_login_choice')
 @csrf_protect
@@ -262,23 +274,21 @@ def support_chat(request):
         messages.error(request, 'Traveler or Vendor access only.')
         return redirect('home')
 
-    conversation = (
-        SupportConversation.objects.filter(
-            user=request.user,
-            status=SupportConversation.STATUS_OPEN,
-        )
-        .order_by('-created_at')
-        .first()
-    )
-    if conversation is None:
-        conversation = SupportConversation.objects.create(user=request.user)
+    conversation = _get_or_create_support_conversation(request.user)
 
     if request.method == 'POST':
         message_text = (request.POST.get('message') or '').strip()
         if not message_text:
             messages.error(request, 'Please enter a message before sending.')
         elif conversation.status != SupportConversation.STATUS_OPEN:
-            messages.error(request, 'This support conversation is closed.')
+            conversation = SupportConversation.objects.create(user=request.user)
+            SupportMessage.objects.create(
+                conversation=conversation,
+                sender=request.user,
+                message=message_text,
+                is_admin_reply=False,
+            )
+            return redirect('support_chat')
         else:
             SupportMessage.objects.create(
                 conversation=conversation,
@@ -288,7 +298,11 @@ def support_chat(request):
             )
             return redirect('support_chat')
 
-    support_messages = conversation.messages.select_related('sender').all()
+    support_messages = (
+        SupportMessage.objects.filter(conversation=conversation)
+        .select_related('sender')
+        .order_by('created_at')
+    )
     base_template = (
         'accounts/vendor_base.html'
         if request.user.user_type == 'vendor'
@@ -308,6 +322,62 @@ def support_chat(request):
             traveler_profile = TravelerProfile.objects.create(user=request.user)
         context['traveler_profile'] = traveler_profile
     return render(request, 'accounts/support_chat.html', context)
+
+
+def _serialize_support_message(message):
+    return {
+        'id': message.id,
+        'message': message.message,
+        'is_admin_reply': message.is_admin_reply,
+        'created_at': timezone.localtime(message.created_at).strftime('%b %d, %Y %H:%M'),
+    }
+
+
+@never_cache
+@login_required(login_url='account_login_choice')
+def support_widget_data(request):
+    if getattr(request.user, 'user_type', '') not in {'traveler', 'vendor'}:
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+
+    conversation = _get_or_create_support_conversation(request.user)
+    support_messages = SupportMessage.objects.filter(
+        conversation=conversation,
+    ).order_by('created_at')
+
+    return JsonResponse({
+        'conversation_id': conversation.id,
+        'status': conversation.status,
+        'messages': [_serialize_support_message(message) for message in support_messages],
+    })
+
+
+@never_cache
+@login_required(login_url='account_login_choice')
+@csrf_protect
+def support_widget_send(request):
+    if getattr(request.user, 'user_type', '') not in {'traveler', 'vendor'}:
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    message_text = (request.POST.get('message') or '').strip()
+    if not message_text:
+        return JsonResponse({'error': 'Message is required.'}, status=400)
+
+    conversation = _get_or_create_support_conversation(request.user)
+    if conversation.status != SupportConversation.STATUS_OPEN:
+        conversation = SupportConversation.objects.create(user=request.user)
+
+    new_message = SupportMessage.objects.create(
+        conversation=conversation,
+        sender=request.user,
+        message=message_text,
+        is_admin_reply=False,
+    )
+
+    return JsonResponse({
+        'message': _serialize_support_message(new_message),
+    })
 
 
 @admin_required
@@ -385,7 +455,11 @@ def admin_support_chat(request, conversation_id):
     user = conversation.user
     conversation.user_display = user.get_full_name().strip() or user.username or user.email
     conversation.user_role = role_labels.get(user.user_type, user.user_type.title())
-    support_messages = conversation.messages.select_related('sender').all()
+    support_messages = (
+        SupportMessage.objects.filter(conversation=conversation)
+        .select_related('sender')
+        .order_by('created_at')
+    )
 
     return render(request, 'accounts/admin_support_chat.html', {
         'admin_profile': admin_profile,

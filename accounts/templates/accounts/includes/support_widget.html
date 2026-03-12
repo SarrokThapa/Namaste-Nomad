@@ -1,0 +1,192 @@
+{% if request.user.is_authenticated %}
+{% if request.user.user_type == 'traveler' or request.user.user_type == 'vendor' %}
+    <div
+        class="support-widget"
+        data-support-widget
+        data-support-data-url="{% url 'support_widget_data' %}"
+        data-support-send-url="{% url 'support_widget_send' %}"
+    >
+        <button type="button" class="support-widget__toggle" data-support-toggle aria-expanded="false">
+            <span class="support-widget__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/>
+                </svg>
+            </span>
+            Chat Support
+            {% if support_unread_count %}
+                <span class="support-widget__badge">New</span>
+            {% endif %}
+        </button>
+
+        <div class="support-widget__panel" data-support-panel aria-hidden="true">
+            <div class="support-widget__header">
+                <div>
+                    <strong>Support Chat</strong>
+                    <span>Admin support</span>
+                </div>
+                <button type="button" class="support-widget__close" data-support-close aria-label="Close chat">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6 6 18"/>
+                        <path d="M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="support-widget__messages" data-support-messages></div>
+
+            <form class="support-widget__form" data-support-form method="post">
+                {% csrf_token %}
+                <textarea
+                    name="message"
+                    rows="2"
+                    data-support-input
+                    placeholder="Type your message..."
+                ></textarea>
+                <button type="submit" class="support-widget__send">Send</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            const widget = document.querySelector('[data-support-widget]');
+            if (!widget) return;
+
+            const toggle = widget.querySelector('[data-support-toggle]');
+            const panel = widget.querySelector('[data-support-panel]');
+            const closeBtn = widget.querySelector('[data-support-close]');
+            const messagesEl = widget.querySelector('[data-support-messages]');
+            const form = widget.querySelector('[data-support-form]');
+            const input = widget.querySelector('[data-support-input]');
+            const dataUrl = widget.getAttribute('data-support-data-url');
+            const sendUrl = widget.getAttribute('data-support-send-url');
+
+            let pollingTimer = null;
+            let lastFingerprint = null;
+
+            const scrollToBottom = () => {
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            };
+
+            const formatMessages = (messages) => {
+                const fingerprint = messages.length
+                    ? messages.map((item) => `${item.id}:${item.created_at}`).join('|')
+                    : 'empty';
+                if (fingerprint === lastFingerprint) {
+                    return false;
+                }
+                lastFingerprint = fingerprint;
+
+                messagesEl.innerHTML = '';
+                if (!messages.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'support-widget__empty';
+                    empty.textContent = 'Start a conversation with our support team.';
+                    messagesEl.appendChild(empty);
+                    return true;
+                }
+
+                messages.forEach((item) => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = `support-widget__message ${
+                        item.is_admin_reply ? 'support-widget__message--admin' : 'support-widget__message--user'
+                    }`;
+
+                    const bubble = document.createElement('div');
+                    bubble.className = 'support-widget__bubble';
+                    bubble.textContent = item.message;
+
+                    const meta = document.createElement('div');
+                    meta.className = 'support-widget__meta';
+
+                    const label = document.createElement('span');
+                    label.textContent = item.is_admin_reply ? 'Admin' : 'You';
+
+                    const time = document.createElement('span');
+                    time.textContent = item.created_at;
+
+                    meta.appendChild(label);
+                    meta.appendChild(time);
+
+                    wrapper.appendChild(bubble);
+                    wrapper.appendChild(meta);
+                    messagesEl.appendChild(wrapper);
+                });
+                return true;
+            };
+
+            const fetchMessages = async () => {
+                if (!dataUrl) return;
+                try {
+                    const response = await fetch(dataUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    if (!response.ok) return;
+                    const payload = await response.json();
+                    const changed = formatMessages(payload.messages || []);
+                    if (changed) {
+                        scrollToBottom();
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+            };
+
+            const openWidget = () => {
+                panel.classList.add('is-open');
+                panel.setAttribute('aria-hidden', 'false');
+                toggle.setAttribute('aria-expanded', 'true');
+                fetchMessages();
+                if (!pollingTimer) {
+                    pollingTimer = setInterval(fetchMessages, 12000);
+                }
+            };
+
+            const closeWidget = () => {
+                panel.classList.remove('is-open');
+                panel.setAttribute('aria-hidden', 'true');
+                toggle.setAttribute('aria-expanded', 'false');
+                if (pollingTimer) {
+                    clearInterval(pollingTimer);
+                    pollingTimer = null;
+                }
+            };
+
+            toggle.addEventListener('click', () => {
+                if (panel.classList.contains('is-open')) {
+                    closeWidget();
+                } else {
+                    openWidget();
+                }
+            });
+
+            closeBtn.addEventListener('click', closeWidget);
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const messageText = input.value.trim();
+                if (!messageText) return;
+                const formData = new FormData(form);
+                formData.set('message', messageText);
+                input.value = '';
+                input.focus();
+
+                try {
+                    const response = await fetch(sendUrl, {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        body: formData,
+                    });
+                    if (!response.ok) {
+                        await fetchMessages();
+                        return;
+                    }
+                    await response.json();
+                    await fetchMessages();
+                } catch (error) {
+                    console.error(error);
+                    await fetchMessages();
+                }
+            });
+        })();
+    </script>
+{% endif %}
+{% endif %}
