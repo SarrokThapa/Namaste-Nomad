@@ -16,6 +16,7 @@ urlpatterns = [
     path('vendor/register/', views.vendor_register, name='vendor_register'),
     path('vendor/packages/new/', views.vendor_package_create, name='vendor_package_create'),
     path('vendor/packages/<int:package_id>/edit/', views.vendor_package_edit, name='vendor_package_edit'),
+    path('vendor/packages/<int:package_id>/delete/', views.vendor_package_delete, name='vendor_package_delete'),
     path('vendor/dashboard/', views.vendor_dashboard, name='vendor_dashboard'),
     path('vendor/profile/', views.vendor_profile, name='vendor_profile'),
     path('vendor/packages/', views.vendor_packages, name='vendor_packages'),

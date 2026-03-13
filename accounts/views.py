@@ -1531,6 +1531,34 @@ def vendor_package_edit(request, package_id):
 
 
 @never_cache
+@login_required(login_url='vendor_login')
+@csrf_protect
+def vendor_package_delete(request, package_id):
+    if not _ensure_vendor(request):
+        return redirect('vendor_login')
+
+    next_url = request.POST.get('next') or reverse('vendor_packages')
+    if request.method != 'POST':
+        return redirect(next_url)
+
+    package = get_object_or_404(
+        Package.objects.annotate(booking_count=Count('bookings')),
+        id=package_id,
+        vendor=request.user,
+    )
+    if package.booking_count:
+        messages.error(
+            request,
+            'Cannot delete a package with existing bookings. Please set it inactive instead.',
+        )
+        return redirect(next_url)
+
+    package.delete()
+    messages.success(request, 'Package deleted successfully.')
+    return redirect(next_url)
+
+
+@never_cache
 @login_required(login_url='traveler_login')
 def traveler_home(request):
     if not _ensure_traveler(request):

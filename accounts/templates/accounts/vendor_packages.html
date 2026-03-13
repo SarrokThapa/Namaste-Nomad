@@ -36,6 +36,11 @@
                     <div class="package-actions">
                         <a class="btn small neutral" href="{% url 'vendor_package_edit' package.id %}">Edit</a>
                         <a class="btn small secondary" href="{% url 'package_detail' package.id %}">View</a>
+                        <form method="POST" action="{% url 'vendor_package_delete' package.id %}" onsubmit="return confirm('Delete this package? This cannot be undone.');">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            <button class="btn small danger" type="submit">Delete</button>
+                        </form>
                         {% if active_subscription %}
                             <form method="POST" action="{% url 'vendor_feature_toggle' package.id %}">
                                 {% csrf_token %}
