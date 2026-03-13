@@ -1,8 +1,12 @@
+import logging
+
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.urls import reverse
 
 from .models import Notification, User
+
+logger = logging.getLogger(__name__)
 
 
 def notification_link(notification):
@@ -79,10 +83,17 @@ def send_notification(notification):
         return
 
     payload = serialize_notification(notification)
-    async_to_sync(channel_layer.group_send)(
-        f'notifications_{notification.user_id}',
-        {
-            'type': 'notification.message',
-            'payload': payload,
-        }
-    )
+    try:
+        async_to_sync(channel_layer.group_send)(
+            f'notifications_{notification.user_id}',
+            {
+                'type': 'notification.message',
+                'payload': payload,
+            }
+        )
+    except Exception as exc:
+        logger.warning(
+            "Notification delivery failed for user %s: %s",
+            notification.user_id,
+            exc,
+        )
