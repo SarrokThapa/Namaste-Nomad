@@ -1552,6 +1552,7 @@ def traveler_home(request):
         filtered_packages = filtered_packages.filter(
             Q(title__icontains=search_query)
             | Q(location__icontains=search_query)
+            | Q(location_name__icontains=search_query)
             | Q(description__icontains=search_query)
         )
 

@@ -1,0 +1,74 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explore Map - Namaste Nomad</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <link rel="stylesheet" href="{% static 'css/maps.css' %}?v=20260313a">
+</head>
+<body class="packages-body">
+    <nav class="landing-nav">
+        <div class="nav-container">
+            <a class="nav-brand" href="{% url 'home' %}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+                <span>Namaste Nomad</span>
+            </a>
+            <div class="nav-menu">
+                <a href="#">Destinations</a>
+                <a href="{% url 'package_treks' %}">Treks</a>
+                <a href="{% url 'package_tours' %}">Tours</a>
+                <a href="{% url 'package_list' %}">Packages</a>
+                <a href="{% url 'community_feed' %}">Explore</a>
+                <a href="{% url 'about' %}">About</a>
+                <a href="{% url 'blog_list' %}">Blog</a>
+                <a href="{% url 'contact' %}">Contact</a>
+            </div>
+            <div class="nav-actions">
+                {% include "accounts/includes/notification_bell.html" %}
+                <a href="{% url 'admin_login' %}" class="btn-ghost">Admin</a>
+                <a href="{% url 'account_login_choice' %}" class="btn-ghost">Sign In</a>
+                <a href="{% url 'account_register_choice' %}" class="btn-dark">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="map-explore-header">
+        <div class="container-landing">
+            <h1>Explore Packages on the Map</h1>
+            <p>Browse Nepal’s treks and tours visually. Click a marker to open full details.</p>
+        </div>
+    </section>
+
+    <section class="map-explore-shell">
+        <div class="map-shell">
+            <div
+                id="exploreMap"
+                class="map-explore"
+                data-package-map
+                data-api-url="{% url 'packages_map_api' %}"
+                data-center-lat="28.3949"
+                data-center-lng="84.1240"
+                data-zoom="6"
+                data-fit-bounds="1"
+            ></div>
+            <div class="map-legend">
+                <div class="map-legend-item"><span class="map-pin map-pin--trek"></span> Trek</div>
+                <div class="map-legend-item"><span class="map-pin map-pin--tour"></span> Tour</div>
+            </div>
+        </div>
+    </section>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="{% static 'js/package_maps.js' %}?v=20260313a"></script>
+    <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
+</body>
+</html>

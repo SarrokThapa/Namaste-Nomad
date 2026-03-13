@@ -10,7 +10,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Avg, Count, F, Max, Prefetch, Q
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -505,6 +505,36 @@ def trek_package_list(request):
 
 def tour_package_list(request):
     return _render_package_list(request, category=Package.CATEGORY_TOUR)
+
+def explore_map(request):
+    return render(request, 'core/explore_map.html')
+
+
+def packages_map_api(request):
+    packages = (
+        Package.objects.filter(is_active=True, latitude__isnull=False, longitude__isnull=False)
+        .prefetch_related('images')
+    )
+    data = []
+    for package in packages:
+        if package.latitude is None or package.longitude is None:
+            continue
+        images = list(package.images.all())
+        cover = images[0] if images else None
+        image_url = cover.image.url if cover else package.image_url
+        data.append({
+            'id': package.id,
+            'name': package.title,
+            'location_name': package.location_name or package.location or '',
+            'lat': package.latitude,
+            'lng': package.longitude,
+            'price': float(package.price) if package.price is not None else None,
+            'url': reverse('package_detail', kwargs={'package_id': package.id}),
+            'image': image_url,
+            'category': package.category,
+        })
+
+    return JsonResponse(data, safe=False)
 
 def package_detail(request, package_id):
     package = get_object_or_404(Package.objects.prefetch_related('images'), id=package_id)

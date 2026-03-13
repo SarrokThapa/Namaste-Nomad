@@ -1,6 +1,12 @@
+{% load static %}
 {% extends "accounts/vendor_base.html" %}
 
 {% block title %}{% if is_edit %}Edit Package{% else %}Create Package{% endif %} - Namaste Nomad{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <link rel="stylesheet" href="{% static 'css/maps.css' %}?v=20260313a">
+{% endblock %}
 
 {% block content %}
 <section class="page-header">
@@ -35,8 +41,21 @@
             {{ form.category }}
         </div>
         <div class="form-group">
-            <label for="{{ form.location.id_for_label }}">Location</label>
-            {{ form.location }}
+            <label for="{{ form.location_name.id_for_label }}">Location Name</label>
+            {{ form.location_name }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.latitude.id_for_label }}">Latitude</label>
+            {{ form.latitude }}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.longitude.id_for_label }}">Longitude</label>
+            {{ form.longitude }}
+        </div>
+        <div class="form-group span-2">
+            <label for="packageLocationMap">Pick Location on Map</label>
+            <div id="packageLocationMap" class="map-box" data-map-default-lat="28.3949" data-map-default-lng="84.1240"></div>
+            <span class="field-hint">Click to drop a marker. Drag to fine-tune the coordinates.</span>
         </div>
         <div class="form-group">
             <label for="{{ form.price.id_for_label }}">Price (Rs)</label>
@@ -275,4 +294,6 @@
         }
     })();
 </script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="{% static 'js/vendor_package_map.js' %}?v=20260313a"></script>
 {% endblock %}

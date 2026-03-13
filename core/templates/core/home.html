@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="{% static 'css/landing.css' %}">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <link rel="stylesheet" href="{% static 'css/maps.css' %}?v=20260313a">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
@@ -183,6 +185,35 @@
         </div>
     </section>
 
+    <!-- Map Preview -->
+    <section class="map-preview">
+        <div class="container-landing">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">Explore Treks on the Map</h2>
+                    <p class="section-subtitle">Click a marker to jump into a trek or tour instantly.</p>
+                </div>
+                <a class="link-arrow" href="{% url 'explore_map' %}">Open full map</a>
+            </div>
+            <div class="map-shell">
+                <div
+                    id="homeMap"
+                    class="map-container map-container--preview"
+                    data-package-map
+                    data-api-url="{% url 'packages_map_api' %}"
+                    data-center-lat="28.3949"
+                    data-center-lng="84.1240"
+                    data-zoom="6"
+                    data-fit-bounds="1"
+                ></div>
+                <div class="map-legend">
+                    <div class="map-legend-item"><span class="map-pin map-pin--trek"></span> Trek</div>
+                    <div class="map-legend-item"><span class="map-pin map-pin--tour"></span> Tour</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Categories -->
     <section class="categories">
         <div class="container-landing">
@@ -352,6 +383,8 @@
     </footer>
 
     <script src="{% static 'js/main.js' %}"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="{% static 'js/package_maps.js' %}?v=20260313a"></script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 </body>
 </html>
