@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
     'accounts',
     'core',
 ]
@@ -82,6 +83,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'travel_platform.urls'
+ASGI_APPLICATION = 'travel_platform.asgi.application'
 
 TEMPLATES = [
     {
@@ -178,3 +180,12 @@ STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY', '')
 STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY', '')
 STRIPE_CURRENCY = os.getenv('STRIPE_CURRENCY', 'npr').lower()
 STRIPE_CHECKOUT_TTL_MINUTES = int(os.getenv('STRIPE_CHECKOUT_TTL_MINUTES', '30'))
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],
+        },
+    },
+}

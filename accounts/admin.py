@@ -1,6 +1,13 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, VendorProfile, OTP, VendorSubscription, VendorSubscriptionPlan
+from .models import (
+    Notification,
+    OTP,
+    User,
+    VendorProfile,
+    VendorSubscription,
+    VendorSubscriptionPlan,
+)
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
@@ -63,3 +70,10 @@ class VendorSubscriptionAdmin(admin.ModelAdmin):
     )
     list_filter = ('status', 'start_date', 'end_date', 'created_at')
     search_fields = ('vendor__email', 'plan_name')
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'type', 'message', 'is_read', 'created_at')
+    list_filter = ('type', 'is_read', 'created_at')
+    search_fields = ('user__email', 'message')

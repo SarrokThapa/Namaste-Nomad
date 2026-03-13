@@ -1,0 +1,16 @@
+{% extends base_template %}
+{% load static %}
+
+{% block title %}Notifications - Namaste Nomad{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/notifications_page.css' %}?v=20260313a">
+{% endblock %}
+
+{% block content %}
+    {% include "accounts/includes/notifications_list.html" %}
+{% endblock %}
+
+{% block traveler_content %}
+    {% include "accounts/includes/notifications_list.html" %}
+{% endblock %}

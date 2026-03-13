@@ -42,6 +42,7 @@ from core.models import (
 )
 from .models import (
     AdminProfile,
+    Notification,
     TravelerProfile,
     User,
     VendorProfile,
@@ -49,6 +50,12 @@ from .models import (
     VendorSubscriptionPlan,
 )
 from .forms import PackageForm, VendorProfileForm
+from .notifications import (
+    create_notification,
+    notify_admins,
+    notification_link,
+    serialize_notification,
+)
 from .utils import create_otp, verify_otp as verify_otp_util
 
 
@@ -288,6 +295,11 @@ def support_chat(request):
                 message=message_text,
                 is_admin_reply=False,
             )
+            notify_admins(
+                f'New support message from {request.user.email}',
+                Notification.TYPE_SUPPORT_MESSAGE,
+                related_object_id=conversation.id,
+            )
             return redirect('support_chat')
         else:
             SupportMessage.objects.create(
@@ -295,6 +307,11 @@ def support_chat(request):
                 sender=request.user,
                 message=message_text,
                 is_admin_reply=False,
+            )
+            notify_admins(
+                f'New support message from {request.user.email}',
+                Notification.TYPE_SUPPORT_MESSAGE,
+                related_object_id=conversation.id,
             )
             return redirect('support_chat')
 
@@ -374,10 +391,89 @@ def support_widget_send(request):
         message=message_text,
         is_admin_reply=False,
     )
+    notify_admins(
+        f'New support message from {request.user.email}',
+        Notification.TYPE_SUPPORT_MESSAGE,
+        related_object_id=conversation.id,
+    )
 
     return JsonResponse({
         'message': _serialize_support_message(new_message),
     })
+
+
+@never_cache
+@login_required(login_url='account_login_choice')
+def notifications_data(request):
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:20]
+    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    return JsonResponse({
+        'unread_count': unread_count,
+        'notifications': [serialize_notification(notification) for notification in notifications],
+    })
+
+
+@never_cache
+@login_required(login_url='account_login_choice')
+@csrf_protect
+def notifications_mark_read(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    notification_id = (request.POST.get('notification_id') or '').strip().lower()
+    queryset = Notification.objects.filter(user=request.user)
+    if notification_id in {'all', '*'} or request.POST.get('mark_all') == '1':
+        queryset.update(is_read=True)
+    else:
+        try:
+            target_id = int(notification_id)
+        except (TypeError, ValueError):
+            return JsonResponse({'error': 'Invalid notification id'}, status=400)
+        queryset.filter(id=target_id).update(is_read=True)
+
+    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    if not is_ajax:
+        return redirect('notifications_list')
+    return JsonResponse({'unread_count': unread_count})
+
+
+@never_cache
+@login_required(login_url='account_login_choice')
+def notifications_list(request):
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:50]
+    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    for notification in notifications:
+        notification.link = notification_link(notification)
+
+    if getattr(request.user, 'user_type', '') == 'admin':
+        admin_profile = _get_admin_profile(request.user)
+        return render(request, 'accounts/admin_notifications.html', {
+            'admin_profile': admin_profile,
+            'notifications': notifications,
+            'unread_count': unread_count,
+            'active_page': 'notifications',
+        })
+
+    base_template = (
+        'accounts/vendor_base.html'
+        if request.user.user_type == 'vendor'
+        else 'accounts/traveler_base.html'
+    )
+    context = {
+        'base_template': base_template,
+        'notifications': notifications,
+        'unread_count': unread_count,
+        'active_page': 'notifications',
+    }
+    if request.user.user_type == 'vendor':
+        context['vendor_profile'] = _get_vendor_profile(request.user)
+    else:
+        traveler_profile = _get_traveler_profile(request.user)
+        if traveler_profile is None:
+            traveler_profile = TravelerProfile.objects.create(user=request.user)
+        context['traveler_profile'] = traveler_profile
+    return render(request, 'accounts/notifications.html', context)
 
 
 @admin_required
@@ -448,6 +544,12 @@ def admin_support_chat(request, conversation_id):
                 sender=request.user,
                 message=message_text,
                 is_admin_reply=True,
+            )
+            create_notification(
+                conversation.user,
+                'Admin replied to your support message.',
+                Notification.TYPE_ADMIN_MESSAGE,
+                related_object_id=conversation.id,
             )
             return redirect('admin_support_chat', conversation_id=conversation.id)
 
@@ -714,6 +816,14 @@ def vendor_booking_status_update(request, booking_id):
 
     booking.status = requested_status
     booking.save(update_fields=['status'])
+    if booking.traveler:
+        status_label = 'confirmed' if requested_status == Booking.STATUS_CONFIRMED else 'cancelled'
+        create_notification(
+            booking.traveler,
+            f'Your booking for {booking.package.title} was {status_label}.',
+            Notification.TYPE_BOOKING,
+            related_object_id=booking.id,
+        )
     messages.success(request, f'Booking marked as {requested_status}.')
     return redirect(next_url)
 
@@ -1163,16 +1273,40 @@ def admin_vendor_action(request, vendor_id):
     if action == 'approve':
         profile.is_approved = True
         vendor.is_active = True
+        create_notification(
+            vendor,
+            'Your vendor account was approved by admin.',
+            Notification.TYPE_VENDOR_APPROVAL,
+            related_object_id=vendor.id,
+        )
         messages.success(request, f'{vendor.email} approved.')
     elif action == 'reject':
         profile.is_approved = False
         vendor.is_active = False
+        create_notification(
+            vendor,
+            'Your vendor account was rejected by admin.',
+            Notification.TYPE_VENDOR_APPROVAL,
+            related_object_id=vendor.id,
+        )
         messages.success(request, f'{vendor.email} rejected.')
     elif action == 'suspend':
         vendor.is_active = False
+        create_notification(
+            vendor,
+            'Your vendor account was suspended by admin.',
+            Notification.TYPE_VENDOR_APPROVAL,
+            related_object_id=vendor.id,
+        )
         messages.success(request, f'{vendor.email} suspended.')
     elif action == 'activate':
         vendor.is_active = True
+        create_notification(
+            vendor,
+            'Your vendor account was activated by admin.',
+            Notification.TYPE_VENDOR_APPROVAL,
+            related_object_id=vendor.id,
+        )
         messages.success(request, f'{vendor.email} activated.')
     else:
         messages.error(request, 'Invalid action.')
@@ -1192,6 +1326,18 @@ def admin_package_toggle(request, package_id):
     package = get_object_or_404(Package, id=package_id)
     package.is_active = not package.is_active
     package.save()
+
+    if package.vendor:
+        if package.is_active:
+            message = f'Your package "{package.title}" was approved by admin.'
+        else:
+            message = f'Your package "{package.title}" was hidden by admin.'
+        create_notification(
+            package.vendor,
+            message,
+            Notification.TYPE_PACKAGE_APPROVED,
+            related_object_id=package.id,
+        )
 
     status_label = 'activated' if package.is_active else 'deactivated'
     messages.success(request, f'{package.title} {status_label}.')
@@ -1329,6 +1475,11 @@ def vendor_package_create(request):
             package.vendor = request.user
             package.save()
             _append_package_images(package, request.FILES.getlist('images'))
+            notify_admins(
+                f'Vendor submitted new package: {package.title}',
+                Notification.TYPE_PACKAGE_SUBMISSION,
+                related_object_id=package.id,
+            )
             messages.success(request, 'Package created successfully.')
             return redirect('vendor_packages')
     else:
@@ -1652,6 +1803,12 @@ def vendor_register(request):
             owner_name=owner_name,
             business_license=business_license
         )
+
+        notify_admins(
+            f'New vendor registered: {user.email}',
+            Notification.TYPE_USER_REGISTRATION,
+            related_object_id=user.id,
+        )
         
         # Send OTP
         _, sent = create_otp(user)
@@ -1796,6 +1953,12 @@ def traveler_register(request):
         )
 
         TravelerProfile.objects.create(user=user)
+
+        notify_admins(
+            f'New traveler registered: {user.email}',
+            Notification.TYPE_USER_REGISTRATION,
+            related_object_id=user.id,
+        )
         
         # Send OTP
         _, sent = create_otp(user)

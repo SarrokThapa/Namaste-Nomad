@@ -7,6 +7,7 @@
     <title>Namaste Nomad Blog</title>
     <link rel="stylesheet" href="{% static 'css/landing.css' %}">
     <link rel="stylesheet" href="{% static 'css/about_blog.css' %}?v=20260301a">
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
@@ -31,6 +32,7 @@
                 <a href="{% url 'contact' %}">Contact</a>
             </div>
             <div class="nav-actions">
+                {% include "accounts/includes/notification_bell.html" %}
                 <a href="{% url 'account_login_choice' %}" class="btn-ghost">Sign In</a>
                 <a href="{% url 'account_register_choice' %}" class="btn-dark">Sign Up</a>
             </div>
@@ -71,5 +73,6 @@
             </div>
         </div>
     </footer>
+    <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 </body>
 </html>

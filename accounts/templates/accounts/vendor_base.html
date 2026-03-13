@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/vendor_dashboard.css' %}?v=20260226b">
     <link rel="stylesheet" href="{% static 'css/support_widget.css' %}?v=20260312a">
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -19,6 +20,7 @@
             <span class="brand-name">Namaste Nomad</span>
         </a>
         <div class="topbar-actions">
+            {% include "accounts/includes/notification_bell.html" %}
             <button class="pill-button">
                 Vendor Dashboard
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -129,5 +131,6 @@
         </main>
     </div>
     {% include "accounts/includes/support_widget.html" %}
+    <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 </body>
 </html>

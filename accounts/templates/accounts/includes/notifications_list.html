@@ -1,0 +1,26 @@
+<section class="notifications-page">
+    <div class="notifications-page__header">
+        <div>
+            <h1>Notifications</h1>
+            <p>Stay up to date with activity across your account.</p>
+        </div>
+        <form method="post" action="{% url 'notifications_mark_read' %}" class="notifications-page__actions">
+            {% csrf_token %}
+            <input type="hidden" name="mark_all" value="1">
+            <button type="submit" class="notifications-page__button">Mark all read</button>
+        </form>
+    </div>
+
+    <div class="notifications-page__list">
+        {% if notifications %}
+            {% for notification in notifications %}
+                <a class="notifications-page__item{% if not notification.is_read %} unread{% endif %}" href="{{ notification.link }}">
+                    <div class="notifications-page__message">{{ notification.message }}</div>
+                    <div class="notifications-page__meta">{{ notification.created_at|date:"M d, Y H:i" }}</div>
+                </a>
+            {% endfor %}
+        {% else %}
+            <div class="notifications-page__empty">No notifications yet.</div>
+        {% endif %}
+    </div>
+</section>

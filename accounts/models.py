@@ -188,3 +188,46 @@ class VendorSubscription(models.Model):
 
     def __str__(self):
         return f"{self.vendor.email} - {self.plan_name} ({self.status})"
+
+
+class Notification(models.Model):
+    TYPE_BOOKING = 'booking'
+    TYPE_COMMUNITY_POST = 'community_post'
+    TYPE_LIKE = 'like'
+    TYPE_COMMENT = 'comment'
+    TYPE_VENDOR_APPROVAL = 'vendor_approval'
+    TYPE_ADMIN_MESSAGE = 'admin_message'
+    TYPE_PACKAGE_APPROVED = 'package_approved'
+    TYPE_SUPPORT_MESSAGE = 'support_message'
+    TYPE_PACKAGE_SUBMISSION = 'package_submission'
+    TYPE_USER_REGISTRATION = 'user_registration'
+
+    TYPE_CHOICES = (
+        (TYPE_BOOKING, 'Booking'),
+        (TYPE_COMMUNITY_POST, 'Community Post'),
+        (TYPE_LIKE, 'Like'),
+        (TYPE_COMMENT, 'Comment'),
+        (TYPE_VENDOR_APPROVAL, 'Vendor Approval'),
+        (TYPE_ADMIN_MESSAGE, 'Admin Message'),
+        (TYPE_PACKAGE_APPROVED, 'Package Approved'),
+        (TYPE_SUPPORT_MESSAGE, 'Support Message'),
+        (TYPE_PACKAGE_SUBMISSION, 'Package Submission'),
+        (TYPE_USER_REGISTRATION, 'User Registration'),
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+    )
+    message = models.TextField()
+    type = models.CharField(max_length=40, choices=TYPE_CHOICES)
+    related_object_id = models.PositiveIntegerField(null=True, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        return f"Notification #{self.id} ({self.user.username})"

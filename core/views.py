@@ -16,7 +16,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import escape, mark_safe
 
-from accounts.models import TravelerProfile, VendorSubscription
+from accounts.models import Notification, TravelerProfile, VendorSubscription
+from accounts.notifications import create_notification, notify_admins
 from .forms import BookingForm, CommentForm, PostEditForm, PostForm, ReviewForm
 from .models import Booking, Comment, Package, Post, PostMedia, Review
 from .payments import (
@@ -672,6 +673,18 @@ def package_book(request, package_id):
                         or session_data.get('id', '')
                     )
                     booking.save(update_fields=['stripe_checkout_session_id', 'payment_reference'])
+                    if booking.vendor:
+                        create_notification(
+                            booking.vendor,
+                            f'New booking request for {booking.package.title}.',
+                            Notification.TYPE_BOOKING,
+                            related_object_id=booking.id,
+                        )
+                    notify_admins(
+                        f'New booking created for {booking.package.title}.',
+                        Notification.TYPE_BOOKING,
+                        related_object_id=booking.id,
+                    )
                     return redirect(checkout_url)
     else:
         form = BookingForm(
@@ -918,9 +931,22 @@ def community_post_create(request):
         if tag_ids:
             vendors = get_user_model().objects.filter(user_type='vendor', id__in=tag_ids)
             post.tagged_vendors.set(vendors)
+            for vendor in vendors:
+                if vendor.id != request.user.id:
+                    create_notification(
+                        vendor,
+                        f'You were tagged in a community post by {post.user.get_full_name() or post.user.username}.',
+                        Notification.TYPE_COMMUNITY_POST,
+                        related_object_id=post.id,
+                    )
         else:
             post.tagged_vendors.clear()
 
+        notify_admins(
+            f'New community post created by {post.user.get_full_name() or post.user.username}.',
+            Notification.TYPE_COMMUNITY_POST,
+            related_object_id=post.id,
+        )
         messages.success(request, 'Post shared successfully.')
     else:
         messages.error(request, 'Please upload at least one photo or video and add a caption.')
@@ -1054,6 +1080,20 @@ def community_comment_create(request, post_id):
                 return redirect(next_url)
             comment.parent = parent_comment
         comment.save()
+        if post.user_id != request.user.id:
+            create_notification(
+                post.user,
+                f'{request.user.get_full_name() or request.user.username} commented on your post.',
+                Notification.TYPE_COMMENT,
+                related_object_id=post.id,
+            )
+        if comment.parent_id and comment.parent.user_id != request.user.id:
+            create_notification(
+                comment.parent.user,
+                f'{request.user.get_full_name() or request.user.username} replied to your comment.',
+                Notification.TYPE_COMMENT,
+                related_object_id=post.id,
+            )
         messages.success(request, 'Comment added.')
     else:
         messages.error(request, 'Please write a comment before submitting.')
@@ -1072,6 +1112,13 @@ def community_post_like_toggle(request, post_id):
         post.likes.remove(request.user)
     else:
         post.likes.add(request.user)
+        if post.user_id != request.user.id:
+            create_notification(
+                post.user,
+                f'{request.user.get_full_name() or request.user.username} liked your community post.',
+                Notification.TYPE_LIKE,
+                related_object_id=post.id,
+            )
 
     return redirect(next_url)
 

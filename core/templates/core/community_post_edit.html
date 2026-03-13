@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="{% static 'css/landing.css' %}">
     <link rel="stylesheet" href="{% static 'css/community.css' %}?v=20260311b">
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
@@ -25,6 +26,7 @@
                 <a href="{% url 'community_feed' %}" class="nav-active">Explore</a>
             </div>
             <div class="nav-actions">
+                {% include "accounts/includes/notification_bell.html" %}
                 <a href="{% url 'logout' %}" class="btn-dark">Logout</a>
             </div>
         </div>
@@ -150,5 +152,6 @@
     </main>
 
     <script src="{% static 'js/community.js' %}?v=20260311b"></script>
+    <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 </body>
 </html>

@@ -30,6 +30,9 @@ urlpatterns = [
     path('support/chat/', views.support_chat, name='support_chat'),
     path('support/widget/', views.support_widget_data, name='support_widget_data'),
     path('support/widget/send/', views.support_widget_send, name='support_widget_send'),
+    path('notifications/', views.notifications_list, name='notifications_list'),
+    path('notifications/data/', views.notifications_data, name='notifications_data'),
+    path('notifications/read/', views.notifications_mark_read, name='notifications_mark_read'),
     
     path('admin/login/', views.admin_login, name='admin_login'),
     path('admin/support/', views.admin_support_inbox, name='admin_support_inbox'),

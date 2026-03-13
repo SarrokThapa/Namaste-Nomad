@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/vendor_dashboard.css' %}?v=20260226b">
     <link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}?v=20260226b">
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
 </head>
 <body class="admin-dashboard">
     <header class="topbar admin-topbar">
@@ -18,6 +19,7 @@
             <span class="brand-name">Namaste Nomad</span>
         </a>
         <div class="topbar-actions">
+            {% include "accounts/includes/notification_bell.html" %}
             <div class="admin-user">
                 <div class="avatar topbar-avatar">
                     {% if admin_profile and admin_profile.avatar %}
@@ -590,5 +592,6 @@
             </section>
         </main>
     </div>
+    <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 </body>
 </html>

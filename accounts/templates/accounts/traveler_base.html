@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/traveler_profile.css' %}?v=20260227a">
     <link rel="stylesheet" href="{% static 'css/support_widget.css' %}?v=20260312a">
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -19,6 +20,7 @@
             <span class="brand-name">Namaste Nomad</span>
         </a>
         <div class="topbar-actions">
+            {% include "accounts/includes/notification_bell.html" %}
             <div class="profile-dropdown" data-profile-dropdown>
                 <button type="button" class="profile-trigger" aria-haspopup="true" aria-expanded="false">
                     <span class="profile-trigger-avatar">
@@ -169,5 +171,6 @@
     </script>
     {% block extra_js %}{% endblock %}
     {% include "accounts/includes/support_widget.html" %}
+    <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 </body>
 </html>
