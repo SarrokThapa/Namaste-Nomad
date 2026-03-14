@@ -1,0 +1,46 @@
+{% if packages %}
+    {% for package in packages %}
+        <article class="package-card">
+            {% with cover=package.images.all|first %}
+                <div class="package-image" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
+                    <span class="package-pill {% if package.is_featured %}featured{% endif %}">
+                        {% if package.is_featured %}Featured{% else %}Top Pick{% endif %}
+                    </span>
+                    {% if package.season_badge %}
+                        <span class="package-pill season-badge">{{ package.season_badge }}</span>
+                    {% endif %}
+                </div>
+            {% endwith %}
+            <div class="package-body">
+                <div class="package-title-row">
+                    <h2>{{ package.title }}</h2>
+                    <span class="package-price">Rs {{ package.price|floatformat:0 }}</span>
+                </div>
+                <p class="package-meta">
+                    {{ package.location_name|default:package.location|default:"Nepal" }} · Hosted by {{ package.vendor.get_full_name|default:package.vendor.username }}
+                    {% if package.duration_days %} · {{ package.duration_days }} days{% endif %}
+                </p>
+                <p class="package-meta">
+                    Available {{ package.available_from|date:"M d, Y"|default:"Not set" }} -
+                    {{ package.available_until|date:"M d, Y"|default:"Not set" }}
+                </p>
+                <div class="package-rating">
+                    <span class="stars">★★★★★</span>
+                    <span>
+                        {{ package.avg_rating|default:0|floatformat:1 }}
+                        ({{ package.review_count }} reviews)
+                    </span>
+                </div>
+                <p class="package-desc">
+                    {{ package.description|default:"Customizable trek package with local guide support."|truncatewords:24 }}
+                </p>
+                <div class="package-actions">
+                    <a href="{% url 'package_detail' package.id %}" class="btn-outline-dark">View Details</a>
+                    <span class="package-views">{{ package.views_count }} views</span>
+                </div>
+            </div>
+        </article>
+    {% endfor %}
+{% else %}
+    <div class="packages-empty">{{ empty_message|default:"No packages available right now." }}</div>
+{% endif %}

@@ -113,6 +113,32 @@
             <span class="field-hint">Use one item per line.</span>
         </div>
 
+        <div class="form-group span-2">
+            <label>Amenities Included</label>
+            <div class="checkbox-row">
+                <label class="checkbox-label">
+                    {{ form.has_guide }}
+                    <span>Guide Included</span>
+                </label>
+                <label class="checkbox-label">
+                    {{ form.includes_meals }}
+                    <span>Meals Included</span>
+                </label>
+                <label class="checkbox-label">
+                    {{ form.includes_accommodation }}
+                    <span>Accommodation Included</span>
+                </label>
+                <label class="checkbox-label">
+                    {{ form.includes_transport }}
+                    <span>Transportation Included</span>
+                </label>
+                <label class="checkbox-label">
+                    {{ form.includes_permits }}
+                    <span>Permit Included</span>
+                </label>
+            </div>
+        </div>
+
         {% if is_edit %}
             <div class="form-group span-2">
                 <div class="image-manager-head">

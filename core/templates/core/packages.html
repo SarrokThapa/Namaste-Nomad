@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="{% static 'css/landing.css' %}">
     <link rel="stylesheet" href="{% static 'css/packages.css' %}">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <link rel="stylesheet" href="{% static 'css/destination_autocomplete.css' %}?v=20260314a">
+    <link rel="stylesheet" href="{% static 'css/package_filters.css' %}?v=20260314a">
 </head>
 <body class="packages-body">
     <nav class="landing-nav">
@@ -44,73 +46,203 @@
         <div class="packages-hero-content">
             <h1>{{ page_title|default:"Nepal Treks & Tours" }}</h1>
             <p>{{ page_subtitle|default:"Explore the Himalayas with trusted local operators." }}</p>
-            <div class="packages-filter">
-                <input type="text" placeholder="Search destinations or treks">
-                <select>
-                    <option>Region</option>
-                    <option>Everest</option>
-                    <option>Annapurna</option>
-                    <option>Manaslu</option>
-                </select>
-                <select>
-                    <option>Difficulty</option>
-                    <option>Easy</option>
-                    <option>Moderate</option>
-                    <option>Challenging</option>
-                </select>
-                <button>Search</button>
-            </div>
+            <form id="packageSearchForm" class="packages-search-bar" method="get" action="{{ request.path }}">
+                {% if package_type_slug %}
+                    <input type="hidden" name="package_type" value="{{ package_type_slug }}">
+                {% endif %}
+                <div class="search-field">
+                    <label for="package-destination">Destination</label>
+                    <input
+                        id="package-destination"
+                        type="text"
+                        name="destination"
+                        placeholder="Where in Nepal?"
+                        value="{{ filters.destination }}"
+                        autocomplete="off"
+                        data-destination-input
+                        data-destination-endpoint="{% url 'destinations_api' %}"
+                    >
+                    <div class="destination-suggestions" data-destination-list></div>
+                </div>
+                <div class="search-field">
+                    <label for="package-date-from">From</label>
+                    <input id="package-date-from" type="date" name="date_from" value="{{ filters.date_from }}">
+                </div>
+                <div class="search-field">
+                    <label for="package-date-to">To</label>
+                    <input id="package-date-to" type="date" name="date_to" value="{{ filters.date_to }}">
+                </div>
+                <div class="search-field">
+                    <label for="package-travelers">Travelers</label>
+                    <input id="package-travelers" type="number" name="travelers" min="1" value="{{ filters.travelers|default:1 }}">
+                </div>
+                <div class="search-field">
+                    <label for="package-type">Package Type</label>
+                    <select id="package-type" name="package_type">
+                        <option value="" {% if not filters.package_type %}selected{% endif %}>All</option>
+                        <option value="trek" {% if filters.package_type == 'trek' %}selected{% endif %}>Trek</option>
+                        <option value="tour" {% if filters.package_type == 'tour' %}selected{% endif %}>Tour</option>
+                    </select>
+                </div>
+                <button class="btn-search" type="submit">Search</button>
+            </form>
         </div>
     </header>
 
     <section class="packages-section">
-        <div class="packages-grid">
-            {% if packages %}
-                {% for package in packages %}
-                    <article class="package-card">
-                        {% with cover=package.images.all|first %}
-                            <div class="package-image" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
-                                <span class="package-pill {% if package.is_featured %}featured{% endif %}">
-                                    {% if package.is_featured %}Featured{% else %}Top Pick{% endif %}
-                                </span>
-                                {% if package.season_badge %}
-                                    <span class="package-pill season-badge">{{ package.season_badge }}</span>
-                                {% endif %}
-                            </div>
-                        {% endwith %}
-                        <div class="package-body">
-                            <div class="package-title-row">
-                                <h2>{{ package.title }}</h2>
-                                <span class="package-price">Rs {{ package.price|floatformat:0 }}</span>
-                            </div>
-                            <p class="package-meta">
-                                {{ package.location|default:"Nepal" }} · Hosted by {{ package.vendor.get_full_name|default:package.vendor.username }}
-                                {% if package.duration_days %} · {{ package.duration_days }} days{% endif %}
-                            </p>
-                            <p class="package-meta">
-                                Available {{ package.available_from|date:"M d, Y"|default:"Not set" }} -
-                                {{ package.available_until|date:"M d, Y"|default:"Not set" }}
-                            </p>
-                            <div class="package-rating">
-                                <span class="stars">★★★★★</span>
-                                <span>
-                                    {{ package.avg_rating|default:0|floatformat:1 }}
-                                    ({{ package.review_count }} reviews)
-                                </span>
-                            </div>
-                            <p class="package-desc">
-                                {{ package.description|default:"Customizable trek package with local guide support."|truncatewords:24 }}
-                            </p>
-                            <div class="package-actions">
-                                <a href="{% url 'package_detail' package.id %}" class="btn-outline-dark">View Details</a>
-                                <span class="package-views">{{ package.views_count }} views</span>
+        <div class="packages-toolbar">
+            <div class="packages-count">
+                <span data-package-count>{{ result_count }}</span> packages found
+            </div>
+            <div class="packages-sort">
+                <label for="packageSort">Sort by</label>
+                <select id="packageSort" name="sort">
+                    <option value="popular" {% if filters.sort == 'popular' %}selected{% endif %}>Most Popular</option>
+                    <option value="price_low" {% if filters.sort == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                    <option value="price_high" {% if filters.sort == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                    <option value="rating" {% if filters.sort == 'rating' %}selected{% endif %}>Highest Rated</option>
+                    <option value="newest" {% if filters.sort == 'newest' %}selected{% endif %}>Newest</option>
+                </select>
+            </div>
+            <div class="quick-filters">
+                <button type="button" class="quick-filter {% if filters.quick == 'best_rated' %}active{% endif %}" data-quick-filter="best_rated">Best Rated</button>
+                <button type="button" class="quick-filter {% if filters.quick == 'budget' %}active{% endif %}" data-quick-filter="budget">Budget Friendly</button>
+                <button type="button" class="quick-filter {% if filters.quick == 'featured' %}active{% endif %}" data-quick-filter="featured">Featured Packages</button>
+                <button type="button" class="quick-filter {% if filters.quick == 'beginner' %}active{% endif %}" data-quick-filter="beginner">Beginner Friendly</button>
+            </div>
+        </div>
+
+        <div class="packages-layout">
+            <aside class="packages-filters">
+                <form id="packageFilterForm" method="get" action="{{ request.path }}">
+                    {% if package_type_slug %}
+                        <input type="hidden" name="package_type" value="{{ package_type_slug }}">
+                    {% endif %}
+                    <div class="filter-card">
+                        <h3>Filters</h3>
+                        <button type="submit" class="filter-apply">Apply filters</button>
+                    </div>
+
+                    <div class="filter-card">
+                        <h4>Price Range (Rs)</h4>
+                        <div class="price-range">
+                            <input type="range" min="{{ price_min }}" max="{{ price_max }}" value="{{ filters.price_min }}" data-price-min-range>
+                            <input type="range" min="{{ price_min }}" max="{{ price_max }}" value="{{ filters.price_max }}" data-price-max-range>
+                            <div class="price-inputs">
+                                <input id="priceMinInput" type="number" name="price_min" min="{{ price_min }}" max="{{ price_max }}" value="{{ filters.price_min }}">
+                                <span>to</span>
+                                <input id="priceMaxInput" type="number" name="price_max" min="{{ price_min }}" max="{{ price_max }}" value="{{ filters.price_max }}">
                             </div>
                         </div>
-                    </article>
-                {% endfor %}
-            {% else %}
-                <div class="packages-empty">{{ empty_message|default:"No packages available right now." }}</div>
-            {% endif %}
+                    </div>
+
+                    <div class="filter-card">
+                        <h4>Duration</h4>
+                        <label class="filter-option">
+                            <input type="checkbox" name="duration" value="1-3" {% if '1-3' in filters.duration %}checked{% endif %}>
+                            1-3 days
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="duration" value="4-7" {% if '4-7' in filters.duration %}checked{% endif %}>
+                            4-7 days
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="duration" value="8-14" {% if '8-14' in filters.duration %}checked{% endif %}>
+                            8-14 days
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="duration" value="15+" {% if '15+' in filters.duration %}checked{% endif %}>
+                            15+ days
+                        </label>
+                    </div>
+
+                    <div class="filter-card">
+                        <h4>Difficulty</h4>
+                        <label class="filter-option">
+                            <input type="checkbox" name="difficulty" value="easy" {% if 'easy' in filters.difficulty %}checked{% endif %}>
+                            Easy
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="difficulty" value="moderate" {% if 'moderate' in filters.difficulty %}checked{% endif %}>
+                            Moderate
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="difficulty" value="hard" {% if 'hard' in filters.difficulty %}checked{% endif %}>
+                            Hard
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="difficulty" value="expedition" {% if 'expedition' in filters.difficulty %}checked{% endif %}>
+                            Expedition
+                        </label>
+                    </div>
+
+                    <div class="filter-card">
+                        <h4>Rating</h4>
+                        <label class="filter-option">
+                            <input type="radio" name="rating" value="" {% if not filters.rating %}checked{% endif %}>
+                            Any rating
+                        </label>
+                        <label class="filter-option">
+                            <input type="radio" name="rating" value="3" {% if filters.rating == 3 %}checked{% endif %}>
+                            3+ stars
+                        </label>
+                        <label class="filter-option">
+                            <input type="radio" name="rating" value="4" {% if filters.rating == 4 %}checked{% endif %}>
+                            4+ stars
+                        </label>
+                    </div>
+
+                    <div class="filter-card">
+                        <h4>Best Season</h4>
+                        <label class="filter-option">
+                            <input type="checkbox" name="season" value="spring" {% if 'spring' in filters.season %}checked{% endif %}>
+                            Spring
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="season" value="summer" {% if 'summer' in filters.season %}checked{% endif %}>
+                            Summer
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="season" value="autumn" {% if 'autumn' in filters.season %}checked{% endif %}>
+                            Autumn
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="season" value="winter" {% if 'winter' in filters.season %}checked{% endif %}>
+                            Winter
+                        </label>
+                    </div>
+
+                    <div class="filter-card">
+                        <h4>Amenities</h4>
+                        <label class="filter-option">
+                            <input type="checkbox" name="amenities" value="guide" {% if 'guide' in filters.amenities %}checked{% endif %}>
+                            Guide Included
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="amenities" value="meals" {% if 'meals' in filters.amenities %}checked{% endif %}>
+                            Meals Included
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="amenities" value="accommodation" {% if 'accommodation' in filters.amenities %}checked{% endif %}>
+                            Accommodation Included
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="amenities" value="transport" {% if 'transport' in filters.amenities %}checked{% endif %}>
+                            Transportation Included
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="amenities" value="permit" {% if 'permit' in filters.amenities %}checked{% endif %}>
+                            Permit Included
+                        </label>
+                    </div>
+                </form>
+            </aside>
+
+            <div class="packages-results">
+                <div class="packages-grid" id="packageGrid" data-search-endpoint="{% url 'packages_search_api' %}">
+                    {% include "core/includes/package_cards.html" %}
+                </div>
+            </div>
         </div>
     </section>
 
@@ -163,6 +295,8 @@
             </div>
         </div>
     </footer>
+    <script src="{% static 'js/destination_autocomplete.js' %}?v=20260314a"></script>
+    <script src="{% static 'js/package_filters.js' %}?v=20260314a"></script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 </body>
 </html>

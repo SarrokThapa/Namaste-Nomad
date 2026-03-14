@@ -9,10 +9,12 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Avg, Count, F, Max, Prefetch, Q
+from django.db.models import Avg, Count, F, Max, Min, Prefetch, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils.dateparse import parse_date
 from django.utils import timezone
 from django.utils.html import escape, mark_safe
 
@@ -471,10 +473,183 @@ def destinations_api(request):
     return JsonResponse(sorted(destinations), safe=False)
 
 
+def _parse_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_float(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _budget_threshold(queryset):
+    prices = list(queryset.values_list('price', flat=True).order_by('price'))
+    if not prices:
+        return None
+    index = max(0, int(len(prices) * 0.25) - 1)
+    return float(prices[index])
+
+
+def _apply_package_filters(request, queryset, forced_category=None, budget_threshold=None):
+    params = request.GET
+    search_term = (params.get('q') or params.get('destination') or '').strip()
+    date_from_raw = (params.get('date_from') or '').strip()
+    date_to_raw = (params.get('date_to') or '').strip()
+    travelers = _parse_int(params.get('travelers'))
+    package_type = (params.get('package_type') or '').strip().lower()
+    price_min = _parse_float(params.get('price_min'))
+    price_max = _parse_float(params.get('price_max'))
+    duration_filters = params.getlist('duration')
+    difficulty_filters = params.getlist('difficulty')
+    rating_min = _parse_int(params.get('rating'))
+    season_filters = params.getlist('season')
+    amenity_filters = params.getlist('amenities')
+    quick_filter = (params.get('quick') or '').strip().lower()
+    sort = (params.get('sort') or 'popular').strip().lower()
+
+    if search_term:
+        queryset = queryset.filter(
+            Q(title__icontains=search_term)
+            | Q(location__icontains=search_term)
+            | Q(location_name__icontains=search_term)
+        )
+
+    date_from = parse_date(date_from_raw) if date_from_raw else None
+    date_to = parse_date(date_to_raw) if date_to_raw else None
+    if date_from:
+        queryset = queryset.filter(
+            available_from__isnull=False,
+            available_until__isnull=False,
+            available_from__lte=date_from,
+            available_until__gte=date_from,
+        )
+    if date_to:
+        queryset = queryset.filter(
+            available_from__isnull=False,
+            available_until__isnull=False,
+            available_from__lte=date_to,
+            available_until__gte=date_to,
+        )
+    if travelers:
+        queryset = queryset.filter(available_slots__gte=travelers)
+
+    if forced_category:
+        package_type = Package.CATEGORY_TREK.lower() if forced_category == Package.CATEGORY_TREK else Package.CATEGORY_TOUR.lower()
+    elif package_type in {'trek', 'treks'}:
+        queryset = queryset.filter(category=Package.CATEGORY_TREK)
+        package_type = 'trek'
+    elif package_type in {'tour', 'tours'}:
+        queryset = queryset.filter(category=Package.CATEGORY_TOUR)
+        package_type = 'tour'
+    else:
+        package_type = ''
+
+    if price_min is not None and price_max is not None and price_min > price_max:
+        price_min, price_max = price_max, price_min
+    if price_min is not None:
+        queryset = queryset.filter(price__gte=price_min)
+    if price_max is not None:
+        queryset = queryset.filter(price__lte=price_max)
+
+    if duration_filters:
+        duration_query = Q()
+        for key in duration_filters:
+            if key == '1-3':
+                duration_query |= Q(duration_days__gte=1, duration_days__lte=3)
+            elif key == '4-7':
+                duration_query |= Q(duration_days__gte=4, duration_days__lte=7)
+            elif key == '8-14':
+                duration_query |= Q(duration_days__gte=8, duration_days__lte=14)
+            elif key == '15+':
+                duration_query |= Q(duration_days__gte=15)
+        if duration_query:
+            queryset = queryset.filter(duration_query)
+
+    if difficulty_filters:
+        normalized = set()
+        for value in difficulty_filters:
+            value = value.strip().lower()
+            if value == 'hard':
+                normalized.update({'challenging', 'expedition'})
+            else:
+                normalized.add(value)
+        queryset = queryset.filter(difficulty__in=normalized)
+
+    if rating_min:
+        queryset = queryset.filter(avg_rating__gte=rating_min)
+
+    if season_filters:
+        season_query = Q()
+        for season in season_filters:
+            season_query |= Q(best_season__icontains=season)
+        queryset = queryset.filter(season_query)
+
+    amenities_map = {
+        'guide': 'has_guide',
+        'meals': 'includes_meals',
+        'accommodation': 'includes_accommodation',
+        'transport': 'includes_transport',
+        'permit': 'includes_permits',
+    }
+    for amenity in amenity_filters:
+        field = amenities_map.get(amenity)
+        if field:
+            queryset = queryset.filter(**{field: True})
+
+    if quick_filter == 'best_rated':
+        queryset = queryset.filter(avg_rating__gte=4.5)
+    elif quick_filter == 'budget':
+        threshold = budget_threshold
+        if threshold is None:
+            threshold = _budget_threshold(queryset)
+        if threshold is not None:
+            queryset = queryset.filter(price__lte=threshold)
+    elif quick_filter == 'featured':
+        queryset = queryset.filter(is_featured=True)
+    elif quick_filter == 'beginner':
+        queryset = queryset.filter(difficulty__in=['easy', 'moderate'])
+
+    if sort == 'price_low':
+        queryset = queryset.order_by('price', '-avg_rating')
+    elif sort == 'price_high':
+        queryset = queryset.order_by('-price', '-avg_rating')
+    elif sort == 'rating':
+        queryset = queryset.order_by('-avg_rating', '-review_count')
+    elif sort == 'newest':
+        queryset = queryset.order_by('-created_at')
+    else:
+        sort = 'popular'
+        queryset = queryset.order_by('-booking_count', '-views_count', '-created_at')
+
+    applied = {
+        'destination': search_term,
+        'date_from': date_from_raw,
+        'date_to': date_to_raw,
+        'travelers': travelers or '',
+        'package_type': package_type,
+        'price_min': price_min,
+        'price_max': price_max,
+        'duration': duration_filters,
+        'difficulty': difficulty_filters,
+        'rating': rating_min or '',
+        'season': season_filters,
+        'amenities': amenity_filters,
+        'quick': quick_filter,
+        'sort': sort,
+    }
+    return queryset, applied
+
+
 def _public_package_queryset():
     return Package.objects.filter(is_active=True).prefetch_related('images').annotate(
         review_count=Count('reviews', distinct=True),
         avg_rating=Avg('reviews__rating'),
+        booking_count=Count('bookings', distinct=True),
     ).order_by('-created_at')
 
 
@@ -482,6 +657,7 @@ def _render_package_list(request, category=None):
     VendorSubscription.expire_overdue()
     packages = _public_package_queryset()
     package_scope = 'all'
+    package_type_slug = ''
     page_title = 'Nepal Treks & Tours'
     page_subtitle = 'Explore the Himalayas with trusted local operators.'
     empty_message = 'No packages available right now.'
@@ -489,22 +665,44 @@ def _render_package_list(request, category=None):
     if category == Package.CATEGORY_TREK:
         packages = packages.filter(category="TREK")
         package_scope = 'treks'
+        package_type_slug = 'trek'
         page_title = 'Nepal Treks'
         page_subtitle = 'Browse trekking adventures curated by local experts.'
         empty_message = 'No trek packages available right now.'
     elif category == Package.CATEGORY_TOUR:
         packages = packages.filter(category="TOUR")
         package_scope = 'tours'
+        package_type_slug = 'tour'
         page_title = 'Nepal Tours'
         page_subtitle = 'Browse curated tour experiences across Nepal.'
         empty_message = 'No tour packages available right now.'
 
+    price_stats = packages.aggregate(min_price=Min('price'), max_price=Max('price'))
+    min_price = float(price_stats['min_price'] or 0)
+    max_price = float(price_stats['max_price'] or min_price or 0)
+    filtered_packages, filters = _apply_package_filters(
+        request,
+        packages,
+        forced_category=category,
+        budget_threshold=_budget_threshold(packages),
+    )
+    if filters['price_min'] is None:
+        filters['price_min'] = min_price
+    if filters['price_max'] is None:
+        filters['price_max'] = max_price
+    result_count = filtered_packages.count()
+
     return render(request, 'core/packages.html', {
-        'packages': packages,
+        'packages': filtered_packages,
         'package_scope': package_scope,
+        'package_type_slug': package_type_slug,
         'page_title': page_title,
         'page_subtitle': page_subtitle,
         'empty_message': empty_message,
+        'filters': filters,
+        'price_min': min_price,
+        'price_max': max_price,
+        'result_count': result_count,
     })
 
 
@@ -548,6 +746,29 @@ def packages_map_api(request):
         })
 
     return JsonResponse(data, safe=False)
+
+
+def packages_search_api(request):
+    packages = _public_package_queryset()
+    filtered_packages, filters = _apply_package_filters(
+        request,
+        packages,
+        budget_threshold=_budget_threshold(packages),
+    )
+    packages_list = list(filtered_packages)
+    html = render_to_string(
+        'core/includes/package_cards.html',
+        {
+            'packages': packages_list,
+            'empty_message': 'No packages match your filters.',
+        },
+        request=request,
+    )
+    return JsonResponse({
+        'html': html,
+        'count': len(packages_list),
+        'filters': filters,
+    })
 
 def package_detail(request, package_id):
     package = get_object_or_404(Package.objects.prefetch_related('images'), id=package_id)

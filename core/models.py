@@ -44,6 +44,11 @@ class Package(models.Model):
     available_until = models.DateField(blank=True, null=True)
     best_season = models.CharField(max_length=100, blank=True)
     image_url = models.URLField(blank=True)
+    has_guide = models.BooleanField(default=False)
+    includes_meals = models.BooleanField(default=False)
+    includes_accommodation = models.BooleanField(default=False)
+    includes_transport = models.BooleanField(default=False)
+    includes_permits = models.BooleanField(default=False)
     price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
