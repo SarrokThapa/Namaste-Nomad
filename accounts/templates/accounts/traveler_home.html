@@ -3,6 +3,10 @@
 
 {% block title %}Traveler Explore - Namaste Nomad{% endblock %}
 
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/destination_autocomplete.css' %}?v=20260314a">
+{% endblock %}
+
 {% block traveler_content %}
     <section class="card explore-hero-card">
         <div class="explore-hero-header">
@@ -17,14 +21,20 @@
             <div class="explore-search-row">
                 <label class="explore-search-label" for="destination-search">Search destination or package</label>
                 <div class="explore-search-input-group">
-                    <input
-                        id="destination-search"
-                        class="explore-search-input"
-                        type="text"
-                        name="q"
-                        value="{{ search_query }}"
-                        placeholder="Everest, Annapurna, heritage tour..."
-                    >
+                    <div class="destination-input-shell">
+                        <input
+                            id="destination-search"
+                            class="explore-search-input"
+                            type="text"
+                            name="q"
+                            value="{{ search_query }}"
+                            placeholder="Everest, Annapurna, heritage tour..."
+                            autocomplete="off"
+                            data-destination-input
+                            data-destination-endpoint="{% url 'destinations_api' %}"
+                        >
+                        <div class="destination-suggestions" data-destination-list></div>
+                    </div>
                     <button type="submit" class="btn-primary">Search</button>
                     {% if can_clear_filters %}
                         <a class="btn-outline" href="{% url 'traveler_home' %}">Reset</a>
@@ -199,4 +209,8 @@
             {% endif %}
         </div>
     </section>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/destination_autocomplete.js' %}?v=20260314a"></script>
 {% endblock %}

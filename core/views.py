@@ -458,6 +458,19 @@ def home(request):
     })
 
 
+def destinations_api(request):
+    destinations = set()
+    for location_name, location in Package.objects.filter(is_active=True).values_list(
+        'location_name',
+        'location',
+    ):
+        if location_name:
+            destinations.add(location_name.strip())
+        if location:
+            destinations.add(location.strip())
+    return JsonResponse(sorted(destinations), safe=False)
+
+
 def _public_package_queryset():
     return Package.objects.filter(is_active=True).prefetch_related('images').annotate(
         review_count=Count('reviews', distinct=True),
