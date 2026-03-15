@@ -45,6 +45,8 @@ from core.models import (
 from .models import (
     AdminProfile,
     Notification,
+    Badge,
+    UserBadge,
     TravelerProfile,
     User,
     VendorProfile,
@@ -59,6 +61,12 @@ from .notifications import (
     serialize_notification,
 )
 from .utils import create_otp, verify_otp as verify_otp_util
+from .achievements import (
+    add_points,
+    sync_badges_for_user,
+    total_points_for_user,
+    badge_progress_for_user,
+)
 
 
 def _get_vendor_profile(user):
@@ -818,6 +826,9 @@ def vendor_booking_status_update(request, booking_id):
 
     booking.status = requested_status
     booking.save(update_fields=['status'])
+    if requested_status == Booking.STATUS_CONFIRMED and booking.traveler:
+        add_points(booking.traveler, 'booking_confirmed', 50)
+        sync_badges_for_user(booking.traveler)
     if booking.traveler:
         status_label = 'confirmed' if requested_status == Booking.STATUS_CONFIRMED else 'cancelled'
         create_notification(
@@ -1590,6 +1601,8 @@ def wishlist_toggle(request):
             pass
         status = 'added'
         is_wishlisted = True
+        add_points(request.user, 'wishlist', 5)
+        sync_badges_for_user(request.user)
 
     count = Wishlist.objects.filter(traveler=request.user).count()
     return JsonResponse({
@@ -1732,6 +1745,39 @@ def traveler_wishlist(request):
 
 @never_cache
 @login_required(login_url='traveler_login')
+def traveler_achievements(request):
+    if not _ensure_traveler(request):
+        return redirect('traveler_login')
+
+    profile = _get_traveler_profile(request.user)
+    if profile is None:
+        profile = TravelerProfile.objects.create(user=request.user)
+
+    sync_badges_for_user(request.user)
+    badges, summary, next_badge = badge_progress_for_user(request.user)
+    total_points = total_points_for_user(request.user)
+
+    earned_badges = [
+        entry.badge
+        for entry in UserBadge.objects.filter(user=request.user)
+        .select_related('badge')
+        .order_by('-earned_at')
+    ]
+
+    return render(request, 'accounts/traveler_achievements.html', {
+        'traveler_profile': profile,
+        'badges': badges,
+        'earned_badges': earned_badges,
+        'total_points': total_points,
+        'earned_badge_count': summary.get('earned_count', 0),
+        'total_badges': summary.get('total_badges', 0),
+        'next_badge': next_badge,
+        'active_page': 'achievements',
+    })
+
+
+@never_cache
+@login_required(login_url='traveler_login')
 def traveler_bookings(request):
     if not _ensure_traveler(request):
         return redirect('traveler_login')
@@ -1811,6 +1857,7 @@ def traveler_profile(request):
         return redirect('traveler_profile')
 
     full_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+    sync_badges_for_user(request.user)
     traveler_reviews = Review.objects.filter(traveler=request.user).select_related('package').order_by('-created_at')[:6]
     review_packages = Package.objects.filter(is_active=True).order_by('title')
     activity = [

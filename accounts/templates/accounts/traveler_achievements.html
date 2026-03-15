@@ -1,0 +1,74 @@
+{% extends "accounts/traveler_base.html" %}
+{% load static %}
+
+{% block title %}Achievements & Badges - Namaste Nomad{% endblock %}
+
+{% block traveler_content %}
+    <section class="card achievement-hero">
+        <div class="achievement-hero-header">
+            <div>
+                <h1>My Achievements</h1>
+                <p>Unlock badges and earn reward points for your travel activity.</p>
+            </div>
+            <div class="achievement-points">
+                <span>Total Points</span>
+                <strong>{{ total_points|default:0 }}</strong>
+            </div>
+        </div>
+        <div class="achievement-hero-grid">
+            <div class="achievement-stat">
+                <span>Badges Earned</span>
+                <strong>{{ earned_badge_count }} / {{ total_badges }}</strong>
+            </div>
+            <div class="achievement-stat">
+                <span>Next Badge</span>
+                {% if next_badge %}
+                    <strong>{{ next_badge.name }}</strong>
+                    <div class="stat-progress">
+                        <div class="progress-bar">
+                            <span style="width: {{ next_badge.progress_pct }}%"></span>
+                        </div>
+                        <small>{{ next_badge.progress_label }}</small>
+                    </div>
+                {% else %}
+                    <strong>All badges unlocked</strong>
+                    <small>Keep exploring for new rewards.</small>
+                {% endif %}
+            </div>
+        </div>
+        {% if earned_badges %}
+            <div class="earned-strip">
+                <span>Recently earned:</span>
+                <div class="earned-strip-list">
+                    {% for badge in earned_badges|slice:":4" %}
+                        <div class="earned-chip badge-{{ badge.condition_type }}">{{ badge.icon }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    </section>
+
+    <section class="badge-section">
+        <div class="badge-grid">
+            {% for badge in badges %}
+                <article class="badge-card {% if badge.earned %}earned{% else %}locked{% endif %} badge-{{ badge.condition_type }}">
+                    <div class="badge-icon">{{ badge.icon }}</div>
+                    <div class="badge-info">
+                        <h3>{{ badge.name }}</h3>
+                        <p>{{ badge.description }}</p>
+                        {% if badge.earned %}
+                            <div class="badge-earned">Earned on {{ badge.earned_at|date:"M d" }}</div>
+                        {% else %}
+                            <div class="badge-progress">
+                                <span>{{ badge.progress_label }}</span>
+                                <div class="progress-bar">
+                                    <span style="width: {{ badge.progress_pct }}%"></span>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    </section>
+{% endblock %}

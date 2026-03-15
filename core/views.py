@@ -19,6 +19,12 @@ from django.utils import timezone
 from django.utils.html import escape, mark_safe
 
 from accounts.models import Notification, TravelerProfile, VendorSubscription
+from accounts.achievements import (
+    add_points,
+    sync_badges_for_user,
+    total_points_for_user,
+    discount_for_points,
+)
 from accounts.notifications import create_notification, notify_admins
 from .forms import BookingForm, CommentForm, PostEditForm, PostForm, ReviewForm
 from .models import Booking, Comment, Package, Post, PostMedia, Review, Wishlist
@@ -976,10 +982,16 @@ def package_book(request, package_id):
             },
         )
 
+    reward_points = total_points_for_user(request.user)
+    discount_percent, next_discount_points = discount_for_points(reward_points)
+
     return render(request, 'core/booking_form.html', {
         'package': package,
         'form': form,
         'estimated_total': package.price,
+        'reward_points': reward_points,
+        'discount_percent': discount_percent,
+        'next_discount_points': next_discount_points,
     })
 
 
@@ -1187,6 +1199,9 @@ def community_post_create(request):
         post = form.save(commit=False)
         post.user = request.user
         post.save()
+        if getattr(request.user, 'user_type', '') == 'traveler':
+            add_points(request.user, 'post', 10)
+            sync_badges_for_user(request.user)
         media_files = form.cleaned_data.get('media_files', [])
         for index, media_file in enumerate(media_files, start=1):
             content_type = (getattr(media_file, 'content_type', '') or '').lower()
@@ -1393,6 +1408,9 @@ def community_post_like_toggle(request, post_id):
     else:
         post.likes.add(request.user)
         if post.user_id != request.user.id:
+            if getattr(post.user, 'user_type', '') == 'traveler':
+                add_points(post.user, 'like_received', 2)
+                sync_badges_for_user(post.user)
             create_notification(
                 post.user,
                 f'{request.user.get_full_name() or request.user.username} liked your community post.',
@@ -1419,6 +1437,8 @@ def submit_review(request):
         review = form.save(commit=False)
         review.traveler = request.user
         review.save()
+        add_points(request.user, 'review', 15)
+        sync_badges_for_user(request.user)
         messages.success(request, 'Thanks for sharing your review!')
     else:
         messages.error(request, 'Please provide a rating and comment.')

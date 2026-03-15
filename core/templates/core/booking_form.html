@@ -129,6 +129,23 @@
                     <p>Stripe is active for bookings right now. eSewa and Khalti can be added later without changing the booking flow.</p>
                 </div>
 
+                <div class="booking-rewards">
+                    <span>Reward Points</span>
+                    {% if reward_points %}
+                        <p>You have {{ reward_points }} points.</p>
+                        {% if discount_percent %}
+                            <p>You can apply a {{ discount_percent }}% discount on this booking.</p>
+                        {% else %}
+                            <p>Earn 100 points to unlock a 5% discount.</p>
+                        {% endif %}
+                        {% if next_discount_points %}
+                            <small>Next discount unlocks at {{ next_discount_points }} points.</small>
+                        {% endif %}
+                    {% else %}
+                        <p>No reward points yet. Start earning points by posting, reviewing, and saving trips.</p>
+                    {% endif %}
+                </div>
+
                 <div class="booking-total">
                     <span>Estimated Total</span>
                     <strong id="estimatedTotal">Rs {{ estimated_total|floatformat:0 }}</strong>

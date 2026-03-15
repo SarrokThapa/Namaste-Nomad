@@ -962,6 +962,219 @@ body {
     color: #991b1b;
 }
 
+.achievement-hero {
+    margin-bottom: 1.2rem;
+    background: radial-gradient(circle at top, #e0f2fe, #f8fafc 60%);
+    border: 1px solid #e2e8f0;
+}
+
+.achievement-hero-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.achievement-hero-header h1 {
+    font-size: 1.4rem;
+    margin-bottom: 0.25rem;
+}
+
+.achievement-hero-header p {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.achievement-points {
+    background: linear-gradient(135deg, #1d4ed8, #22c55e);
+    color: #fff;
+    padding: 0.6rem 1rem;
+    border-radius: 1rem;
+    text-align: center;
+    min-width: 160px;
+}
+
+.achievement-points span {
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.achievement-points strong {
+    display: block;
+    font-size: 1.4rem;
+    margin-top: 0.2rem;
+}
+
+.achievement-hero-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.achievement-stat {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.9rem;
+    padding: 0.9rem;
+}
+
+.achievement-stat span {
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.achievement-stat strong {
+    display: block;
+    font-size: 1.05rem;
+    margin: 0.4rem 0 0.2rem;
+}
+
+.stat-progress small {
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.earned-strip {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.earned-strip-list {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.earned-chip {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #fff;
+    background: #1d4ed8;
+}
+
+.badge-section {
+    margin-bottom: 1.6rem;
+}
+
+.badge-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+}
+
+.badge-card {
+    display: flex;
+    gap: 0.9rem;
+    align-items: flex-start;
+    padding: 1rem;
+    border-radius: 1rem;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    box-shadow: 0 12px 22px rgba(15, 23, 42, 0.06);
+}
+
+.badge-card.earned {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+}
+
+.badge-card.locked {
+    opacity: 0.6;
+}
+
+.badge-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #fff;
+    background: #1d4ed8;
+    text-transform: uppercase;
+}
+
+.badge-info h3 {
+    font-size: 0.98rem;
+    margin-bottom: 0.3rem;
+}
+
+.badge-info p {
+    color: var(--muted);
+    font-size: 0.84rem;
+    margin-bottom: 0.6rem;
+}
+
+.badge-earned {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #16a34a;
+}
+
+.badge-progress span {
+    font-size: 0.78rem;
+    color: #475569;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 7px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+    margin-top: 0.35rem;
+}
+
+.progress-bar span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #2563eb, #f97316);
+    border-radius: 999px;
+}
+
+.badge-first_post .badge-icon,
+.earned-chip.badge-first_post {
+    background: #f59e0b;
+}
+
+.badge-first_wishlist .badge-icon,
+.earned-chip.badge-first_wishlist {
+    background: #ef4444;
+}
+
+.badge-first_booking_confirmed .badge-icon,
+.earned-chip.badge-first_booking_confirmed {
+    background: #22c55e;
+}
+
+.badge-post_likes .badge-icon,
+.earned-chip.badge-post_likes {
+    background: #0ea5e9;
+}
+
+.badge-first_review .badge-icon,
+.earned-chip.badge-first_review {
+    background: #8b5cf6;
+}
+
+.badge-trek_bookings_confirmed .badge-icon,
+.earned-chip.badge-trek_bookings_confirmed {
+    background: #14b8a6;
+}
+
 @media (max-width: 1024px) {
     .traveler-shell {
         grid-template-columns: 1fr;
@@ -1042,6 +1255,20 @@ body {
     .explore-search-input-group .btn-primary,
     .explore-search-input-group .btn-outline {
         width: 100%;
+    }
+
+    .achievement-hero-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .achievement-points {
+        width: 100%;
+    }
+
+    .earned-strip {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
     .section-head {

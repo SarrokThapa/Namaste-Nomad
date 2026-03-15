@@ -8,6 +8,7 @@ urlpatterns = [
     path('traveler/register/', views.traveler_register, name='traveler_register'),  
     path('traveler/home/', views.traveler_home, name='traveler_home'),
     path('traveler/wishlist/', views.traveler_wishlist, name='traveler_wishlist'),
+    path('traveler/achievements/', views.traveler_achievements, name='traveler_achievements'),
     path('traveler/bookings/', views.traveler_bookings, name='traveler_bookings'),
     path('traveler/profile/', views.traveler_profile, name='traveler_profile'),
     path('wishlist/toggle/', views.wishlist_toggle, name='wishlist_toggle'),

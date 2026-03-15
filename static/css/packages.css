@@ -818,6 +818,35 @@ body.packages-body {
     line-height: 1.6;
 }
 
+.booking-rewards {
+    margin-top: 1rem;
+    border: 1px solid #dbeafe;
+    border-radius: 0.8rem;
+    padding: 0.85rem;
+    background: #eff6ff;
+}
+
+.booking-rewards span {
+    color: #1d4ed8;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.booking-rewards p {
+    margin-top: 0.35rem;
+    color: #1e293b;
+    line-height: 1.6;
+}
+
+.booking-rewards small {
+    display: block;
+    margin-top: 0.35rem;
+    color: #475569;
+    font-size: 0.78rem;
+}
+
 .btn-primary:disabled {
     cursor: not-allowed;
     opacity: 0.7;

@@ -231,3 +231,90 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification #{self.id} ({self.user.username})"
+
+
+class Badge(models.Model):
+    CONDITION_FIRST_POST = 'first_post'
+    CONDITION_FIRST_WISHLIST = 'first_wishlist'
+    CONDITION_FIRST_BOOKING_CONFIRMED = 'first_booking_confirmed'
+    CONDITION_POST_LIKES = 'post_likes'
+    CONDITION_FIRST_REVIEW = 'first_review'
+    CONDITION_TREK_BOOKINGS_CONFIRMED = 'trek_bookings_confirmed'
+
+    CONDITION_CHOICES = (
+        (CONDITION_FIRST_POST, 'First Post'),
+        (CONDITION_FIRST_WISHLIST, 'First Wishlist'),
+        (CONDITION_FIRST_BOOKING_CONFIRMED, 'First Booking Confirmed'),
+        (CONDITION_POST_LIKES, 'Post Likes'),
+        (CONDITION_FIRST_REVIEW, 'First Review'),
+        (CONDITION_TREK_BOOKINGS_CONFIRMED, 'Trek Bookings Confirmed'),
+    )
+
+    name = models.CharField(max_length=120, unique=True)
+    description = models.TextField()
+    icon = models.CharField(max_length=20)
+    condition_type = models.CharField(max_length=40, choices=CONDITION_CHOICES)
+    condition_value = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ('id',)
+
+    def __str__(self):
+        return self.name
+
+
+class UserBadge(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='earned_badges',
+    )
+    badge = models.ForeignKey(
+        Badge,
+        on_delete=models.CASCADE,
+        related_name='earned_by',
+    )
+    earned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-earned_at',)
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'badge'],
+                name='unique_user_badge',
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} earned {self.badge.name}"
+
+
+class RewardPoint(models.Model):
+    ACTION_POST = 'post'
+    ACTION_LIKE_RECEIVED = 'like_received'
+    ACTION_REVIEW = 'review'
+    ACTION_WISHLIST = 'wishlist'
+    ACTION_BOOKING_CONFIRMED = 'booking_confirmed'
+
+    ACTION_CHOICES = (
+        (ACTION_POST, 'Community Post'),
+        (ACTION_LIKE_RECEIVED, 'Like Received'),
+        (ACTION_REVIEW, 'Review'),
+        (ACTION_WISHLIST, 'Wishlist'),
+        (ACTION_BOOKING_CONFIRMED, 'Booking Confirmed'),
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='reward_points',
+    )
+    points = models.IntegerField()
+    action_type = models.CharField(max_length=40, choices=ACTION_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        return f"{self.user.username}: {self.points} ({self.action_type})"
