@@ -21,7 +21,7 @@ from django.utils.html import escape, mark_safe
 from accounts.models import Notification, TravelerProfile, VendorSubscription
 from accounts.notifications import create_notification, notify_admins
 from .forms import BookingForm, CommentForm, PostEditForm, PostForm, ReviewForm
-from .models import Booking, Comment, Package, Post, PostMedia, Review
+from .models import Booking, Comment, Package, Post, PostMedia, Review, Wishlist
 from .payments import (
     StripeError,
     create_checkout_session,
@@ -415,6 +415,7 @@ def _complete_paid_booking(booking, session_data):
 def home(request):
     """Landing page"""
     VendorSubscription.expire_overdue()
+    wishlist_ids = _wishlist_ids_for_user(request.user)
     today = timezone.localdate()
     active_vendor_ids = VendorSubscription.objects.filter(
         status=VendorSubscription.STATUS_ACTIVE,
@@ -457,6 +458,7 @@ def home(request):
         'reviews': reviews,
         'featured_packages': featured_packages,
         'popular_packages': popular_packages,
+        'wishlist_ids': wishlist_ids,
     })
 
 
@@ -653,8 +655,17 @@ def _public_package_queryset():
     ).order_by('-created_at')
 
 
+def _wishlist_ids_for_user(user):
+    if not getattr(user, 'is_authenticated', False):
+        return set()
+    if getattr(user, 'user_type', '') != 'traveler':
+        return set()
+    return set(Wishlist.objects.filter(traveler=user).values_list('package_id', flat=True))
+
+
 def _render_package_list(request, category=None):
     VendorSubscription.expire_overdue()
+    wishlist_ids = _wishlist_ids_for_user(request.user)
     packages = _public_package_queryset()
     package_scope = 'all'
     package_type_slug = ''
@@ -703,6 +714,7 @@ def _render_package_list(request, category=None):
         'price_min': min_price,
         'price_max': max_price,
         'result_count': result_count,
+        'wishlist_ids': wishlist_ids,
     })
 
 
@@ -750,6 +762,7 @@ def packages_map_api(request):
 
 def packages_search_api(request):
     packages = _public_package_queryset()
+    wishlist_ids = _wishlist_ids_for_user(request.user)
     filtered_packages, filters = _apply_package_filters(
         request,
         packages,
@@ -761,6 +774,7 @@ def packages_search_api(request):
         {
             'packages': packages_list,
             'empty_message': 'No packages match your filters.',
+            'wishlist_ids': wishlist_ids,
         },
         request=request,
     )
@@ -778,6 +792,7 @@ def package_detail(request, package_id):
     Package.objects.filter(id=package.id).update(views_count=package.views_count + 1)
     package.views_count += 1
 
+    wishlist_ids = _wishlist_ids_for_user(request.user)
     reviews_base = Review.objects.filter(package=package).select_related('traveler')
     sort = (request.GET.get('sort') or 'recent').lower()
     if sort == 'highest':
@@ -854,6 +869,7 @@ def package_detail(request, package_id):
         'exclusions': exclusions,
         'itinerary_points': itinerary_points,
         'images': images,
+        'wishlist_ids': wishlist_ids,
     })
 
 

@@ -72,7 +72,8 @@
                 {% for package in featured_packages %}
                     <article class="explore-package-card">
                         {% with cover=package.images.all|first %}
-                            <a class="explore-package-media" href="{% url 'package_detail' package.id %}" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
+                            <div class="explore-package-media" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
+                                <a class="explore-package-media-link" href="{% url 'package_detail' package.id %}" aria-label="{{ package.title }}"></a>
                                 <span class="package-tag">{{ package.category_label }}</span>
                                 {% if package.is_featured %}
                                     <span class="package-tag featured-tag">Featured</span>
@@ -80,7 +81,8 @@
                                 {% if package.season_badge %}
                                     <span class="package-tag season-badge">{{ package.season_badge }}</span>
                                 {% endif %}
-                            </a>
+                                {% include "core/includes/wishlist_button.html" with package=package %}
+                            </div>
                         {% endwith %}
                         <div class="explore-package-body">
                             <div class="explore-package-top">
@@ -124,6 +126,9 @@
                                 <h3><a href="{% url 'package_detail' package.id %}">{{ package.title }}</a></h3>
                                 <div class="package-price">Rs {{ package.price|floatformat:0 }}</div>
                             </div>
+                            <div class="wishlist-inline">
+                                {% include "core/includes/wishlist_button.html" with package=package button_class="wishlist-btn--compact" %}
+                            </div>
                             <p class="package-meta">{{ package.category_label }} · {{ package.location|default:"Nepal" }}</p>
                             <p class="package-meta">
                                 Available {{ package.available_from|date:"M d, Y"|default:"Not set" }} -
@@ -160,6 +165,9 @@
                             <div class="explore-package-top">
                                 <h3><a href="{% url 'package_detail' package.id %}">{{ package.title }}</a></h3>
                                 <div class="package-price">Rs {{ package.price|floatformat:0 }}</div>
+                            </div>
+                            <div class="wishlist-inline">
+                                {% include "core/includes/wishlist_button.html" with package=package button_class="wishlist-btn--compact" %}
                             </div>
                             <p class="package-meta">{{ package.location|default:"Nepal" }} · Added {{ package.created_at|date:"M d, Y" }}</p>
                             <p class="package-meta">

@@ -1,0 +1,69 @@
+{% extends "accounts/traveler_base.html" %}
+{% load static %}
+
+{% block title %}My Wishlist - Namaste Nomad{% endblock %}
+
+{% block traveler_content %}
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2>My Wishlist</h2>
+                <p class="card-subtitle">Saved packages you want to revisit later.</p>
+            </div>
+            <span class="wishlist-count-pill" data-wishlist-count {% if not wishlist_count %}hidden{% endif %}>
+                {{ wishlist_count|default:0 }}
+            </span>
+        </div>
+
+        {% if wishlist_items %}
+            <div class="package-grid wishlist-grid" data-wishlist-grid>
+                {% for item in wishlist_items %}
+                    {% with package=item.package %}
+                        <article class="explore-package-card wishlist-card" data-wishlist-card>
+                            {% with cover=package.images.all|first %}
+                                <div class="explore-package-media" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
+                                    <a class="explore-package-media-link" href="{% url 'package_detail' package.id %}" aria-label="{{ package.title }}"></a>
+                                    {% if package.is_featured %}
+                                        <span class="package-tag featured-tag">Featured</span>
+                                    {% endif %}
+                                    {% if package.season_badge %}
+                                        <span class="package-tag season-badge">{{ package.season_badge }}</span>
+                                    {% endif %}
+                                    {% include "core/includes/wishlist_button.html" with package=package %}
+                                </div>
+                            {% endwith %}
+                            <div class="explore-package-body">
+                                <div class="explore-package-top">
+                                    <h3><a href="{% url 'package_detail' package.id %}">{{ package.title }}</a></h3>
+                                    <div class="package-price">Rs {{ package.price|floatformat:0 }}</div>
+                                </div>
+                                <p class="package-meta">{{ package.location_name|default:package.location|default:"Nepal" }}</p>
+                                <p class="package-meta">
+                                    Available {{ package.available_from|date:"M d, Y"|default:"Not set" }} -
+                                    {{ package.available_until|date:"M d, Y"|default:"Not set" }}
+                                </p>
+                                <div class="wishlist-actions">
+                                    <a class="btn-outline" href="{% url 'package_detail' package.id %}">View Package</a>
+                                    <button
+                                        type="button"
+                                        class="btn-outline wishlist-remove"
+                                        data-wishlist-toggle
+                                        data-package-id="{{ package.id }}"
+                                        data-wishlist-url="{% url 'wishlist_toggle' %}"
+                                        data-login-url="{% url 'account_login_choice' %}"
+                                        data-can-wishlist="true"
+                                        aria-pressed="true"
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                        </article>
+                    {% endwith %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="wishlist-empty">You have no saved packages yet.</div>
+        {% endif %}
+    </section>
+{% endblock %}

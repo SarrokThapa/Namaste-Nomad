@@ -1,0 +1,13 @@
+{% if request.user.is_authenticated and request.user.user_type == 'traveler' %}
+<a class="wishlist-link" href="{% url 'traveler_wishlist' %}">
+    <span class="wishlist-link-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 21s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 5.65-7 10-7 10z"/>
+        </svg>
+    </span>
+    <span class="wishlist-link-text">Wishlist</span>
+    <span class="wishlist-badge" data-wishlist-count {% if not wishlist_count %}hidden{% endif %}>
+        {{ wishlist_count|default:0 }}
+    </span>
+</a>
+{% endif %}

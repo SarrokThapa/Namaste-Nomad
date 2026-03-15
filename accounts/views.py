@@ -31,6 +31,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.http import require_POST
 
 from core.models import (
     Booking,
@@ -39,6 +40,7 @@ from core.models import (
     PackageImage,
     SupportConversation,
     SupportMessage,
+    Wishlist,
 )
 from .models import (
     AdminProfile,
@@ -1558,6 +1560,46 @@ def vendor_package_delete(request, package_id):
     return redirect(next_url)
 
 
+@require_POST
+@login_required(login_url='account_login_choice')
+def wishlist_toggle(request):
+    if getattr(request.user, 'user_type', '') != 'traveler':
+        return JsonResponse(
+            {'error': 'forbidden', 'message': 'Traveler access only.'},
+            status=403,
+        )
+
+    package_id = request.POST.get('package_id')
+    if not package_id:
+        return JsonResponse({'error': 'missing_package'}, status=400)
+    try:
+        package_id = int(package_id)
+    except (TypeError, ValueError):
+        return JsonResponse({'error': 'invalid_package'}, status=400)
+
+    existing = Wishlist.objects.filter(traveler=request.user, package_id=package_id).first()
+    if existing:
+        existing.delete()
+        status = 'removed'
+        is_wishlisted = False
+    else:
+        package = get_object_or_404(Package, id=package_id, is_active=True)
+        try:
+            Wishlist.objects.create(traveler=request.user, package=package)
+        except IntegrityError:
+            pass
+        status = 'added'
+        is_wishlisted = True
+
+    count = Wishlist.objects.filter(traveler=request.user).count()
+    return JsonResponse({
+        'status': status,
+        'is_wishlisted': is_wishlisted,
+        'count': count,
+        'package_id': package_id,
+    })
+
+
 @never_cache
 @login_required(login_url='traveler_login')
 def traveler_home(request):
@@ -1567,6 +1609,10 @@ def traveler_home(request):
     profile = _get_traveler_profile(request.user)
     if profile is None:
         profile = TravelerProfile.objects.create(user=request.user)
+
+    wishlist_ids = set(
+        Wishlist.objects.filter(traveler=request.user).values_list('package_id', flat=True)
+    )
 
     search_query = (request.GET.get('q') or '').strip()
     selected_category = (request.GET.get('category') or 'all').strip().lower()
@@ -1654,6 +1700,33 @@ def traveler_home(request):
         'recent_reviews': recent_reviews,
         'result_count': filtered_packages.count(),
         'can_clear_filters': bool(search_query or selected_category != 'all'),
+        'wishlist_ids': wishlist_ids,
+    })
+
+
+@never_cache
+@login_required(login_url='traveler_login')
+def traveler_wishlist(request):
+    if not _ensure_traveler(request):
+        return redirect('traveler_login')
+
+    profile = _get_traveler_profile(request.user)
+    if profile is None:
+        profile = TravelerProfile.objects.create(user=request.user)
+
+    wishlist_items = (
+        Wishlist.objects.filter(traveler=request.user)
+        .select_related('package', 'package__vendor')
+        .prefetch_related('package__images')
+        .order_by('-created_at')
+    )
+    wishlist_ids = set(wishlist_items.values_list('package_id', flat=True))
+
+    return render(request, 'accounts/traveler_wishlist.html', {
+        'traveler_profile': profile,
+        'wishlist_items': wishlist_items,
+        'wishlist_ids': wishlist_ids,
+        'active_page': 'wishlist',
     })
 
 

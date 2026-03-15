@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="{% static 'css/traveler_profile.css' %}?v=20260227a">
     <link rel="stylesheet" href="{% static 'css/support_widget.css' %}?v=20260312a">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <link rel="stylesheet" href="{% static 'css/wishlist.css' %}?v=20260315a">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -21,6 +22,7 @@
         </a>
         <div class="topbar-actions">
             {% include "accounts/includes/notification_bell.html" %}
+            {% include "accounts/includes/wishlist_icon.html" %}
             <div class="profile-dropdown" data-profile-dropdown>
                 <button type="button" class="profile-trigger" aria-haspopup="true" aria-expanded="false">
                     <span class="profile-trigger-avatar">
@@ -65,13 +67,14 @@
                     </span>
                     My Bookings
                 </a>
-                <a class="nav-item" href="#">
+                <a class="nav-item {% if active_page == 'wishlist' %}active{% endif %}" href="{% url 'traveler_wishlist' %}">
                     <span class="nav-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <path d="M12 21s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 5.65-7 10-7 10z"/>
                         </svg>
                     </span>
-                    Wishlist
+                    <span class="nav-label">Wishlist</span>
+                    <span class="nav-count" data-wishlist-count {% if not wishlist_count %}hidden{% endif %}>{{ wishlist_count|default:0 }}</span>
                 </a>
                 <a class="nav-item" href="{% url 'traveler_profile' %}#review-history">
                     <span class="nav-icon">
@@ -171,6 +174,7 @@
     </script>
     {% block extra_js %}{% endblock %}
     {% include "accounts/includes/support_widget.html" %}
+    <script src="{% static 'js/wishlist.js' %}?v=20260315a"></script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 </body>
 </html>

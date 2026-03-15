@@ -92,6 +92,33 @@ class PackageImage(models.Model):
         return f"{self.package.title} Image"
 
 
+class Wishlist(models.Model):
+    traveler = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='wishlists',
+        limit_choices_to={'user_type': 'traveler'},
+    )
+    package = models.ForeignKey(
+        Package,
+        on_delete=models.CASCADE,
+        related_name='wishlists',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-created_at',)
+        constraints = [
+            models.UniqueConstraint(
+                fields=['traveler', 'package'],
+                name='unique_wishlist_package',
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.traveler.username} saved {self.package.title}"
+
+
 class Booking(models.Model):
     COMMISSION_VENDOR_RATE = Decimal('0.75')
     COMMISSION_PLATFORM_RATE = Decimal('0.25')

@@ -1,0 +1,22 @@
+{% if not request.user.is_authenticated or request.user.user_type == 'traveler' %}
+    <button
+        type="button"
+        class="wishlist-btn{% if wishlist_ids and package.id in wishlist_ids %} is-active{% endif %}{% if button_class %} {{ button_class }}{% endif %}"
+        data-wishlist-toggle
+        data-package-id="{{ package.id }}"
+        data-wishlist-url="{% url 'wishlist_toggle' %}"
+        data-login-url="{% url 'account_login_choice' %}"
+        data-can-wishlist="{% if request.user.is_authenticated and request.user.user_type == 'traveler' %}true{% else %}false{% endif %}"
+        data-authenticated="{% if request.user.is_authenticated %}true{% else %}false{% endif %}"
+        data-denied-message="Wishlist is available for traveler accounts only."
+        aria-pressed="{% if wishlist_ids and package.id in wishlist_ids %}true{% else %}false{% endif %}"
+        aria-label="{% if wishlist_ids and package.id in wishlist_ids %}Remove from wishlist{% else %}Save package to wishlist{% endif %}"
+    >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M12 21s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 5.65-7 10-7 10z"/>
+        </svg>
+        {% if button_label %}
+            <span class="wishlist-label">{{ button_label }}</span>
+        {% endif %}
+    </button>
+{% endif %}

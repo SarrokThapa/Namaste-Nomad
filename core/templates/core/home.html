@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="{% static 'css/landing.css' %}">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <link rel="stylesheet" href="{% static 'css/wishlist.css' %}?v=20260315a">
     <link rel="stylesheet" href="{% static 'css/destination_autocomplete.css' %}?v=20260314a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     <link rel="stylesheet" href="{% static 'css/maps.css' %}?v=20260313a">
@@ -38,6 +39,7 @@
             </div>
             <div class="nav-actions">
                 {% include "accounts/includes/notification_bell.html" %}
+                {% include "accounts/includes/wishlist_icon.html" %}
                 <a href="{% url 'admin_login' %}" class="btn-ghost">Admin</a>
                 <a href="{% url 'account_login_choice' %}" class="btn-ghost">Sign In</a>
                 <a href="{% url 'account_register_choice' %}" class="btn-dark">Sign Up</a>
@@ -114,6 +116,7 @@
                         <article class="trek-card">
                             {% with cover=package.images.all|first %}
                                 <div class="trek-image" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
+                                    {% include "core/includes/wishlist_button.html" with package=package %}
                                     <span class="tag">Featured</span>
                                 </div>
                             {% endwith %}
@@ -159,6 +162,7 @@
                         <article class="trek-card">
                             {% with cover=package.images.all|first %}
                                 <div class="trek-image" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
+                                    {% include "core/includes/wishlist_button.html" with package=package %}
                                     <span class="tag">Popular</span>
                                 </div>
                             {% endwith %}
@@ -389,6 +393,7 @@
     <script src="{% static 'js/destination_autocomplete.js' %}?v=20260314a"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="{% static 'js/package_maps.js' %}?v=20260313a"></script>
+    <script src="{% static 'js/wishlist.js' %}?v=20260315a"></script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 </body>
 </html>
