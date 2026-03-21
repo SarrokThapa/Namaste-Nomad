@@ -114,12 +114,15 @@
                                 <input type="text" class="tag-search" placeholder="Search vendor..." data-tag-search>
                                 <div class="tag-list">
                                     {% for vendor in vendors %}
-                                        <label class="tag-option" data-filter="{{ vendor.username|lower }} {% if vendor.vendor_profile %}{{ vendor.vendor_profile.business_name|lower }}{% endif %}">
-                                            <input type="checkbox" name="tagged_vendors" value="{{ vendor.id }}" data-tag-name="@{{ vendor.username }}" {% if vendor.id in selected_vendor_ids %}checked{% endif %}>
-                                            <span class="tag-name">@{{ vendor.username }}</span>
-                                            {% if vendor.vendor_profile and vendor.vendor_profile.business_name %}
-                                                <span class="tag-meta">{{ vendor.vendor_profile.business_name }}</span>
-                                            {% endif %}
+                                        <label class="tag-option" data-filter="{% if vendor.vendor_profile and vendor.vendor_profile.business_name %}{{ vendor.vendor_profile.business_name|lower }}{% else %}vendor{% endif %}">
+                                            <input
+                                                type="checkbox"
+                                                name="tagged_vendors"
+                                                value="{{ vendor.id }}"
+                                                data-tag-name="{% if vendor.vendor_profile and vendor.vendor_profile.business_name %}{{ vendor.vendor_profile.business_name }}{% else %}Vendor{% endif %}"
+                                                {% if vendor.id in selected_vendor_ids %}checked{% endif %}
+                                            >
+                                            <span class="tag-name">{% if vendor.vendor_profile and vendor.vendor_profile.business_name %}{{ vendor.vendor_profile.business_name }}{% else %}Vendor{% endif %}</span>
                                         </label>
                                     {% endfor %}
                                     {% if not vendors %}

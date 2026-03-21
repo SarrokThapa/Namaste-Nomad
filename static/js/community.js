@@ -131,7 +131,7 @@
             }
             previewList.textContent = selected.map(function (option) {
                 return option.querySelector('[data-tag-name]').dataset.tagName;
-            }).join(' ');
+            }).join(', ');
         }
 
         function openModal() {

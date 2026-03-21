@@ -5,8 +5,8 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import User
-from .models import Booking, Package
+from accounts.models import User, VendorProfile
+from .models import Booking, Package, Post
 from .payments import StripeError
 
 
@@ -88,6 +88,38 @@ class CommunityPostComposerVisibilityTests(TestCase):
         self.assertContains(response, 'Create a Post')
         self.assertContains(response, 'Upload Photos / Videos')
         self.assertContains(response, 'Tag Vendors')
+
+
+class TaggedVendorDisplayTests(TestCase):
+    def setUp(self):
+        self.traveler = User.objects.create_user(
+            username='traveler_tag_feed',
+            password='traveler-pass-123',
+            email='traveler-tag-feed@example.com',
+            user_type='traveler',
+        )
+        self.vendor = User.objects.create_user(
+            username='vendor-tag-feed@example.com',
+            password='vendor-pass-123',
+            email='vendor-tag-feed@example.com',
+            user_type='vendor',
+        )
+        VendorProfile.objects.create(
+            user=self.vendor,
+            business_name='Himalayan Horizon Treks',
+            owner_name='Vendor Owner',
+        )
+        self.post = Post.objects.create(
+            user=self.traveler,
+            caption='Just returned from an incredible trip.',
+        )
+        self.post.tagged_vendors.add(self.vendor)
+
+    def test_tagged_vendor_uses_company_name_not_email(self):
+        response = self.client.get(reverse('community_feed'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Himalayan Horizon Treks')
+        self.assertNotContains(response, 'vendor-tag-feed@example.com')
 
 
 class BookingStripeFlowTests(TestCase):

@@ -208,6 +208,27 @@ def _user_avatar_url(user):
     return ""
 
 
+def _vendor_display_name(vendor):
+    if not vendor:
+        return "Vendor"
+
+    profile = _safe_related(vendor, 'vendor_profile')
+    if profile:
+        business_name = (profile.business_name or '').strip()
+        if business_name:
+            return business_name
+
+    full_name = vendor.get_full_name().strip()
+    if full_name:
+        return full_name
+
+    username = (getattr(vendor, 'username', '') or '').strip()
+    if username and '@' not in username:
+        return username
+
+    return "Vendor"
+
+
 TAG_PATTERN = re.compile(r'@([A-Za-z0-9_.+-]+)')
 
 
@@ -219,7 +240,7 @@ def _caption_with_vendor_links(post):
     tagged_vendors = list(getattr(post, 'tagged_vendors', []).all())
     vendor_lookup = {
         vendor.username.lower(): (
-            vendor.username,
+            _vendor_display_name(vendor),
             reverse('vendor_public_profile', kwargs={'vendor_id': vendor.id}),
         )
         for vendor in tagged_vendors
@@ -243,7 +264,7 @@ def _caption_with_vendor_links(post):
         missing = [vendor for vendor in tagged_vendors if vendor.username.lower() not in mentioned]
         if missing:
             extras = " ".join(
-                f'<a class="tagged-mention" href="{reverse("vendor_public_profile", kwargs={"vendor_id": vendor.id})}">@{escape(vendor.username)}</a>'
+                f'<a class="tagged-mention" href="{reverse("vendor_public_profile", kwargs={"vendor_id": vendor.id})}">@{escape(_vendor_display_name(vendor))}</a>'
                 for vendor in missing
             )
             tag_line = f'<span class="caption-tags"><span class="caption-tags-label">Tagged:</span> {extras}</span>'
@@ -330,7 +351,14 @@ def _community_posts(viewer=None):
             Prefetch('likes', queryset=user_model.objects.only('id')),
             Prefetch(
                 'tagged_vendors',
-                queryset=user_model.objects.only('id', 'username', 'first_name', 'last_name', 'user_type'),
+                queryset=user_model.objects.select_related('vendor_profile').only(
+                    'id',
+                    'username',
+                    'first_name',
+                    'last_name',
+                    'user_type',
+                    'vendor_profile__business_name',
+                ),
             ),
             Prefetch('media', queryset=PostMedia.objects.all()),
         ),
