@@ -57,6 +57,39 @@ class PublicNavigationAccessTests(TestCase):
         self._assert_public_pages_accessible()
 
 
+class CommunityPostComposerVisibilityTests(TestCase):
+    def setUp(self):
+        self.traveler = User.objects.create_user(
+            username='traveler_composer',
+            password='traveler-pass-123',
+            email='traveler-composer@example.com',
+            user_type='traveler',
+        )
+
+    def test_public_explore_hides_post_composer_for_guest(self):
+        response = self.client.get(reverse('community_feed'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Create a Post')
+        self.assertNotContains(response, 'Upload Photos / Videos')
+        self.assertNotContains(response, 'Tag Vendors')
+
+    def test_public_explore_hides_post_composer_for_logged_in_user(self):
+        self.client.force_login(self.traveler)
+        response = self.client.get(reverse('community_feed'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Create a Post')
+        self.assertNotContains(response, 'Upload Photos / Videos')
+        self.assertNotContains(response, 'Tag Vendors')
+
+    def test_dashboard_community_shows_post_composer_for_logged_in_traveler(self):
+        self.client.force_login(self.traveler)
+        response = self.client.get(reverse('community_dashboard'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Create a Post')
+        self.assertContains(response, 'Upload Photos / Videos')
+        self.assertContains(response, 'Tag Vendors')
+
+
 class BookingStripeFlowTests(TestCase):
     def setUp(self):
         self.vendor = User.objects.create_user(

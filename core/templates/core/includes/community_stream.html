@@ -1,12 +1,9 @@
-<div class="new-post-card">
-    <div class="new-post-header">
-        <h2>Create a Post</h2>
-        {% if not request.user.is_authenticated and not force_show_post_form %}
-            <a href="{% url 'account_login_choice' %}" class="btn-outline-dark">Login to Post</a>
-        {% endif %}
-    </div>
+{% if force_show_post_form %}
+    <div class="new-post-card">
+        <div class="new-post-header">
+            <h2>Create a Post</h2>
+        </div>
 
-    {% if request.user.is_authenticated or force_show_post_form %}
         <form method="POST" action="{% url 'community_post_create' %}" enctype="multipart/form-data" class="new-post-form">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.path }}">
@@ -56,14 +53,8 @@
                 <button type="submit" class="btn-dark">Post Now</button>
             </div>
         </form>
-    {% else %}
-        <p class="auth-note">
-            You can browse posts without logging in. To create a post or comment, please
-            <a href="{% url 'account_login_choice' %}">sign in</a> or
-            <a href="{% url 'account_register_choice' %}">create an account</a>.
-        </p>
-    {% endif %}
-</div>
+    </div>
+{% endif %}
 
 <div class="post-feed">
     {% if posts %}
