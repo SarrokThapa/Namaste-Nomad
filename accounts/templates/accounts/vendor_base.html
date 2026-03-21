@@ -19,6 +19,14 @@
             <span class="brand-mark"></span>
             <span class="brand-name">Namaste Nomad</span>
         </a>
+        <nav class="topbar-nav" aria-label="Public navigation">
+            <a href="{% url 'home' %}" {% if request.resolver_match.url_name == 'home' %}class="active"{% endif %}>Home</a>
+            <a href="#">Destinations</a>
+            <a href="{% url 'package_treks' %}" {% if request.resolver_match.url_name == 'package_treks' %}class="active"{% endif %}>Treks</a>
+            <a href="{% url 'package_tours' %}" {% if request.resolver_match.url_name == 'package_tours' %}class="active"{% endif %}>Tours</a>
+            <a href="{% url 'package_list' %}" {% if request.resolver_match.url_name == 'package_list' %}class="active"{% endif %}>Packages</a>
+            <a href="{% url 'community_feed' %}" {% if request.resolver_match.url_name == 'community_feed' %}class="active"{% endif %}>Explore</a>
+        </nav>
         <div class="topbar-actions">
             {% include "accounts/includes/notification_bell.html" %}
             <button class="pill-button">

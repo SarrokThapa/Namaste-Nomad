@@ -10,6 +10,53 @@ from .models import Booking, Package
 from .payments import StripeError
 
 
+class PublicNavigationAccessTests(TestCase):
+    def setUp(self):
+        self.traveler = User.objects.create_user(
+            username='traveler_nav',
+            password='traveler-pass-123',
+            email='traveler-nav@example.com',
+            user_type='traveler',
+        )
+        self.vendor = User.objects.create_user(
+            username='vendor_nav',
+            password='vendor-pass-123',
+            email='vendor-nav@example.com',
+            user_type='vendor',
+        )
+        self.admin = User.objects.create_user(
+            username='admin_nav',
+            password='admin-pass-123',
+            email='admin-nav@example.com',
+            user_type='admin',
+            is_staff=True,
+        )
+
+    def _assert_public_pages_accessible(self):
+        public_urls = (
+            reverse('home'),
+            reverse('home_page'),
+            reverse('package_list'),
+            reverse('explore_map'),
+            reverse('community_feed'),
+        )
+        for url in public_urls:
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200, msg=f'Expected 200 for {url}')
+
+    def test_traveler_can_access_public_pages_while_logged_in(self):
+        self.client.force_login(self.traveler)
+        self._assert_public_pages_accessible()
+
+    def test_vendor_can_access_public_pages_while_logged_in(self):
+        self.client.force_login(self.vendor)
+        self._assert_public_pages_accessible()
+
+    def test_admin_can_access_public_pages_while_logged_in(self):
+        self.client.force_login(self.admin)
+        self._assert_public_pages_accessible()
+
+
 class BookingStripeFlowTests(TestCase):
     def setUp(self):
         self.vendor = User.objects.create_user(
