@@ -18,7 +18,13 @@
                     <span class="package-price">Rs {{ package.price|floatformat:0 }}</span>
                 </div>
                 <p class="package-meta">
-                    {{ package.location_name|default:package.location|default:"Nepal" }} · Hosted by {{ package.vendor.get_full_name|default:package.vendor.username }}
+                    {{ package.location_name|default:package.location|default:"Nepal" }} · Hosted by {{ package.vendor.vendor_profile.business_name|default:package.vendor.get_full_name|default:package.vendor.username }}
+                    {% if package.vendor.vendor_profile and package.vendor.vendor_profile.is_verified %}
+                        <span class="verified-badge verified-badge--inline">
+                            <span class="verified-badge-icon">✔</span>
+                            <span>Verified</span>
+                        </span>
+                    {% endif %}
                     {% if package.duration_days %} · {{ package.duration_days }} days{% endif %}
                 </p>
                 <p class="package-meta">

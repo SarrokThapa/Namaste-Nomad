@@ -40,10 +40,21 @@
             {% if vendor_profile and vendor_profile.logo %}
                 <img class="vendor-logo" src="{{ vendor_profile.logo.url }}" alt="{{ vendor_profile.business_name|default:vendor.username }} logo">
             {% endif %}
-            <h1>{{ vendor_profile.business_name|default:vendor.get_full_name|default:vendor.username }}</h1>
+            <div class="vendor-title-row">
+                <h1>{{ vendor_profile.business_name|default:vendor.get_full_name|default:vendor.username }}</h1>
+                {% if vendor_profile and vendor_profile.is_verified %}
+                    <span class="verified-badge verified-badge--inline">
+                        <span class="verified-badge-icon">✔</span>
+                        <span>Verified Vendor</span>
+                    </span>
+                {% endif %}
+            </div>
             <p>{{ vendor_profile.tagline|default:"Trusted local operator on Namaste Nomad." }}</p>
             {% if vendor_profile and vendor_profile.description %}
                 <p class="vendor-description">{{ vendor_profile.description|truncatewords:36 }}</p>
+            {% endif %}
+            {% if vendor_profile and vendor_profile.is_verified %}
+                <p class="verified-note">This vendor is verified by Namaste Nomad for quality and trust.</p>
             {% endif %}
             <div class="vendor-meta">
                 {% if vendor_profile and vendor_profile.website %}

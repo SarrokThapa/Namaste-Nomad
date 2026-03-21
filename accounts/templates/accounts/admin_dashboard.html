@@ -507,6 +507,7 @@
                                         <div class="package-meta">
                                             {{ vendor.email }} - Packages {{ vendor.package_count }} -
                                             {% if vendor.vendor_profile.is_approved %}Approved{% else %}Pending{% endif %} -
+                                            {% if vendor.vendor_profile.is_verified %}Verified{% else %}Unverified{% endif %} -
                                             {% if vendor.is_active %}Active{% else %}Suspended{% endif %}
                                         </div>
                                     </div>
@@ -522,6 +523,19 @@
                                                 {% csrf_token %}
                                                 <input type="hidden" name="action" value="activate">
                                                 <button class="btn small success" type="submit">Activate</button>
+                                            </form>
+                                        {% endif %}
+                                        {% if vendor.vendor_profile.is_verified %}
+                                            <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="unverify">
+                                                <button class="btn small secondary" type="submit">Unverify Vendor</button>
+                                            </form>
+                                        {% else %}
+                                            <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="verify">
+                                                <button class="btn small success" type="submit">Verify Vendor</button>
                                             </form>
                                         {% endif %}
                                     </div>

@@ -25,10 +25,10 @@ class CustomUserAdmin(UserAdmin):
 
 @admin.register(VendorProfile)
 class VendorProfileAdmin(admin.ModelAdmin):
-    list_display = ('business_name', 'owner_name', 'user', 'is_approved', 'created_at')
-    list_filter = ('is_approved', 'created_at')
+    list_display = ('business_name', 'owner_name', 'user', 'is_approved', 'is_verified', 'created_at')
+    list_filter = ('is_approved', 'is_verified', 'created_at')
     search_fields = ('business_name', 'owner_name', 'user__email')
-    actions = ['approve_vendors', 'reject_vendors']
+    actions = ['approve_vendors', 'reject_vendors', 'verify_vendors', 'unverify_vendors']
     
     def approve_vendors(self, request, queryset):
         queryset.update(is_approved=True)
@@ -39,6 +39,16 @@ class VendorProfileAdmin(admin.ModelAdmin):
         queryset.update(is_approved=False)
         self.message_user(request, f'{queryset.count()} vendor(s) rejected.')
     reject_vendors.short_description = 'Reject selected vendors'
+
+    def verify_vendors(self, request, queryset):
+        queryset.update(is_verified=True)
+        self.message_user(request, f'{queryset.count()} vendor(s) verified.')
+    verify_vendors.short_description = 'Verify selected vendors'
+
+    def unverify_vendors(self, request, queryset):
+        queryset.update(is_verified=False)
+        self.message_user(request, f'{queryset.count()} vendor(s) unverified.')
+    unverify_vendors.short_description = 'Unverify selected vendors'
 
 @admin.register(OTP)
 class OTPAdmin(admin.ModelAdmin):

@@ -118,7 +118,13 @@
                                 <h3>{{ package.title }}</h3>
                                 <p class="trek-meta">
                                     {{ package.location|default:"Nepal" }} |
-                                    {{ package.vendor.get_full_name|default:package.vendor.username }}
+                                    {{ package.vendor.vendor_profile.business_name|default:package.vendor.get_full_name|default:package.vendor.username }}
+                                    {% if package.vendor.vendor_profile and package.vendor.vendor_profile.is_verified %}
+                                        <span class="verified-badge verified-badge--inline">
+                                            <span class="verified-badge-icon">✔</span>
+                                            <span>Verified</span>
+                                        </span>
+                                    {% endif %}
                                     {% if package.duration_days %} | {{ package.duration_days }} days{% endif %}
                                 </p>
                                 <div class="trek-rating">
@@ -164,7 +170,13 @@
                                 <h3>{{ package.title }}</h3>
                                 <p class="trek-meta">
                                     {{ package.location|default:"Nepal" }} |
-                                    {{ package.vendor.get_full_name|default:package.vendor.username }}
+                                    {{ package.vendor.vendor_profile.business_name|default:package.vendor.get_full_name|default:package.vendor.username }}
+                                    {% if package.vendor.vendor_profile and package.vendor.vendor_profile.is_verified %}
+                                        <span class="verified-badge verified-badge--inline">
+                                            <span class="verified-badge-icon">✔</span>
+                                            <span>Verified</span>
+                                        </span>
+                                    {% endif %}
                                     {% if package.duration_days %} | {{ package.duration_days }} days{% endif %}
                                 </p>
                                 <p class="trek-meta">{{ package.description|default:"A curated Himalayan trekking package with local guide support."|truncatewords:16 }}</p>

@@ -10,7 +10,15 @@
                 {% endif %}
             </div>
             <div>
-                <div class="author-name">{{ post.author_name }}</div>
+                <div class="author-name">
+                    <span>{{ post.author_name }}</span>
+                    {% if post.author_is_verified_vendor %}
+                        <span class="verified-badge verified-badge--tiny">
+                            <span class="verified-badge-icon">✔</span>
+                            <span>Verified</span>
+                        </span>
+                    {% endif %}
+                </div>
                 <div class="post-date">{{ post.created_at|date:"M d, Y · h:i A" }}</div>
             </div>
         </div>

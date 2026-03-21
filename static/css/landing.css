@@ -301,6 +301,44 @@ section {
     }
 }
 
+.verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    padding: 0.14rem 0.48rem;
+    font-size: 0.72rem;
+    line-height: 1;
+    font-weight: 700;
+    color: #1d4ed8;
+    background: #dbeafe;
+    border: 1px solid #bfdbfe;
+    vertical-align: middle;
+}
+
+.verified-badge-icon {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 0.62rem;
+    line-height: 1;
+}
+
+.verified-badge--inline {
+    margin-left: 0.35rem;
+}
+
+.verified-badge--tiny {
+    margin-left: 0.26rem;
+    padding: 0.12rem 0.4rem;
+    font-size: 0.68rem;
+}
+
 /* Hero */
 .hero {
     background-image:

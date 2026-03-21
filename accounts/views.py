@@ -1332,6 +1332,24 @@ def admin_vendor_action(request, vendor_id):
             related_object_id=vendor.id,
         )
         messages.success(request, f'{vendor.email} activated.')
+    elif action == 'verify':
+        profile.is_verified = True
+        create_notification(
+            vendor,
+            'Your vendor profile is now verified by Namaste Nomad.',
+            Notification.TYPE_VENDOR_APPROVAL,
+            related_object_id=vendor.id,
+        )
+        messages.success(request, f'{vendor.email} marked as verified.')
+    elif action == 'unverify':
+        profile.is_verified = False
+        create_notification(
+            vendor,
+            'Your vendor verification badge was removed by admin.',
+            Notification.TYPE_VENDOR_APPROVAL,
+            related_object_id=vendor.id,
+        )
+        messages.success(request, f'{vendor.email} marked as unverified.')
     else:
         messages.error(request, 'Invalid action.')
         return redirect('admin_dashboard')
@@ -1465,10 +1483,14 @@ def admin_vendor_detail(request, vendor_id):
 
 
 def vendor_public_profile(request, vendor_id):
-    vendor = get_object_or_404(User, id=vendor_id, user_type='vendor')
+    vendor = get_object_or_404(
+        User.objects.select_related('vendor_profile'),
+        id=vendor_id,
+        user_type='vendor',
+    )
     profile = _get_vendor_profile(vendor)
     packages = (
-        Package.objects.filter(vendor=vendor, is_active=True)
+        Package.objects.filter(vendor=vendor, is_active=True).select_related('vendor', 'vendor__vendor_profile')
         .prefetch_related('images')
         .annotate(
             review_count=Count('reviews', distinct=True),

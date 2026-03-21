@@ -51,7 +51,15 @@
             </div>
             <div class="detail-host">
                 <span>Hosted by</span>
-                <strong>{{ package.vendor.get_full_name|default:package.vendor.username }}</strong>
+                <div class="detail-host-name">
+                    <strong>{{ package.vendor.vendor_profile.business_name|default:package.vendor.get_full_name|default:package.vendor.username }}</strong>
+                    {% if package.vendor.vendor_profile and package.vendor.vendor_profile.is_verified %}
+                        <span class="verified-badge verified-badge--inline">
+                            <span class="verified-badge-icon">✔</span>
+                            <span>Verified</span>
+                        </span>
+                    {% endif %}
+                </div>
             </div>
         </div>
         <div class="detail-gallery">

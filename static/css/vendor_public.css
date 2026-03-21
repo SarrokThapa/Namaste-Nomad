@@ -5,6 +5,14 @@
     gap: 0.75rem;
 }
 
+.vendor-title-row {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
 .vendor-logo {
     width: 96px;
     height: 96px;
@@ -21,6 +29,15 @@
     color: #6b7280;
     font-size: 0.95rem;
     line-height: 1.6;
+}
+
+.verified-note {
+    max-width: 720px;
+    margin: 0 auto;
+    color: #1e3a8a;
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.5;
 }
 
 .vendor-meta {

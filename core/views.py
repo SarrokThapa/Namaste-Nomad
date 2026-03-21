@@ -229,6 +229,24 @@ def _vendor_display_name(vendor):
     return "Vendor"
 
 
+def _vendor_is_verified(vendor):
+    if not vendor:
+        return False
+    profile = _safe_related(vendor, 'vendor_profile')
+    return bool(profile and profile.is_verified)
+
+
+def _verified_badge_html(is_verified):
+    if not is_verified:
+        return ""
+    return (
+        '<span class="verified-badge verified-badge--tiny">'
+        '<span class="verified-badge-icon">✔</span>'
+        '<span>Verified</span>'
+        '</span>'
+    )
+
+
 TAG_PATTERN = re.compile(r'@([A-Za-z0-9_.+-]+)')
 
 
@@ -242,6 +260,7 @@ def _caption_with_vendor_links(post):
         vendor.username.lower(): (
             _vendor_display_name(vendor),
             reverse('vendor_public_profile', kwargs={'vendor_id': vendor.id}),
+            _vendor_is_verified(vendor),
         )
         for vendor in tagged_vendors
     }
@@ -251,9 +270,12 @@ def _caption_with_vendor_links(post):
         username = match.group(1)
         key = username.lower()
         if key in vendor_lookup:
-            display, url = vendor_lookup[key]
+            display, url, is_verified = vendor_lookup[key]
             safe_display = escape(display)
-            return f'<a class="tagged-mention" href="{url}">@{safe_display}</a>'
+            return (
+                f'<a class="tagged-mention" href="{url}">@{safe_display}</a>'
+                f'{_verified_badge_html(is_verified)}'
+            )
         return f'@{username}'
 
     linked = TAG_PATTERN.sub(_replace, escaped_caption)
@@ -265,6 +287,7 @@ def _caption_with_vendor_links(post):
         if missing:
             extras = " ".join(
                 f'<a class="tagged-mention" href="{reverse("vendor_public_profile", kwargs={"vendor_id": vendor.id})}">@{escape(_vendor_display_name(vendor))}</a>'
+                f'{_verified_badge_html(_vendor_is_verified(vendor))}'
                 for vendor in missing
             )
             tag_line = f'<span class="caption-tags"><span class="caption-tags-label">Tagged:</span> {extras}</span>'
@@ -293,8 +316,15 @@ def _prepare_feed_posts(post_queryset, viewer=None):
     viewer_id = viewer.id if getattr(viewer, 'is_authenticated', False) else None
 
     for post in posts:
-        post.author_name = _user_display_name(post.user)
+        if getattr(post.user, 'user_type', '') == 'vendor':
+            post.author_name = _vendor_display_name(post.user)
+        else:
+            post.author_name = _user_display_name(post.user)
         post.author_avatar_url = _user_avatar_url(post.user)
+        post.author_is_verified_vendor = (
+            getattr(post.user, 'user_type', '') == 'vendor'
+            and _vendor_is_verified(post.user)
+        )
         post.caption_html = _caption_with_vendor_links(post)
 
         media_items = list(getattr(post, 'media', []).all())
@@ -462,7 +492,7 @@ def home(request):
             is_featured=True,
             vendor_id__in=active_vendor_ids,
         )
-        .select_related('vendor')
+        .select_related('vendor', 'vendor__vendor_profile')
         .prefetch_related('images')
         .annotate(
             review_count=Count('reviews', distinct=True),
@@ -477,7 +507,7 @@ def home(request):
             category=Package.CATEGORY_TREK,
         )
         .exclude(id__in=featured_ids)
-        .select_related('vendor')
+        .select_related('vendor', 'vendor__vendor_profile')
         .prefetch_related('images')
         .annotate(
             review_count=Count('reviews', distinct=True),
@@ -545,6 +575,7 @@ def _apply_package_filters(request, queryset, forced_category=None, budget_thres
     rating_min = _parse_int(params.get('rating'))
     season_filters = params.getlist('season')
     amenity_filters = params.getlist('amenities')
+    verified_only = (params.get('verified_only') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     quick_filter = (params.get('quick') or '').strip().lower()
     sort = (params.get('sort') or 'popular').strip().lower()
 
@@ -637,6 +668,9 @@ def _apply_package_filters(request, queryset, forced_category=None, budget_thres
         if field:
             queryset = queryset.filter(**{field: True})
 
+    if verified_only:
+        queryset = queryset.filter(vendor__vendor_profile__is_verified=True)
+
     if quick_filter == 'best_rated':
         queryset = queryset.filter(avg_rating__gte=4.5)
     elif quick_filter == 'budget':
@@ -675,6 +709,7 @@ def _apply_package_filters(request, queryset, forced_category=None, budget_thres
         'rating': rating_min or '',
         'season': season_filters,
         'amenities': amenity_filters,
+        'verified_only': verified_only,
         'quick': quick_filter,
         'sort': sort,
     }
@@ -682,11 +717,17 @@ def _apply_package_filters(request, queryset, forced_category=None, budget_thres
 
 
 def _public_package_queryset():
-    return Package.objects.filter(is_active=True).prefetch_related('images').annotate(
-        review_count=Count('reviews', distinct=True),
-        avg_rating=Avg('reviews__rating'),
-        booking_count=Count('bookings', distinct=True),
-    ).order_by('-created_at')
+    return (
+        Package.objects.filter(is_active=True)
+        .select_related('vendor', 'vendor__vendor_profile')
+        .prefetch_related('images')
+        .annotate(
+            review_count=Count('reviews', distinct=True),
+            avg_rating=Avg('reviews__rating'),
+            booking_count=Count('bookings', distinct=True),
+        )
+        .order_by('-created_at')
+    )
 
 
 def _wishlist_ids_for_user(user):
@@ -819,7 +860,10 @@ def packages_search_api(request):
     })
 
 def package_detail(request, package_id):
-    package = get_object_or_404(Package.objects.prefetch_related('images'), id=package_id)
+    package = get_object_or_404(
+        Package.objects.select_related('vendor', 'vendor__vendor_profile').prefetch_related('images'),
+        id=package_id,
+    )
     if not package.is_active and package.vendor != request.user:
         return render(request, 'core/package_not_available.html', status=404)
 

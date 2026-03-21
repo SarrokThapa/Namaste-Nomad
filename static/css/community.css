@@ -226,6 +226,9 @@
 }
 
 .author-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     font-weight: 700;
     color: #112131;
 }

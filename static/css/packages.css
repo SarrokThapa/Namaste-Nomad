@@ -228,6 +228,13 @@ body.packages-body {
     color: #111827;
 }
 
+.detail-host-name {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.2rem;
+}
+
 .detail-gallery {
     max-width: 1100px;
     margin: 0 auto;
