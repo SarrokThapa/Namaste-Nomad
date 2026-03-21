@@ -1,0 +1,30 @@
+{% load static %}
+<div class="nav-actions">
+    {% include "accounts/includes/notification_bell.html" %}
+    {% include "accounts/includes/wishlist_icon.html" %}
+    {% if request.user.is_authenticated %}
+        <details class="nav-user-menu">
+            <summary class="nav-user-trigger" aria-label="Open profile menu">
+                <span class="nav-user-avatar">
+                    {% if nav_avatar_url %}
+                        <img src="{{ nav_avatar_url }}" alt="{{ nav_display_name }} avatar">
+                    {% else %}
+                        <img src="{% static 'images/default-avatar.svg' %}" alt="Default avatar">
+                    {% endif %}
+                </span>
+                <span class="nav-user-name">{{ nav_display_name }}</span>
+                <span class="nav-user-caret" aria-hidden="true">▼</span>
+            </summary>
+            <div class="nav-user-dropdown" role="menu" aria-label="Profile menu">
+                <a href="{{ nav_dashboard_url }}" role="menuitem">My Dashboard</a>
+                <a href="{{ nav_profile_url }}" role="menuitem">My Profile</a>
+                <a href="{{ nav_settings_url }}" role="menuitem">Settings</a>
+                <a href="{% url 'logout' %}" role="menuitem" class="nav-user-logout">Logout</a>
+            </div>
+        </details>
+    {% else %}
+        <a href="{% url 'admin_login' %}" class="btn-ghost">Admin</a>
+        <a href="{% url 'account_login_choice' %}" class="btn-ghost">Sign In</a>
+        <a href="{% url 'account_register_choice' %}" class="btn-dark">Sign Up</a>
+    {% endif %}
+</div>

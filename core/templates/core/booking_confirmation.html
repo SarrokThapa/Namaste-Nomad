@@ -31,10 +31,7 @@
                 <a href="{% url 'blog_list' %}">Blog</a>
                 <a href="{% url 'contact' %}">Contact</a>
             </div>
-            <div class="nav-actions">
-                {% include "accounts/includes/notification_bell.html" %}
-                <a href="{% url 'traveler_bookings' %}" class="btn-dark">My Bookings</a>
-            </div>
+            {% include "core/includes/public_nav_actions.html" %}
         </div>
     </nav>
 

@@ -1,7 +1,79 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import BooleanField, OuterRef, Subquery
+from django.urls import reverse
 
 from core.models import SupportConversation, SupportMessage, Wishlist
 from .models import Notification
+
+
+def _safe_related(instance, relation_name):
+    try:
+        return getattr(instance, relation_name)
+    except ObjectDoesNotExist:
+        return None
+
+
+def _display_name(user):
+    full_name = user.get_full_name().strip()
+    return full_name or user.username or user.email or 'Account'
+
+
+def _avatar_url(user, user_type):
+    if user_type == 'traveler':
+        profile = _safe_related(user, 'traveler_profile')
+        if profile and profile.avatar:
+            return profile.avatar.url
+    elif user_type == 'vendor':
+        profile = _safe_related(user, 'vendor_profile')
+        if profile and profile.logo:
+            return profile.logo.url
+    elif user_type == 'admin':
+        profile = _safe_related(user, 'admin_profile')
+        if profile and profile.avatar:
+            return profile.avatar.url
+    return ''
+
+
+def _dashboard_url(user_type):
+    if user_type == 'traveler':
+        return reverse('traveler_home')
+    if user_type == 'vendor':
+        return reverse('vendor_dashboard')
+    if user_type == 'admin':
+        return reverse('admin_dashboard')
+    return reverse('home')
+
+
+def _profile_url(user_type):
+    if user_type == 'traveler':
+        return reverse('traveler_profile')
+    if user_type == 'vendor':
+        return reverse('vendor_profile')
+    if user_type == 'admin':
+        return reverse('admin_profile')
+    return reverse('home')
+
+
+def _settings_url(user_type):
+    if user_type == 'traveler':
+        return reverse('traveler_profile')
+    if user_type == 'vendor':
+        return reverse('vendor_settings')
+    if user_type == 'admin':
+        return reverse('admin_profile')
+    return reverse('home')
+
+
+def _navbar_context(user):
+    user_type = getattr(user, 'user_type', '')
+    return {
+        'nav_user_type': user_type,
+        'nav_display_name': _display_name(user),
+        'nav_avatar_url': _avatar_url(user, user_type),
+        'nav_dashboard_url': _dashboard_url(user_type),
+        'nav_profile_url': _profile_url(user_type),
+        'nav_settings_url': _settings_url(user_type),
+    }
 
 
 def support_context(request):
@@ -9,6 +81,7 @@ def support_context(request):
     if not getattr(user, 'is_authenticated', False):
         return {}
 
+    payload = _navbar_context(user)
     user_type = getattr(user, 'user_type', '')
     notification_count = Notification.objects.filter(user=user, is_read=False).count()
     wishlist_count = 0
@@ -19,19 +92,19 @@ def support_context(request):
             user=user,
         ).order_by('-created_at').first()
         if not conversation:
-            payload = {
+            payload.update({
                 'support_unread_count': 0,
                 'notifications_unread_count': notification_count,
-            }
+            })
             if user_type == 'traveler':
                 payload['wishlist_count'] = wishlist_count
             return payload
         last_message = conversation.messages.order_by('-created_at', '-id').first()
         unread = 1 if last_message and last_message.is_admin_reply else 0
-        payload = {
+        payload.update({
             'support_unread_count': unread,
             'notifications_unread_count': notification_count,
-        }
+        })
         if user_type == 'traveler':
             payload['wishlist_count'] = wishlist_count
         return payload
@@ -49,12 +122,14 @@ def support_context(request):
             )
         )
         unread_count = conversations.filter(last_message_is_admin=False).count()
-        return {
+        payload.update({
             'support_inbox_unread_count': unread_count,
             'notifications_unread_count': notification_count,
-        }
+        })
+        return payload
 
-    return {
+    payload.update({
         'notifications_unread_count': notification_count,
         'wishlist_count': wishlist_count,
-    }
+    })
+    return payload

@@ -56,8 +56,8 @@
 
             <form method="POST" action="{% url 'traveler_login' %}">
                 {% csrf_token %}
-                {% if request.GET.next %}
-                    <input type="hidden" name="next" value="{{ request.GET.next }}">
+                {% if request.GET.next or request.POST.next %}
+                    <input type="hidden" name="next" value="{{ request.POST.next|default:request.GET.next }}">
                 {% endif %}
                 <div class="form-group">
                     <label>Email</label>

@@ -117,6 +117,8 @@ section {
 .nav-actions {
     display: flex;
     gap: 0.75rem;
+    align-items: center;
+    margin-left: auto;
 }
 
 .btn-ghost,
@@ -141,6 +143,162 @@ section {
     color: #fff;
     background: var(--accent-2);
     border-color: var(--accent-2);
+}
+
+.wishlist-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    background: #fff;
+    color: #0f172a;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.wishlist-link-icon {
+    display: inline-flex;
+    width: 18px;
+    height: 18px;
+    color: #ef4444;
+}
+
+.wishlist-link-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.wishlist-badge,
+.nav-count,
+.wishlist-count-pill {
+    background: #ef4444;
+    color: #fff;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0.15rem 0.45rem;
+    min-width: 22px;
+    text-align: center;
+}
+
+.nav-user-menu {
+    position: relative;
+}
+
+.nav-user-menu > summary {
+    list-style: none;
+}
+
+.nav-user-menu > summary::-webkit-details-marker {
+    display: none;
+}
+
+.nav-user-trigger {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.25rem 0.35rem 0.25rem 0.25rem;
+    border-radius: 999px;
+    border: 1px solid #cfd7e2;
+    background: #fff;
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.nav-user-trigger:focus-visible {
+    outline: 2px solid rgba(43, 179, 166, 0.45);
+    outline-offset: 2px;
+}
+
+.nav-user-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 1px solid #dbe4ef;
+    background: #eef3f9;
+    flex-shrink: 0;
+}
+
+.nav-user-avatar img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.nav-user-name {
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.85rem;
+}
+
+.nav-user-caret {
+    font-size: 0.62rem;
+    color: #6a7380;
+    transition: transform 0.2s ease;
+}
+
+.nav-user-menu[open] .nav-user-caret {
+    transform: rotate(180deg);
+}
+
+.nav-user-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.45rem);
+    min-width: 190px;
+    background: #fff;
+    border: 1px solid #d8e0ea;
+    border-radius: 0.8rem;
+    box-shadow: 0 16px 36px rgba(12, 27, 42, 0.16);
+    padding: 0.4rem;
+    z-index: 1200;
+    animation: navUserDropdownIn 0.18s ease both;
+}
+
+.nav-user-dropdown a {
+    display: block;
+    text-decoration: none;
+    color: var(--ink);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.55rem;
+}
+
+.nav-user-dropdown a:hover,
+.nav-user-dropdown a:focus-visible {
+    background: #eef4fa;
+    color: #0c1b2a;
+}
+
+.nav-user-dropdown .nav-user-logout {
+    color: #b42318;
+}
+
+.nav-user-dropdown .nav-user-logout:hover,
+.nav-user-dropdown .nav-user-logout:focus-visible {
+    background: #fff1f1;
+    color: #912018;
+}
+
+@keyframes navUserDropdownIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 /* Hero */
@@ -751,6 +909,18 @@ section {
         display: none;
     }
 
+    .nav-user-name {
+        display: none;
+    }
+
+    .nav-user-trigger {
+        padding: 0.25rem;
+    }
+
+    .wishlist-link-text {
+        display: none;
+    }
+
     .search-card {
         grid-template-columns: 1fr 1fr;
     }
@@ -760,6 +930,16 @@ section {
     .nav-container {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .nav-actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .nav-user-dropdown {
+        left: 0;
+        right: auto;
     }
 
     .hero {

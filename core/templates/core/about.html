@@ -31,11 +31,7 @@
                 <a href="{% url 'blog_list' %}">Blog</a>
                 <a href="{% url 'contact' %}">Contact</a>
             </div>
-            <div class="nav-actions">
-                {% include "accounts/includes/notification_bell.html" %}
-                <a href="{% url 'account_login_choice' %}" class="btn-ghost">Sign In</a>
-                <a href="{% url 'account_register_choice' %}" class="btn-dark">Sign Up</a>
-            </div>
+            {% include "core/includes/public_nav_actions.html" %}
         </div>
     </nav>
 

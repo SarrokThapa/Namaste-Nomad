@@ -149,6 +149,17 @@ def _safe_next_url(request, fallback_name):
     return reverse(fallback_name)
 
 
+def _dashboard_route_name(user):
+    user_type = getattr(user, 'user_type', '')
+    if user_type == 'traveler':
+        return 'traveler_home'
+    if user_type == 'vendor':
+        return 'vendor_dashboard'
+    if user_type == 'admin':
+        return 'admin_dashboard'
+    return 'home'
+
+
 TRAVELER_CATEGORY_LABELS = {
     'adventure': 'Adventure',
     'cultural': 'Cultural',
@@ -1891,10 +1902,14 @@ def traveler_profile(request):
 
 @csrf_protect
 def vendor_login(request):
+    if request.user.is_authenticated:
+        return redirect(_dashboard_route_name(request.user))
+
     if request.method == 'POST':
         email = request.POST.get('email')
         password = request.POST.get('password')
         remember_me = request.POST.get('remember_me')
+        next_url = _safe_next_url(request, 'vendor_dashboard')
         
         try:
             user = User.objects.get(email=email, user_type='vendor')
@@ -1909,7 +1924,7 @@ def vendor_login(request):
                 login(request, user)
                 if not remember_me:
                     request.session.set_expiry(0)
-                return redirect('vendor_dashboard')
+                return redirect(next_url)
             else:
                 messages.error(request, 'Invalid credentials')
         except User.DoesNotExist:
@@ -1972,6 +1987,9 @@ def vendor_register(request):
 
 @csrf_protect
 def traveler_login(request):
+    if request.user.is_authenticated:
+        return redirect(_dashboard_route_name(request.user))
+
     if request.method == 'POST':
         email = request.POST.get('email')
         password = request.POST.get('password')
@@ -1995,10 +2013,14 @@ def traveler_login(request):
 
 @csrf_protect
 def admin_login(request):
+    if request.user.is_authenticated:
+        return redirect(_dashboard_route_name(request.user))
+
     if request.method == 'POST':
         email = request.POST.get('email')
         password = request.POST.get('password')
         remember_me = request.POST.get('remember_me')
+        next_url = _safe_next_url(request, 'admin_dashboard')
         
         try:
             user = User.objects.get(email=email, user_type='admin')
@@ -2008,7 +2030,7 @@ def admin_login(request):
                 login(request, user)
                 if not remember_me:
                     request.session.set_expiry(0)
-                return redirect('admin_dashboard')
+                return redirect(next_url)
             else:
                 messages.error(request, 'Invalid credentials or insufficient permissions')
         except User.DoesNotExist:
@@ -2037,12 +2059,10 @@ def verify_otp_view(request):
             del request.session['user_id']
             
             messages.success(request, 'Email verified successfully!')
-            if user.user_type == 'vendor':
-                return redirect('vendor_dashboard')
-            else:
+            if user.user_type == 'traveler':
                 if _get_traveler_profile(user) is None:
                     TravelerProfile.objects.create(user=user)
-                return redirect('traveler_home')
+            return redirect(_dashboard_route_name(user))
         else:
             messages.error(request, 'Invalid or expired OTP')
     
@@ -2126,8 +2146,12 @@ def landing(request):
 
 
 def account_register_choice(request):
+    if request.user.is_authenticated:
+        return redirect(_dashboard_route_name(request.user))
     return render(request, 'accounts/register_choice.html')
 
 
 def account_login_choice(request):
+    if request.user.is_authenticated:
+        return redirect(_dashboard_route_name(request.user))
     return render(request, 'accounts/login_choice.html')
