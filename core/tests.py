@@ -167,6 +167,23 @@ class BookingStripeFlowTests(TestCase):
         self.package.save(update_fields=['available_slots'])
         return booking
 
+    def _create_pending_esewa_booking(self):
+        booking = Booking.objects.create(
+            package=self.package,
+            traveler=self.traveler,
+            number_of_people=2,
+            travel_date=self.travel_date,
+            special_notes='Need pickup from airport.',
+            status=Booking.STATUS_PAYMENT_PENDING,
+            payment_method=Booking.PAYMENT_METHOD_ESEWA,
+            payment_status=Booking.PAYMENT_STATUS_PENDING,
+            payment_expires_at=timezone.now() + timedelta(minutes=30),
+            total_price='0',
+        )
+        self.package.available_slots = 3
+        self.package.save(update_fields=['available_slots'])
+        return booking
+
     @patch('core.views.create_checkout_session')
     def test_package_book_redirects_to_stripe_checkout(self, mock_create_checkout_session):
         mock_create_checkout_session.return_value = {
@@ -219,7 +236,7 @@ class BookingStripeFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Stripe unavailable.')
         self.assertEqual(booking.status, Booking.STATUS_CANCELLED)
-        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_CANCELLED)
+        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_FAILED)
         self.assertEqual(self.package.available_slots, 5)
 
     @patch('core.views.retrieve_checkout_session')
@@ -243,7 +260,7 @@ class BookingStripeFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(booking.status, Booking.STATUS_PENDING)
-        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_PAID)
+        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_COMPLETED)
         self.assertEqual(booking.payment_reference, 'pi_test_123')
         self.assertIsNotNone(booking.paid_at)
 
@@ -259,7 +276,7 @@ class BookingStripeFlowTests(TestCase):
 
         self.assertRedirects(response, reverse('package_book', args=[self.package.id]))
         self.assertEqual(booking.status, Booking.STATUS_CANCELLED)
-        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_CANCELLED)
+        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_FAILED)
         self.assertEqual(self.package.available_slots, 5)
         mock_expire_checkout_session.assert_called_once_with('cs_test_123')
 
@@ -276,4 +293,90 @@ class BookingStripeFlowTests(TestCase):
 
         self.assertRedirects(response, reverse('vendor_bookings'))
         self.assertEqual(booking.status, Booking.STATUS_PAYMENT_PENDING)
+        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_PENDING)
+
+    def test_package_book_renders_esewa_checkout_form(self):
+        self.client.force_login(self.traveler)
+
+        response = self.client.post(
+            reverse('package_book', args=[self.package.id]),
+            data={
+                'number_of_people': 2,
+                'travel_date': self.travel_date.isoformat(),
+                'special_notes': 'Vegetarian meals',
+                'payment_method': Booking.PAYMENT_METHOD_ESEWA,
+            },
+        )
+
+        booking = Booking.objects.get()
+        self.package.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'https://uat.esewa.com.np/epay/main')
+        self.assertContains(response, 'name="pid"', html=False)
+        self.assertContains(response, f'value="{booking.id}"', html=False)
+        self.assertEqual(booking.status, Booking.STATUS_PAYMENT_PENDING)
+        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_PENDING)
+        self.assertEqual(booking.payment_method, Booking.PAYMENT_METHOD_ESEWA)
+        self.assertEqual(self.package.available_slots, 3)
+
+    @patch('core.views.verify_esewa_payment', return_value=True)
+    def test_esewa_success_marks_booking_completed_after_verification(self, _mock_verify):
+        booking = self._create_pending_esewa_booking()
+        self.client.force_login(self.traveler)
+
+        response = self.client.get(
+            reverse('booking_esewa_success', args=[booking.id]),
+            data={
+                'refId': 'ESEWA_TXN_123',
+                'pid': str(booking.id),
+                'amt': '30000.00',
+            },
+        )
+
+        booking.refresh_from_db()
+
+        self.assertRedirects(response, reverse('booking_confirmation', args=[booking.id]))
+        self.assertEqual(booking.status, Booking.STATUS_PENDING)
+        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_COMPLETED)
+        self.assertEqual(booking.payment_reference, 'ESEWA_TXN_123')
+        self.assertEqual(booking.esewa_transaction_id, 'ESEWA_TXN_123')
+        self.assertEqual(str(booking.paid_amount), '30000.00')
+
+    def test_esewa_success_marks_booking_failed_when_amount_mismatch(self):
+        booking = self._create_pending_esewa_booking()
+        self.client.force_login(self.traveler)
+
+        response = self.client.get(
+            reverse('booking_esewa_success', args=[booking.id]),
+            data={
+                'refId': 'ESEWA_TXN_123',
+                'pid': str(booking.id),
+                'amt': '10.00',
+            },
+        )
+
+        booking.refresh_from_db()
+
+        self.assertRedirects(response, reverse('booking_confirmation', args=[booking.id]))
+        self.assertEqual(booking.status, Booking.STATUS_PAYMENT_PENDING)
+        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_FAILED)
+
+    def test_esewa_failure_marks_failed_and_allows_retry(self):
+        booking = self._create_pending_esewa_booking()
+        self.client.force_login(self.traveler)
+
+        response = self.client.get(reverse('booking_esewa_failure', args=[booking.id]))
+
+        booking.refresh_from_db()
+        self.package.refresh_from_db()
+
+        self.assertRedirects(response, reverse('booking_confirmation', args=[booking.id]))
+        self.assertEqual(booking.status, Booking.STATUS_PAYMENT_PENDING)
+        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_FAILED)
+        self.assertEqual(self.package.available_slots, 3)
+
+        retry_response = self.client.get(reverse('booking_esewa_checkout', args=[booking.id]))
+        booking.refresh_from_db()
+        self.assertEqual(retry_response.status_code, 200)
         self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_PENDING)

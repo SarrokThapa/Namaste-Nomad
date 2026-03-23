@@ -814,7 +814,7 @@ def vendor_booking_status_update(request, booking_id):
 
     if (
         requested_status == Booking.STATUS_CONFIRMED
-        and booking.payment_status != Booking.PAYMENT_STATUS_PAID
+        and booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED
     ):
         messages.error(request, 'Only paid bookings can be confirmed.')
         return redirect(next_url)

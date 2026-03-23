@@ -45,12 +45,22 @@
 
     <main class="booking-shell">
         <section class="booking-confirm-card">
-            <h1>{% if booking.payment_status == 'paid' %}Booking Payment Confirmed{% else %}Booking Reserved{% endif %}</h1>
-            <p>
-                {% if booking.payment_status == 'paid' %}
-                    Your Stripe payment was received successfully. The vendor will review and confirm the trip shortly.
+            <h1>
+                {% if booking.payment_status == 'completed' %}
+                    Payment Successful
+                {% elif booking.payment_status == 'failed' %}
+                    Payment Failed
                 {% else %}
-                    Your booking is still waiting for Stripe payment confirmation.
+                    Booking Reserved
+                {% endif %}
+            </h1>
+            <p>
+                {% if booking.payment_status == 'completed' %}
+                    Your {{ booking.get_payment_method_display }} payment was received successfully. The vendor will review and confirm the trip shortly.
+                {% elif booking.payment_status == 'failed' %}
+                    Your payment was not completed. Please try again.
+                {% else %}
+                    Your booking is still waiting for payment confirmation.
                 {% endif %}
             </p>
             <div class="booking-confirm-grid">
@@ -98,6 +108,9 @@
                 </div>
             {% endif %}
             <div class="booking-form-actions">
+                {% if can_retry_esewa %}
+                    <a href="{% url 'booking_esewa_checkout' booking.id %}" class="btn-primary">Pay with eSewa</a>
+                {% endif %}
                 <a href="{% url 'traveler_bookings' %}" class="btn-primary">Go to My Bookings</a>
                 <a href="{% url 'package_detail' booking.package.id %}" class="btn-outline-dark">Back to Package</a>
             </div>

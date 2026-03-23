@@ -185,13 +185,13 @@
                         </div>
                         <div class="booking-actions">
                             <span class="status {{ booking.status }}">{{ booking.get_status_display }}</span>
-                            {% if booking.status != 'confirmed' and booking.payment_status == 'paid' %}
+                            {% if booking.status != 'confirmed' and booking.payment_status == 'completed' %}
                                 <form method="POST" action="{% url 'vendor_booking_status_update' booking.id %}">
                                     {% csrf_token %}
                                     <input type="hidden" name="next" value="{{ request.path }}">
                                     <button type="submit" name="status" value="confirmed" class="btn small success">Confirm</button>
                                 </form>
-                            {% elif booking.status != 'cancelled' and booking.payment_status != 'paid' %}
+                            {% elif booking.status != 'cancelled' and booking.payment_status != 'completed' %}
                                 <span class="status payment-pending">Waiting for payment</span>
                             {% endif %}
                             {% if booking.status != 'cancelled' %}

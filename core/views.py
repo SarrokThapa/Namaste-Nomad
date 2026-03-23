@@ -1,5 +1,6 @@
 # core/views.py
 from datetime import date, timedelta
+from decimal import Decimal, InvalidOperation
 import re
 
 from django.conf import settings
@@ -29,10 +30,14 @@ from accounts.notifications import create_notification, notify_admins
 from .forms import BookingForm, CommentForm, PostEditForm, PostForm, ReviewForm
 from .models import Booking, Comment, Package, Post, PostMedia, Review, Wishlist
 from .payments import (
+    EsewaError,
     StripeError,
+    build_esewa_payment_payload,
     create_checkout_session,
     expire_checkout_session,
+    get_esewa_payment_url,
     retrieve_checkout_session,
+    verify_esewa_payment,
 )
 
 BLOG_POSTS = [
@@ -418,7 +423,10 @@ def _booking_payment_expires_at():
 def _expire_stale_pending_bookings(package_id=None):
     stale_bookings = Booking.objects.select_for_update().filter(
         status=Booking.STATUS_PAYMENT_PENDING,
-        payment_status=Booking.PAYMENT_STATUS_PENDING,
+        payment_status__in=[
+            Booking.PAYMENT_STATUS_PENDING,
+            Booking.PAYMENT_STATUS_FAILED,
+        ],
         payment_expires_at__isnull=False,
         payment_expires_at__lt=timezone.now(),
     )
@@ -430,7 +438,7 @@ def _expire_stale_pending_bookings(package_id=None):
             available_slots=F('available_slots') + stale_booking.number_of_people,
         )
         stale_booking.status = Booking.STATUS_CANCELLED
-        stale_booking.payment_status = Booking.PAYMENT_STATUS_EXPIRED
+        stale_booking.payment_status = Booking.PAYMENT_STATUS_FAILED
         stale_booking.payment_expires_at = None
         stale_booking.save(update_fields=['status', 'payment_status', 'payment_expires_at'])
 
@@ -438,7 +446,7 @@ def _expire_stale_pending_bookings(package_id=None):
 def _cancel_unpaid_booking(booking, payment_status):
     if (
         booking.status == Booking.STATUS_PAYMENT_PENDING
-        and booking.payment_status == Booking.PAYMENT_STATUS_PENDING
+        and booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED
     ):
         Package.objects.filter(id=booking.package_id).update(
             available_slots=F('available_slots') + booking.number_of_people,
@@ -449,18 +457,26 @@ def _cancel_unpaid_booking(booking, payment_status):
     booking.save(update_fields=['status', 'payment_status', 'payment_expires_at'])
 
 
-def _complete_paid_booking(booking, session_data):
+def _complete_paid_booking(
+    booking,
+    *,
+    payment_reference='',
+    stripe_checkout_session_id='',
+    esewa_transaction_id='',
+    paid_amount=None,
+):
     booking.status = Booking.STATUS_PENDING
-    booking.payment_status = Booking.PAYMENT_STATUS_PAID
-    booking.payment_reference = (
-        session_data.get('payment_intent')
-        or session_data.get('id')
-        or booking.payment_reference
-    )
-    booking.stripe_checkout_session_id = (
-        session_data.get('id')
-        or booking.stripe_checkout_session_id
-    )
+    booking.payment_status = Booking.PAYMENT_STATUS_COMPLETED
+    if payment_reference:
+        booking.payment_reference = payment_reference
+    if stripe_checkout_session_id:
+        booking.stripe_checkout_session_id = stripe_checkout_session_id
+    if esewa_transaction_id:
+        booking.esewa_transaction_id = esewa_transaction_id
+    if paid_amount is not None:
+        booking.paid_amount = paid_amount
+    elif booking.paid_amount is None:
+        booking.paid_amount = booking.total_price
     if not booking.paid_at:
         booking.paid_at = timezone.now()
     booking.payment_expires_at = None
@@ -470,9 +486,78 @@ def _complete_paid_booking(booking, session_data):
             'payment_status',
             'payment_reference',
             'stripe_checkout_session_id',
+            'esewa_transaction_id',
+            'paid_amount',
             'paid_at',
             'payment_expires_at',
         ]
+    )
+
+
+def _mark_payment_failed(booking):
+    if booking.payment_status == Booking.PAYMENT_STATUS_COMPLETED:
+        return
+    booking.payment_status = Booking.PAYMENT_STATUS_FAILED
+    booking.save(update_fields=['payment_status'])
+
+
+def _as_money_decimal(value):
+    try:
+        return Decimal(str(value)).quantize(Decimal('0.01'))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+
+
+def _notify_booking_created(booking):
+    if booking.vendor:
+        create_notification(
+            booking.vendor,
+            f'New booking request for {booking.package.title}.',
+            Notification.TYPE_BOOKING,
+            related_object_id=booking.id,
+        )
+    notify_admins(
+        f'New booking created for {booking.package.title}.',
+        Notification.TYPE_BOOKING,
+        related_object_id=booking.id,
+    )
+
+
+def _notify_booking_paid(booking):
+    if booking.vendor:
+        create_notification(
+            booking.vendor,
+            f'Payment completed for booking #{booking.id} ({booking.package.title}).',
+            Notification.TYPE_BOOKING,
+            related_object_id=booking.id,
+        )
+    notify_admins(
+        f'Payment completed for booking #{booking.id} ({booking.package.title}).',
+        Notification.TYPE_BOOKING,
+        related_object_id=booking.id,
+    )
+
+
+def _render_esewa_checkout(request, booking):
+    success_url = request.build_absolute_uri(
+        reverse('booking_esewa_success', kwargs={'booking_id': booking.id}),
+    )
+    failure_url = request.build_absolute_uri(
+        reverse('booking_esewa_failure', kwargs={'booking_id': booking.id}),
+    )
+    payload = build_esewa_payment_payload(
+        booking=booking,
+        success_url=success_url,
+        failure_url=failure_url,
+    )
+    return render(
+        request,
+        'core/esewa_redirect.html',
+        {
+            'booking': booking,
+            'esewa_payment_url': get_esewa_payment_url(),
+            'esewa_payload': payload,
+        },
     )
 
 
@@ -970,6 +1055,7 @@ def package_book(request, package_id):
     if request.method == 'POST':
         form = BookingForm(request.POST, package=package)
         if form.is_valid():
+            selected_payment_method = form.cleaned_data['payment_method']
             with transaction.atomic():
                 _expire_stale_pending_bookings(package_id=package.id)
                 locked_package = Package.objects.select_for_update().get(id=package.id)
@@ -985,7 +1071,7 @@ def package_book(request, package_id):
                     booking.package = locked_package
                     booking.traveler = request.user
                     booking.status = Booking.STATUS_PAYMENT_PENDING
-                    booking.payment_method = Booking.PAYMENT_METHOD_STRIPE
+                    booking.payment_method = selected_payment_method
                     booking.payment_status = Booking.PAYMENT_STATUS_PENDING
                     booking.source = 'direct'
                     booking.payment_expires_at = _booking_payment_expires_at()
@@ -997,60 +1083,67 @@ def package_book(request, package_id):
             if form.errors:
                 package.refresh_from_db(fields=['available_slots'])
             else:
-                success_url = (
-                    request.build_absolute_uri(
-                        reverse('booking_confirmation', kwargs={'booking_id': booking.id}),
-                    )
-                    + '?session_id={CHECKOUT_SESSION_ID}'
-                )
-                cancel_url = request.build_absolute_uri(
-                    reverse('booking_checkout_cancel', kwargs={'booking_id': booking.id}),
-                )
-                try:
-                    session_data = create_checkout_session(
-                        booking=booking,
-                        success_url=success_url,
-                        cancel_url=cancel_url,
-                    )
-                    checkout_url = session_data.get('url')
-                    if not checkout_url:
-                        raise StripeError('Stripe did not return a checkout URL.')
-                except StripeError as exc:
-                    with transaction.atomic():
-                        locked_booking = Booking.objects.select_for_update().get(id=booking.id)
-                        _cancel_unpaid_booking(
-                            locked_booking,
-                            Booking.PAYMENT_STATUS_CANCELLED,
+                if booking.payment_method == Booking.PAYMENT_METHOD_STRIPE:
+                    success_url = (
+                        request.build_absolute_uri(
+                            reverse('booking_confirmation', kwargs={'booking_id': booking.id}),
                         )
-                    form.add_error(None, str(exc))
-                    package.refresh_from_db(fields=['available_slots'])
+                        + '?session_id={CHECKOUT_SESSION_ID}'
+                    )
+                    cancel_url = request.build_absolute_uri(
+                        reverse('booking_checkout_cancel', kwargs={'booking_id': booking.id}),
+                    )
+                    try:
+                        session_data = create_checkout_session(
+                            booking=booking,
+                            success_url=success_url,
+                            cancel_url=cancel_url,
+                        )
+                        checkout_url = session_data.get('url')
+                        if not checkout_url:
+                            raise StripeError('Stripe did not return a checkout URL.')
+                    except StripeError as exc:
+                        with transaction.atomic():
+                            locked_booking = Booking.objects.select_for_update().get(id=booking.id)
+                            _cancel_unpaid_booking(
+                                locked_booking,
+                                Booking.PAYMENT_STATUS_FAILED,
+                            )
+                        form.add_error(None, str(exc))
+                        package.refresh_from_db(fields=['available_slots'])
+                    else:
+                        booking.stripe_checkout_session_id = session_data.get('id', '')
+                        booking.payment_reference = (
+                            session_data.get('payment_intent')
+                            or session_data.get('id', '')
+                        )
+                        booking.save(update_fields=['stripe_checkout_session_id', 'payment_reference'])
+                        _notify_booking_created(booking)
+                        return redirect(checkout_url)
+                elif booking.payment_method == Booking.PAYMENT_METHOD_ESEWA:
+                    try:
+                        response = _render_esewa_checkout(request, booking)
+                    except EsewaError as exc:
+                        with transaction.atomic():
+                            locked_booking = Booking.objects.select_for_update().get(id=booking.id)
+                            _cancel_unpaid_booking(
+                                locked_booking,
+                                Booking.PAYMENT_STATUS_FAILED,
+                            )
+                        form.add_error(None, str(exc))
+                        package.refresh_from_db(fields=['available_slots'])
+                    else:
+                        _notify_booking_created(booking)
+                        return response
                 else:
-                    booking.stripe_checkout_session_id = session_data.get('id', '')
-                    booking.payment_reference = (
-                        session_data.get('payment_intent')
-                        or session_data.get('id', '')
-                    )
-                    booking.save(update_fields=['stripe_checkout_session_id', 'payment_reference'])
-                    if booking.vendor:
-                        create_notification(
-                            booking.vendor,
-                            f'New booking request for {booking.package.title}.',
-                            Notification.TYPE_BOOKING,
-                            related_object_id=booking.id,
-                        )
-                    notify_admins(
-                        f'New booking created for {booking.package.title}.',
-                        Notification.TYPE_BOOKING,
-                        related_object_id=booking.id,
-                    )
-                    return redirect(checkout_url)
+                    form.add_error('payment_method', 'Unsupported payment method selected.')
     else:
         form = BookingForm(
             package=package,
             initial={
                 'number_of_people': 1,
                 'travel_date': timezone.localdate(),
-                'payment_method': Booking.PAYMENT_METHOD_STRIPE,
+                'payment_method': Booking.PAYMENT_METHOD_ESEWA,
             },
         )
 
@@ -1075,7 +1168,10 @@ def booking_confirmation(request, booking_id):
         traveler=request.user,
     )
 
-    if booking.payment_status != Booking.PAYMENT_STATUS_PAID:
+    if (
+        booking.payment_method == Booking.PAYMENT_METHOD_STRIPE
+        and booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED
+    ):
         session_id = request.GET.get('session_id') or booking.stripe_checkout_session_id
         if session_id:
             try:
@@ -1097,11 +1193,24 @@ def booking_confirmation(request, booking_id):
                         )
                         if (
                             locked_booking.status == Booking.STATUS_PAYMENT_PENDING
-                            and locked_booking.payment_status != Booking.PAYMENT_STATUS_PAID
+                            and locked_booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED
                         ):
-                            _complete_paid_booking(locked_booking, session_data)
+                            _complete_paid_booking(
+                                locked_booking,
+                                payment_reference=(
+                                    session_data.get('payment_intent')
+                                    or session_data.get('id')
+                                    or locked_booking.payment_reference
+                                ),
+                                stripe_checkout_session_id=(
+                                    session_data.get('id')
+                                    or locked_booking.stripe_checkout_session_id
+                                ),
+                                paid_amount=_as_money_decimal(locked_booking.total_price),
+                            )
+                            _notify_booking_paid(locked_booking)
                         booking = locked_booking
-                    if booking.payment_status == Booking.PAYMENT_STATUS_PAID:
+                    if booking.payment_status == Booking.PAYMENT_STATUS_COMPLETED:
                         messages.success(
                             request,
                             'Stripe payment received. Your booking is now waiting for vendor confirmation.',
@@ -1117,7 +1226,19 @@ def booking_confirmation(request, booking_id):
                         'Your Stripe checkout is not marked as paid yet.',
                     )
 
-    return render(request, 'core/booking_confirmation.html', {'booking': booking})
+    can_retry_esewa = (
+        booking.payment_method == Booking.PAYMENT_METHOD_ESEWA
+        and booking.status == Booking.STATUS_PAYMENT_PENDING
+        and booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED
+    )
+    return render(
+        request,
+        'core/booking_confirmation.html',
+        {
+            'booking': booking,
+            'can_retry_esewa': can_retry_esewa,
+        },
+    )
 
 
 @login_required(login_url='account_login_choice')
@@ -1128,7 +1249,7 @@ def booking_checkout_cancel(request, booking_id):
         traveler=request.user,
     )
 
-    if booking.payment_status == Booking.PAYMENT_STATUS_PAID:
+    if booking.payment_status == Booking.PAYMENT_STATUS_COMPLETED:
         return redirect('booking_confirmation', booking_id=booking.id)
 
     with transaction.atomic():
@@ -1137,13 +1258,19 @@ def booking_checkout_cancel(request, booking_id):
             id=booking_id,
             traveler=request.user,
         )
-        if locked_booking.payment_status == Booking.PAYMENT_STATUS_PENDING:
+        if (
+            locked_booking.status == Booking.STATUS_PAYMENT_PENDING
+            and locked_booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED
+        ):
             _cancel_unpaid_booking(
                 locked_booking,
-                Booking.PAYMENT_STATUS_CANCELLED,
+                Booking.PAYMENT_STATUS_FAILED,
             )
 
-    if booking.stripe_checkout_session_id:
+    if (
+        booking.payment_method == Booking.PAYMENT_METHOD_STRIPE
+        and booking.stripe_checkout_session_id
+    ):
         try:
             expire_checkout_session(booking.stripe_checkout_session_id)
         except StripeError:
@@ -1151,9 +1278,186 @@ def booking_checkout_cancel(request, booking_id):
 
     messages.info(
         request,
-        'Stripe checkout was cancelled. Your reserved slots were released.',
+        'Payment was cancelled. Your reserved slots were released.',
     )
     return redirect('package_book', package_id=booking.package_id)
+
+
+@login_required(login_url='account_login_choice')
+def booking_esewa_checkout(request, booking_id):
+    booking = get_object_or_404(
+        Booking.objects.select_related('package', 'traveler'),
+        id=booking_id,
+        traveler=request.user,
+    )
+
+    if booking.payment_method != Booking.PAYMENT_METHOD_ESEWA:
+        messages.error(request, 'This booking is not set to eSewa payment.')
+        return redirect('booking_confirmation', booking_id=booking.id)
+
+    if booking.payment_status == Booking.PAYMENT_STATUS_COMPLETED:
+        return redirect('booking_confirmation', booking_id=booking.id)
+
+    if (
+        booking.payment_expires_at
+        and booking.payment_expires_at < timezone.now()
+        and booking.status == Booking.STATUS_PAYMENT_PENDING
+    ):
+        with transaction.atomic():
+            locked_booking = get_object_or_404(
+                Booking.objects.select_for_update().select_related('package'),
+                id=booking_id,
+                traveler=request.user,
+            )
+            _cancel_unpaid_booking(locked_booking, Booking.PAYMENT_STATUS_FAILED)
+        messages.error(request, 'This payment session has expired. Please create a new booking.')
+        return redirect('package_book', package_id=booking.package_id)
+
+    if booking.status != Booking.STATUS_PAYMENT_PENDING:
+        messages.error(request, 'This booking is no longer awaiting payment.')
+        return redirect('booking_confirmation', booking_id=booking.id)
+
+    if booking.payment_status == Booking.PAYMENT_STATUS_FAILED:
+        booking.payment_status = Booking.PAYMENT_STATUS_PENDING
+        booking.save(update_fields=['payment_status'])
+
+    try:
+        return _render_esewa_checkout(request, booking)
+    except EsewaError as exc:
+        messages.error(request, str(exc))
+        return redirect('booking_confirmation', booking_id=booking.id)
+
+
+@login_required(login_url='account_login_choice')
+def booking_esewa_success(request, booking_id):
+    booking = get_object_or_404(
+        Booking.objects.select_related('package', 'traveler'),
+        id=booking_id,
+        traveler=request.user,
+    )
+
+    if booking.payment_method != Booking.PAYMENT_METHOD_ESEWA:
+        return redirect('booking_confirmation', booking_id=booking.id)
+
+    if booking.payment_status == Booking.PAYMENT_STATUS_COMPLETED:
+        messages.success(request, 'Payment already confirmed for this booking.')
+        return redirect('booking_confirmation', booking_id=booking.id)
+
+    transaction_id = (
+        (request.GET.get('refId') or '')
+        or (request.GET.get('rid') or '')
+    ).strip()
+    callback_pid = (
+        (request.GET.get('pid') or '')
+        or (request.GET.get('oid') or '')
+    ).strip()
+    callback_amount_raw = (
+        (request.GET.get('amt') or '')
+        or (request.GET.get('tAmt') or '')
+    ).strip()
+    expected_pid = str(booking.id)
+    expected_amount = _as_money_decimal(booking.total_price)
+    callback_amount = _as_money_decimal(callback_amount_raw) if callback_amount_raw else expected_amount
+
+    if not transaction_id:
+        with transaction.atomic():
+            locked_booking = get_object_or_404(
+                Booking.objects.select_for_update(),
+                id=booking_id,
+                traveler=request.user,
+            )
+            _mark_payment_failed(locked_booking)
+        messages.error(request, 'Payment verification failed. Missing eSewa transaction id.')
+        return redirect('booking_confirmation', booking_id=booking.id)
+
+    if callback_pid and callback_pid != expected_pid:
+        with transaction.atomic():
+            locked_booking = get_object_or_404(
+                Booking.objects.select_for_update(),
+                id=booking_id,
+                traveler=request.user,
+            )
+            _mark_payment_failed(locked_booking)
+        messages.error(request, 'Payment verification failed. Product ID mismatch.')
+        return redirect('booking_confirmation', booking_id=booking.id)
+
+    if expected_amount is None or callback_amount != expected_amount:
+        with transaction.atomic():
+            locked_booking = get_object_or_404(
+                Booking.objects.select_for_update(),
+                id=booking_id,
+                traveler=request.user,
+            )
+            _mark_payment_failed(locked_booking)
+        messages.error(request, 'Payment verification failed. Amount mismatch.')
+        return redirect('booking_confirmation', booking_id=booking.id)
+
+    try:
+        is_verified = verify_esewa_payment(
+            amount=expected_amount,
+            transaction_id=transaction_id,
+            product_id=expected_pid,
+        )
+    except EsewaError as exc:
+        messages.warning(request, f'eSewa verification is pending: {exc}')
+        return redirect('booking_confirmation', booking_id=booking.id)
+
+    if not is_verified:
+        with transaction.atomic():
+            locked_booking = get_object_or_404(
+                Booking.objects.select_for_update(),
+                id=booking_id,
+                traveler=request.user,
+            )
+            _mark_payment_failed(locked_booking)
+        messages.error(request, 'Payment Failed. Try again.')
+        return redirect('booking_confirmation', booking_id=booking.id)
+
+    with transaction.atomic():
+        locked_booking = get_object_or_404(
+            Booking.objects.select_for_update().select_related('package', 'traveler'),
+            id=booking_id,
+            traveler=request.user,
+        )
+        if (
+            locked_booking.status == Booking.STATUS_PAYMENT_PENDING
+            and locked_booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED
+        ):
+            _complete_paid_booking(
+                locked_booking,
+                payment_reference=transaction_id,
+                esewa_transaction_id=transaction_id,
+                paid_amount=expected_amount,
+            )
+            _notify_booking_paid(locked_booking)
+        booking = locked_booking
+
+    messages.success(request, 'Payment Successful. Your booking is confirmed.')
+    return redirect('booking_confirmation', booking_id=booking.id)
+
+
+@login_required(login_url='account_login_choice')
+def booking_esewa_failure(request, booking_id):
+    booking = get_object_or_404(
+        Booking.objects.select_related('package', 'traveler'),
+        id=booking_id,
+        traveler=request.user,
+    )
+
+    if booking.payment_method != Booking.PAYMENT_METHOD_ESEWA:
+        return redirect('booking_confirmation', booking_id=booking.id)
+
+    if booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED:
+        with transaction.atomic():
+            locked_booking = get_object_or_404(
+                Booking.objects.select_for_update(),
+                id=booking_id,
+                traveler=request.user,
+            )
+            _mark_payment_failed(locked_booking)
+
+    messages.error(request, 'Payment Failed. Try again.')
+    return redirect('booking_confirmation', booking_id=booking.id)
 
 
 def about(request):

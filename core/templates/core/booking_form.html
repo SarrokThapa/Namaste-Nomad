@@ -70,7 +70,7 @@
                 </div>
                 <div>
                     <span>Status</span>
-                    <strong>Stripe Checkout</strong>
+                    <strong>Online Payment</strong>
                 </div>
             </div>
         </section>
@@ -84,7 +84,6 @@
             {% endif %}
             <form method="POST">
                 {% csrf_token %}
-                {{ form.payment_method }}
 
                 {% if form.non_field_errors %}
                     <div class="booking-form-errors">
@@ -122,7 +121,11 @@
 
                 <div class="booking-notes">
                     <span>Payment Method</span>
-                    <p>Stripe is active for bookings right now. eSewa and Khalti can be added later without changing the booking flow.</p>
+                    {{ form.payment_method }}
+                    {% if form.payment_method.errors %}
+                        <div class="field-error">{{ form.payment_method.errors|striptags }}</div>
+                    {% endif %}
+                    <p>Use eSewa for NPR checkout. Stripe card checkout is available for international payments.</p>
                 </div>
 
                 <div class="booking-rewards">
@@ -148,7 +151,7 @@
                 </div>
 
                 <div class="booking-form-actions">
-                    <button type="submit" class="btn-primary" {% if package.available_slots == 0 or not package.is_in_season %}disabled{% endif %}>Continue to Stripe</button>
+                    <button type="submit" id="paymentSubmitBtn" class="btn-primary" {% if package.available_slots == 0 or not package.is_in_season %}disabled{% endif %}>Pay with eSewa</button>
                     <a href="{% url 'package_detail' package.id %}" class="btn-outline-dark">Back to Package</a>
                 </div>
             </form>
@@ -159,6 +162,8 @@
         (() => {
             const peopleInput = document.getElementById('{{ form.number_of_people.id_for_label }}');
             const totalNode = document.getElementById('estimatedTotal');
+            const paymentMethodNodes = document.querySelectorAll('input[name="payment_method"]');
+            const paymentSubmitBtn = document.getElementById('paymentSubmitBtn');
             const price = Number('{{ package.price|floatformat:2 }}');
 
             if (!peopleInput || !totalNode || Number.isNaN(price)) return;
@@ -170,7 +175,17 @@
             };
 
             peopleInput.addEventListener('input', updateTotal);
+            const updateSubmitLabel = () => {
+                if (!paymentSubmitBtn || !paymentMethodNodes.length) return;
+                const selected = Array.from(paymentMethodNodes).find((node) => node.checked);
+                const method = selected ? selected.value : '';
+                paymentSubmitBtn.textContent = method === 'stripe' ? 'Continue to Stripe' : 'Pay with eSewa';
+            };
+            paymentMethodNodes.forEach((node) => {
+                node.addEventListener('change', updateSubmitLabel);
+            });
             updateTotal();
+            updateSubmitLabel();
         })();
     </script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>

@@ -144,14 +144,16 @@ class Booking(models.Model):
     ]
 
     PAYMENT_STATUS_PENDING = 'pending'
-    PAYMENT_STATUS_PAID = 'paid'
-    PAYMENT_STATUS_CANCELLED = 'cancelled'
-    PAYMENT_STATUS_EXPIRED = 'expired'
+    PAYMENT_STATUS_COMPLETED = 'completed'
+    PAYMENT_STATUS_FAILED = 'failed'
+    # Backward-compatible aliases used in existing views/tests.
+    PAYMENT_STATUS_PAID = PAYMENT_STATUS_COMPLETED
+    PAYMENT_STATUS_CANCELLED = PAYMENT_STATUS_FAILED
+    PAYMENT_STATUS_EXPIRED = PAYMENT_STATUS_FAILED
     PAYMENT_STATUS_CHOICES = [
         (PAYMENT_STATUS_PENDING, 'Pending'),
-        (PAYMENT_STATUS_PAID, 'Paid'),
-        (PAYMENT_STATUS_CANCELLED, 'Cancelled'),
-        (PAYMENT_STATUS_EXPIRED, 'Expired'),
+        (PAYMENT_STATUS_COMPLETED, 'Completed'),
+        (PAYMENT_STATUS_FAILED, 'Failed'),
     ]
 
     SOURCE_CHOICES = [
@@ -194,6 +196,14 @@ class Booking(models.Model):
     )
     payment_reference = models.CharField(max_length=255, blank=True)
     stripe_checkout_session_id = models.CharField(max_length=255, blank=True)
+    esewa_transaction_id = models.CharField(max_length=255, blank=True)
+    paid_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        null=True,
+        blank=True,
+    )
     paid_at = models.DateTimeField(null=True, blank=True)
     payment_expires_at = models.DateTimeField(null=True, blank=True)
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='direct')

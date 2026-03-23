@@ -1,3 +1,4 @@
+from django.conf import settings
 from django import forms
 from django.utils import timezone
 
@@ -89,6 +90,11 @@ class CommentForm(forms.ModelForm):
 
 
 class BookingForm(forms.ModelForm):
+    CHECKOUT_METHOD_CHOICES = [
+        (Booking.PAYMENT_METHOD_ESEWA, 'eSewa (Nepal)'),
+        (Booking.PAYMENT_METHOD_STRIPE, 'Card (Stripe - International)'),
+    ]
+
     class Meta:
         model = Booking
         fields = ['number_of_people', 'travel_date', 'special_notes', 'payment_method']
@@ -99,14 +105,20 @@ class BookingForm(forms.ModelForm):
                 'rows': 3,
                 'placeholder': 'Add any special requests (optional).',
             }),
-            'payment_method': forms.HiddenInput(),
+            'payment_method': forms.RadioSelect(),
         }
 
     def __init__(self, *args, **kwargs):
         self.package = kwargs.pop('package', None)
         super().__init__(*args, **kwargs)
         self.fields['special_notes'].required = False
-        self.fields['payment_method'].initial = Booking.PAYMENT_METHOD_STRIPE
+        self.fields['payment_method'].choices = self.CHECKOUT_METHOD_CHOICES
+        default_method = (
+            Booking.PAYMENT_METHOD_ESEWA
+            if getattr(settings, 'ESEWA_CURRENCY', 'npr').lower() == 'npr'
+            else Booking.PAYMENT_METHOD_STRIPE
+        )
+        self.fields['payment_method'].initial = default_method
 
     def clean_travel_date(self):
         travel_date = self.cleaned_data['travel_date']
@@ -123,10 +135,22 @@ class BookingForm(forms.ModelForm):
     def clean_payment_method(self):
         payment_method = (
             self.cleaned_data.get('payment_method')
-            or Booking.PAYMENT_METHOD_STRIPE
+            or self.fields['payment_method'].initial
         ).strip().lower()
-        if payment_method != Booking.PAYMENT_METHOD_STRIPE:
-            raise forms.ValidationError('Stripe is the only payment method available right now.')
+
+        allowed_methods = {
+            Booking.PAYMENT_METHOD_STRIPE,
+            Booking.PAYMENT_METHOD_ESEWA,
+        }
+        if payment_method not in allowed_methods:
+            raise forms.ValidationError('Please choose a valid payment method.')
+
+        if (
+            payment_method == Booking.PAYMENT_METHOD_ESEWA
+            and getattr(settings, 'ESEWA_CURRENCY', 'npr').lower() != 'npr'
+        ):
+            raise forms.ValidationError('eSewa is available for NPR payments only.')
+
         return payment_method
 
     def clean(self):

@@ -26,7 +26,7 @@
                             <span class="status-pill status-{{ booking.status }}">{{ booking.get_status_display }}</span>
                             <strong>Total paid: Rs {{ booking.total_price|floatformat:0 }}</strong>
                             <span>Booked {{ booking.created_at|date:"M d, Y" }}</span>
-                            {% if booking.payment_status == 'paid' %}
+                            {% if booking.payment_status == 'completed' %}
                                 <a href="{% url 'booking_confirmation' booking.id %}">View receipt</a>
                             {% endif %}
                         </div>
