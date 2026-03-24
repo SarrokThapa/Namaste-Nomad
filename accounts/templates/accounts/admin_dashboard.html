@@ -273,52 +273,54 @@
                         <h2>Vendor Approval Requests</h2>
                     </div>
                     {% if pending_vendors %}
-                        <table class="activity-table">
-                            <thead>
-                                <tr>
-                                    <th>Vendor Name</th>
-                                    <th>Email</th>
-                                    <th>Phone</th>
-                                    <th>Document</th>
-                                    <th>Joined</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for vendor in pending_vendors %}
+                        <div class="table-scroll-wrap">
+                            <table class="activity-table vendor-approval-table">
+                                <thead>
                                     <tr>
-                                        <td>{{ vendor.vendor_profile.business_name|default:vendor.get_full_name|default:vendor.email }}</td>
-                                        <td>{{ vendor.email }}</td>
-                                        <td>{{ vendor.phone|default:"-" }}</td>
-                                        <td>
-                                            {% if vendor.vendor_profile.document %}
-                                                <a class="btn small secondary" href="{{ vendor.vendor_profile.document.url }}" target="_blank" rel="noopener">View / Download</a>
-                                            {% else %}
-                                                <span>-</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ vendor.date_joined|date:"M d, Y" }}</td>
-                                        <td>
-                                            <div class="pending-actions">
-                                                <a class="btn small secondary" href="{% url 'admin_vendor_detail' vendor.id %}">View Details</a>
-                                                <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">
-                                                    {% csrf_token %}
-                                                    <input type="hidden" name="next" value="{{ request.path }}#pending-approvals">
-                                                    <input type="hidden" name="action" value="approve">
-                                                    <button class="btn small success" type="submit">Approve</button>
-                                                </form>
-                                                <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">
-                                                    {% csrf_token %}
-                                                    <input type="hidden" name="next" value="{{ request.path }}#pending-approvals">
-                                                    <input type="hidden" name="action" value="reject">
-                                                    <button class="btn small danger" type="submit">Reject</button>
-                                                </form>
-                                            </div>
-                                        </td>
+                                        <th>Vendor Name</th>
+                                        <th>Email</th>
+                                        <th>Phone</th>
+                                        <th>Document</th>
+                                        <th>Joined</th>
+                                        <th>Actions</th>
                                     </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {% for vendor in pending_vendors %}
+                                        <tr>
+                                            <td>{{ vendor.vendor_profile.business_name|default:vendor.get_full_name|default:vendor.email }}</td>
+                                            <td>{{ vendor.email }}</td>
+                                            <td>{{ vendor.phone|default:"-" }}</td>
+                                            <td>
+                                                {% if vendor.vendor_profile.document %}
+                                                    <a class="btn small secondary" href="{{ vendor.vendor_profile.document.url }}" target="_blank" rel="noopener">View / Download</a>
+                                                {% else %}
+                                                    <span>-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ vendor.date_joined|date:"M d, Y" }}</td>
+                                            <td>
+                                                <div class="pending-actions">
+                                                    <a class="btn small secondary" href="{% url 'admin_vendor_detail' vendor.id %}">View Details</a>
+                                                    <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="next" value="{{ request.path }}#pending-approvals">
+                                                        <input type="hidden" name="action" value="approve">
+                                                        <button class="btn small success" type="submit">Approve</button>
+                                                    </form>
+                                                    <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="next" value="{{ request.path }}#pending-approvals">
+                                                        <input type="hidden" name="action" value="reject">
+                                                        <button class="btn small danger" type="submit">Reject</button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     {% else %}
                         <div class="empty-state">No pending approvals.</div>
                     {% endif %}

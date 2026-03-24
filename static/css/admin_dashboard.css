@@ -186,14 +186,37 @@
     text-align: left;
     color: #6b7280;
     font-weight: 600;
-    padding: 0.6rem 0;
+    padding: 0.6rem 0.65rem;
     border-bottom: 1px solid #e5e7eb;
 }
 
 .activity-table td {
-    padding: 0.75rem 0;
+    padding: 0.75rem 0.65rem;
     border-bottom: 1px solid #f1f5f9;
     color: #374151;
+    vertical-align: top;
+}
+
+.table-scroll-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.vendor-approval-table {
+    min-width: 930px;
+    table-layout: fixed;
+}
+
+.vendor-approval-table th:nth-child(1) { width: 22%; }
+.vendor-approval-table th:nth-child(2) { width: 24%; }
+.vendor-approval-table th:nth-child(3) { width: 10%; }
+.vendor-approval-table th:nth-child(4) { width: 12%; }
+.vendor-approval-table th:nth-child(5) { width: 11%; }
+.vendor-approval-table th:nth-child(6) { width: 21%; }
+
+.vendor-approval-table td:nth-child(2) {
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .pending-list {
@@ -225,6 +248,16 @@
 .pending-actions {
     display: flex;
     gap: 0.4rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.pending-actions form {
+    margin: 0;
+}
+
+.pending-actions .btn {
+    white-space: nowrap;
 }
 
 .admin-mini-grid {
