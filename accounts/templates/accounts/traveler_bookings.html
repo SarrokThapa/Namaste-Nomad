@@ -23,11 +23,27 @@
                             {% endif %}
                         </div>
                         <div class="booking-item-meta">
-                            <span class="status-pill status-{{ booking.status }}">{{ booking.get_status_display }}</span>
+                            {% if booking.payment_status == 'completed' %}
+                                <span class="status-pill status-confirmed">Booking Confirmed</span>
+                            {% elif booking.status == 'cancelled' %}
+                                <span class="status-pill status-cancelled">Cancelled</span>
+                            {% else %}
+                                <span class="status-pill status-pending">Payment Pending</span>
+                            {% endif %}
                             <strong>Total paid: Rs {{ booking.total_price|floatformat:0 }}</strong>
                             <span>Booked {{ booking.created_at|date:"M d, Y" }}</span>
                             {% if booking.payment_status == 'completed' %}
                                 <a href="{% url 'booking_confirmation' booking.id %}">View receipt</a>
+                            {% elif booking.status != 'cancelled' and booking.payment_method == 'esewa' %}
+                                <a href="{% url 'booking_esewa_checkout' booking.id %}" class="booking-payment-action">
+                                    {% if booking.payment_status == 'failed' %}
+                                        Retry Payment
+                                    {% else %}
+                                        Continue Payment
+                                    {% endif %}
+                                </a>
+                            {% elif booking.status != 'cancelled' %}
+                                <a href="{% url 'booking_confirmation' booking.id %}" class="booking-payment-action">Continue Payment</a>
                             {% endif %}
                         </div>
                     </article>

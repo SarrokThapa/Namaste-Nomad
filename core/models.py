@@ -123,12 +123,12 @@ class Booking(models.Model):
     COMMISSION_VENDOR_RATE = Decimal('0.75')
     COMMISSION_PLATFORM_RATE = Decimal('0.25')
 
-    STATUS_PAYMENT_PENDING = 'payment_pending'
     STATUS_PENDING = 'pending'
     STATUS_CONFIRMED = 'confirmed'
     STATUS_CANCELLED = 'cancelled'
+    # Backward-compatible alias used in existing views/tests.
+    STATUS_PAYMENT_PENDING = STATUS_PENDING
     STATUS_CHOICES = [
-        (STATUS_PAYMENT_PENDING, 'Payment Pending'),
         (STATUS_PENDING, 'Pending'),
         (STATUS_CONFIRMED, 'Confirmed'),
         (STATUS_CANCELLED, 'Cancelled'),
@@ -183,7 +183,7 @@ class Booking(models.Model):
     special_notes = models.TextField(blank=True)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PAYMENT_PENDING)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     payment_method = models.CharField(
         max_length=20,
         choices=PAYMENT_METHOD_CHOICES,

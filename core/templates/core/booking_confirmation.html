@@ -56,7 +56,7 @@
             </h1>
             <p>
                 {% if booking.payment_status == 'completed' %}
-                    Your {{ booking.get_payment_method_display }} payment was received successfully. The vendor will review and confirm the trip shortly.
+                    Your {{ booking.get_payment_method_display }} payment was received successfully. Your booking is now confirmed.
                 {% elif booking.payment_status == 'failed' %}
                     Your payment was not completed. Please try again.
                 {% else %}
