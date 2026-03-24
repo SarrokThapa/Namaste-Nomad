@@ -172,6 +172,7 @@ class VendorProfileForm(forms.ModelForm):
             'paypal_email',
             'logo',
             'cover_image',
+            'document',
         ]
         widgets = {
             'business_name': forms.TextInput(attrs={'class': 'form-control'}),

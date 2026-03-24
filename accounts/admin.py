@@ -25,7 +25,7 @@ class CustomUserAdmin(UserAdmin):
 
 @admin.register(VendorProfile)
 class VendorProfileAdmin(admin.ModelAdmin):
-    list_display = ('business_name', 'owner_name', 'user', 'is_approved', 'is_verified', 'created_at')
+    list_display = ('business_name', 'owner_name', 'user', 'document', 'is_approved', 'is_verified', 'created_at')
     list_filter = ('is_approved', 'is_verified', 'created_at')
     search_fields = ('business_name', 'owner_name', 'user__email')
     actions = ['approve_vendors', 'reject_vendors', 'verify_vendors', 'unverify_vendors']

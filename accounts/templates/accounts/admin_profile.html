@@ -259,6 +259,8 @@
                             <span>Vendor Name</span>
                             <span>Business Name</span>
                             <span>Email</span>
+                            <span>Phone</span>
+                            <span>Document</span>
                             <span>Registration Date</span>
                             <span>Actions</span>
                         </div>
@@ -267,16 +269,26 @@
                                 <span>{{ vendor.get_full_name|default:vendor.email }}</span>
                                 <span>{{ vendor.vendor_profile.business_name|default:"-" }}</span>
                                 <span>{{ vendor.email }}</span>
+                                <span>{{ vendor.phone|default:"-" }}</span>
+                                <span>
+                                    {% if vendor.vendor_profile.document %}
+                                        <a class="btn small secondary" href="{{ vendor.vendor_profile.document.url }}" target="_blank" rel="noopener">View / Download</a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </span>
                                 <span>{{ vendor.date_joined|date:"M d, Y" }}</span>
                                 <span class="approval-actions">
                                     <a class="btn small secondary" href="{% url 'admin_vendor_detail' vendor.id %}">View Details</a>
                                     <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">
                                         {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.path }}">
                                         <input type="hidden" name="action" value="approve">
                                         <button class="btn small success" type="submit">Approve</button>
                                     </form>
                                     <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">
                                         {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.path }}">
                                         <input type="hidden" name="action" value="reject">
                                         <button class="btn small danger" type="submit">Reject</button>
                                     </form>

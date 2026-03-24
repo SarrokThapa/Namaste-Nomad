@@ -35,6 +35,7 @@ class VendorProfile(models.Model):
     logo = models.ImageField(upload_to='vendor_logos/', blank=True, null=True)
     cover_image = models.FileField(upload_to='vendor_covers/', blank=True, null=True)
     business_license = models.FileField(upload_to='licenses/', blank=True, null=True)
+    document = models.FileField(upload_to='vendor_documents/', blank=True, null=True)
     is_approved = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

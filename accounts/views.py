@@ -119,7 +119,7 @@ def _ensure_vendor(request):
         return False
     vendor_profile = _get_vendor_profile(request.user)
     if vendor_profile and not vendor_profile.is_approved:
-        messages.error(request, 'Your vendor account is pending approval.')
+        messages.error(request, 'Your account is pending admin approval.')
         return False
     return True
 
@@ -154,6 +154,9 @@ def _dashboard_route_name(user):
     if user_type == 'traveler':
         return 'traveler_home'
     if user_type == 'vendor':
+        vendor_profile = _get_vendor_profile(user)
+        if vendor_profile and not vendor_profile.is_approved:
+            return 'vendor_profile'
         return 'vendor_dashboard'
     if user_type == 'admin':
         return 'admin_dashboard'
@@ -1283,8 +1286,16 @@ def admin_profile(request):
 @admin_required
 @csrf_protect
 def admin_vendor_action(request, vendor_id):
+    next_url = (request.POST.get('next') or '').strip()
+    if not next_url or not url_has_allowed_host_and_scheme(
+        url=next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        next_url = reverse('admin_dashboard')
+
     if request.method != 'POST':
-        return redirect('admin_dashboard')
+        return redirect(next_url)
 
     vendor = get_object_or_404(User, id=vendor_id, user_type='vendor')
     profile = _get_vendor_profile(vendor)
@@ -1292,7 +1303,7 @@ def admin_vendor_action(request, vendor_id):
 
     if profile is None:
         messages.error(request, 'Vendor profile not found.')
-        return redirect('admin_dashboard')
+        return redirect(next_url)
 
     if action == 'approve':
         profile.is_approved = True
@@ -1352,11 +1363,11 @@ def admin_vendor_action(request, vendor_id):
         messages.success(request, f'{vendor.email} marked as unverified.')
     else:
         messages.error(request, 'Invalid action.')
-        return redirect('admin_dashboard')
+        return redirect(next_url)
 
     vendor.save()
     profile.save()
-    return redirect('admin_dashboard')
+    return redirect(next_url)
 
 
 @admin_required
@@ -1939,13 +1950,12 @@ def vendor_login(request):
             
             if user is not None:
                 vendor_profile = _get_vendor_profile(user)
-                if vendor_profile and not vendor_profile.is_approved:
-                    messages.error(request, 'Your vendor account is pending approval.')
-                    return redirect('vendor_login')
-
                 login(request, user)
                 if not remember_me:
                     request.session.set_expiry(0)
+                if vendor_profile and not vendor_profile.is_approved:
+                    messages.info(request, 'Your account is pending admin approval.')
+                    return redirect('vendor_profile')
                 return redirect(next_url)
             else:
                 messages.error(request, 'Invalid credentials')
@@ -1957,13 +1967,21 @@ def vendor_login(request):
 @csrf_protect
 def vendor_register(request):
     if request.method == 'POST':
-        business_name = request.POST.get('business_name')
-        owner_name = request.POST.get('owner_name')
-        email = request.POST.get('email')
-        phone = request.POST.get('phone')
+        business_name = (request.POST.get('business_name') or '').strip()
+        owner_name = (request.POST.get('owner_name') or '').strip()
+        email = (request.POST.get('email') or '').strip()
+        phone = (request.POST.get('phone') or '').strip()
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
-        business_license = request.FILES.get('business_license')
+        document = request.FILES.get('document')
+
+        if not business_name or not owner_name or not email or not phone:
+            messages.error(request, 'Please fill in all required fields.')
+            return render(request, 'accounts/vendor_register.html')
+
+        if not document:
+            messages.error(request, 'Verification document is required for vendor registration.')
+            return render(request, 'accounts/vendor_register.html')
         
         if password != confirm_password:
             messages.error(request, 'Passwords do not match')
@@ -1987,7 +2005,8 @@ def vendor_register(request):
             user=user,
             business_name=business_name,
             owner_name=owner_name,
-            business_license=business_license
+            business_license=document,
+            document=document,
         )
 
         notify_admins(

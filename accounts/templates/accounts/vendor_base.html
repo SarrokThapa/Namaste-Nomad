@@ -48,14 +48,20 @@
     <div class="dashboard-shell">
         <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="company">
-                    <div class="company-badge">VN</div>
-                    <div>
-                        <div class="company-name">{{ vendor_profile.business_name|default:"Vendor HQ" }}</div>
-                        <div class="company-meta">Verified Partner</div>
+                    <div class="company">
+                        <div class="company-badge">VN</div>
+                        <div>
+                            <div class="company-name">{{ vendor_profile.business_name|default:"Vendor HQ" }}</div>
+                            <div class="company-meta">
+                                {% if vendor_profile and vendor_profile.is_approved %}
+                                    Approved Vendor
+                                {% else %}
+                                    Pending Approval
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
             <nav class="sidebar-nav">
                 <a class="nav-item {% if active_page == 'dashboard' %}active{% endif %}" href="{% url 'vendor_dashboard' %}">
                     <span class="nav-icon">
@@ -135,6 +141,13 @@
         </aside>
 
         <main class="dashboard-main">
+            {% if messages %}
+                <div class="alert-stack">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
             {% block content %}{% endblock %}
         </main>
     </div>

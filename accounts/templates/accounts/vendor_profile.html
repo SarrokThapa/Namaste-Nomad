@@ -51,7 +51,7 @@
 
     <section class="card vendor-section">
         <h2>Business Information</h2>
-        <div class="form-grid">
+            <div class="form-grid">
             <div class="form-group">
                 <label>Company Name</label>
                 {{ form.business_name }}
@@ -79,6 +79,13 @@
             <div class="form-group">
                 <label>License Number</label>
                 {{ form.license_number }}
+            </div>
+            <div class="form-group">
+                <label>Verification Document</label>
+                {{ form.document }}
+                {% if vendor_profile.document %}
+                    <small><a href="{{ vendor_profile.document.url }}" target="_blank" rel="noopener">View current document</a></small>
+                {% endif %}
             </div>
             <div class="form-group span-2">
                 <label>Business Address</label>
@@ -119,7 +126,11 @@
                 <h2>My Packages</h2>
                 <p class="section-subtitle">Showcase your latest listings.</p>
             </div>
-            <a class="btn neutral" href="{% url 'vendor_package_create' %}">Create New Package</a>
+            {% if vendor_profile.is_approved %}
+                <a class="btn neutral" href="{% url 'vendor_package_create' %}">Create New Package</a>
+            {% else %}
+                <span class="status-pill pending">Your account is pending admin approval.</span>
+            {% endif %}
         </div>
         <div class="package-card-grid">
             {% if packages %}
