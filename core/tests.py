@@ -353,7 +353,118 @@ class BookingStripeFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Payment Pending')
+        self.assertContains(response, reverse('booking_confirmation', args=[booking.id]))
+        self.assertContains(response, 'Continue Payment')
+
+    def test_traveler_bookings_shows_continue_payment_for_unpaid_stripe(self):
+        booking = self._create_pending_booking()
+        self.client.force_login(self.traveler)
+
+        response = self.client.get(reverse('traveler_bookings'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse('booking_confirmation', args=[booking.id]))
+        self.assertContains(response, 'Continue Payment')
+
+    def test_booking_confirmation_shows_both_payment_options_for_unpaid_booking(self):
+        booking = self._create_pending_booking()
+        self.client.force_login(self.traveler)
+
+        response = self.client.get(reverse('booking_confirmation', args=[booking.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse('booking_stripe_checkout', args=[booking.id]))
         self.assertContains(response, reverse('booking_esewa_checkout', args=[booking.id]))
+        self.assertContains(response, 'Pay via Stripe')
+        self.assertContains(response, 'Pay via eSewa')
+
+    @patch('core.views.create_checkout_session')
+    def test_booking_stripe_checkout_redirects_to_gateway(self, mock_create_checkout_session):
+        booking = self._create_pending_booking()
+        booking.payment_status = Booking.PAYMENT_STATUS_FAILED
+        booking.save(update_fields=['payment_status'])
+        mock_create_checkout_session.return_value = {
+            'id': 'cs_test_retry_456',
+            'url': 'https://checkout.stripe.com/c/pay/cs_test_retry_456',
+            'payment_intent': 'pi_test_retry_456',
+        }
+        self.client.force_login(self.traveler)
+
+        response = self.client.get(reverse('booking_stripe_checkout', args=[booking.id]))
+
+        booking.refresh_from_db()
+        self.assertRedirects(
+            response,
+            'https://checkout.stripe.com/c/pay/cs_test_retry_456',
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(Booking.objects.count(), 1)
+        self.assertEqual(booking.status, Booking.STATUS_PENDING)
+        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_PENDING)
+        self.assertEqual(booking.stripe_checkout_session_id, 'cs_test_retry_456')
+        self.assertEqual(booking.payment_reference, 'pi_test_retry_456')
+
+    @patch('core.views.create_checkout_session')
+    def test_booking_stripe_checkout_refreshes_expired_payment_window(self, mock_create_checkout_session):
+        booking = self._create_pending_booking()
+        booking.payment_expires_at = timezone.now() - timedelta(minutes=5)
+        booking.save(update_fields=['payment_expires_at'])
+
+        def _fake_create_session(*, booking, success_url, cancel_url):
+            self.assertGreater(booking.payment_expires_at, timezone.now())
+            return {
+                'id': 'cs_test_retry_expired',
+                'url': 'https://checkout.stripe.com/c/pay/cs_test_retry_expired',
+                'payment_intent': 'pi_test_retry_expired',
+            }
+
+        mock_create_checkout_session.side_effect = _fake_create_session
+        self.client.force_login(self.traveler)
+
+        response = self.client.get(reverse('booking_stripe_checkout', args=[booking.id]))
+
+        booking.refresh_from_db()
+        self.assertRedirects(
+            response,
+            'https://checkout.stripe.com/c/pay/cs_test_retry_expired',
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_PENDING)
+        self.assertGreater(booking.payment_expires_at, timezone.now())
+
+    @patch('core.views.create_checkout_session')
+    def test_booking_stripe_checkout_switches_method_from_esewa(self, mock_create_checkout_session):
+        booking = self._create_pending_esewa_booking()
+        mock_create_checkout_session.return_value = {
+            'id': 'cs_test_switch_789',
+            'url': 'https://checkout.stripe.com/c/pay/cs_test_switch_789',
+            'payment_intent': 'pi_test_switch_789',
+        }
+        self.client.force_login(self.traveler)
+
+        response = self.client.get(reverse('booking_stripe_checkout', args=[booking.id]))
+
+        booking.refresh_from_db()
+        self.assertRedirects(
+            response,
+            'https://checkout.stripe.com/c/pay/cs_test_switch_789',
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(booking.payment_method, Booking.PAYMENT_METHOD_STRIPE)
+        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_PENDING)
+        self.assertEqual(booking.esewa_transaction_id, '')
+
+    def test_booking_esewa_checkout_switches_method_from_stripe(self):
+        booking = self._create_pending_booking()
+        self.client.force_login(self.traveler)
+
+        response = self.client.get(reverse('booking_esewa_checkout', args=[booking.id]))
+
+        booking.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(booking.payment_method, Booking.PAYMENT_METHOD_ESEWA)
+        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_PENDING)
+        self.assertEqual(booking.stripe_checkout_session_id, '')
 
     def test_package_book_reuses_failed_booking_for_retry(self):
         failed_booking = self._create_pending_esewa_booking()

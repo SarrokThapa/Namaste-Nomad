@@ -34,14 +34,6 @@
                             <span>Booked {{ booking.created_at|date:"M d, Y" }}</span>
                             {% if booking.payment_status == 'completed' %}
                                 <a href="{% url 'booking_confirmation' booking.id %}">View receipt</a>
-                            {% elif booking.status != 'cancelled' and booking.payment_method == 'esewa' %}
-                                <a href="{% url 'booking_esewa_checkout' booking.id %}" class="booking-payment-action">
-                                    {% if booking.payment_status == 'failed' %}
-                                        Retry Payment
-                                    {% else %}
-                                        Continue Payment
-                                    {% endif %}
-                                </a>
                             {% elif booking.status != 'cancelled' %}
                                 <a href="{% url 'booking_confirmation' booking.id %}" class="booking-payment-action">Continue Payment</a>
                             {% endif %}

@@ -23,6 +23,7 @@ urlpatterns = [
     path('packages/<int:package_id>/', views.package_detail, name='package_detail'),
     path('bookings/<int:booking_id>/confirmation/', views.booking_confirmation, name='booking_confirmation'),
     path('bookings/<int:booking_id>/cancel/', views.booking_checkout_cancel, name='booking_checkout_cancel'),
+    path('bookings/<int:booking_id>/stripe/checkout/', views.booking_stripe_checkout, name='booking_stripe_checkout'),
     path('bookings/<int:booking_id>/esewa/checkout/', views.booking_esewa_checkout, name='booking_esewa_checkout'),
     path('bookings/<int:booking_id>/esewa/success/', views.booking_esewa_success, name='booking_esewa_success'),
     path('bookings/<int:booking_id>/esewa/failure/', views.booking_esewa_failure, name='booking_esewa_failure'),
