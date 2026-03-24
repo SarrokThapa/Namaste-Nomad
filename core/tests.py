@@ -130,10 +130,23 @@ class BookingStripeFlowTests(TestCase):
             email='vendor@example.com',
             user_type='vendor',
         )
+        self.admin = User.objects.create_user(
+            username='admin_user',
+            password='admin-pass-123',
+            email='admin@example.com',
+            user_type='admin',
+            is_staff=True,
+        )
         self.traveler = User.objects.create_user(
             username='traveler_user',
             password='traveler-pass-123',
             email='traveler@example.com',
+            user_type='traveler',
+        )
+        self.other_traveler = User.objects.create_user(
+            username='other_traveler',
+            password='traveler-pass-123',
+            email='other-traveler@example.com',
             user_type='traveler',
         )
         self.package = Package.objects.create(
@@ -165,6 +178,26 @@ class BookingStripeFlowTests(TestCase):
         )
         self.package.available_slots = 3
         self.package.save(update_fields=['available_slots'])
+        return booking
+
+    def _create_paid_booking(self):
+        booking = self._create_pending_esewa_booking()
+        booking.status = Booking.STATUS_CONFIRMED
+        booking.payment_status = Booking.PAYMENT_STATUS_COMPLETED
+        booking.payment_method = Booking.PAYMENT_METHOD_ESEWA
+        booking.paid_amount = booking.total_price
+        booking.paid_at = timezone.now()
+        booking.payment_expires_at = None
+        booking.save(
+            update_fields=[
+                'status',
+                'payment_status',
+                'payment_method',
+                'paid_amount',
+                'paid_at',
+                'payment_expires_at',
+            ]
+        )
         return booking
 
     def _create_pending_esewa_booking(self):
@@ -549,3 +582,44 @@ class BookingStripeFlowTests(TestCase):
         booking.refresh_from_db()
         self.assertEqual(retry_response.status_code, 200)
         self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_PENDING)
+
+    def test_invoice_download_available_for_paid_booking(self):
+        booking = self._create_paid_booking()
+        self.client.force_login(self.traveler)
+
+        response = self.client.get(reverse('booking_invoice_download', args=[booking.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertIn('attachment; filename="invoice_', response['Content-Disposition'])
+        self.assertTrue(response.content.startswith(b'%PDF'))
+
+    def test_invoice_view_shows_customer_only_fields(self):
+        booking = self._create_paid_booking()
+        self.client.force_login(self.traveler)
+
+        response = self.client.get(reverse('booking_invoice', args=[booking.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Booking Invoice')
+        self.assertContains(response, booking.package.title)
+        self.assertContains(response, 'Payment Method')
+        self.assertNotContains(response, 'Platform Fee')
+        self.assertNotContains(response, 'Vendor Share')
+
+    def test_other_traveler_cannot_access_invoice(self):
+        booking = self._create_paid_booking()
+        self.client.force_login(self.other_traveler)
+
+        response = self.client.get(reverse('booking_invoice_download', args=[booking.id]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_admin_can_access_any_invoice(self):
+        booking = self._create_paid_booking()
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse('booking_invoice_download', args=[booking.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')

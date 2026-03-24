@@ -11,7 +11,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Avg, Count, F, Max, Min, Prefetch, Q
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -28,6 +28,7 @@ from accounts.achievements import (
 )
 from accounts.notifications import create_notification, notify_admins
 from .forms import BookingForm, CommentForm, PostEditForm, PostForm, ReviewForm
+from .invoices import generate_invoice_pdf, invoice_data_for_booking
 from .models import Booking, Comment, Package, Post, PostMedia, Review, Wishlist
 from .payments import (
     EsewaError,
@@ -506,6 +507,14 @@ def _as_money_decimal(value):
         return Decimal(str(value)).quantize(Decimal('0.01'))
     except (InvalidOperation, TypeError, ValueError):
         return None
+
+
+def _can_access_booking_invoice(user, booking):
+    if not user.is_authenticated:
+        return False
+    if getattr(user, 'user_type', '') == 'admin' and user.is_staff:
+        return True
+    return booking.traveler_id == user.id
 
 
 def _notify_booking_created(booking):
@@ -1569,6 +1578,65 @@ def booking_esewa_failure(request, booking_id):
 
     messages.error(request, 'Payment Failed. Try again.')
     return redirect('booking_confirmation', booking_id=booking.id)
+
+
+@login_required(login_url='account_login_choice')
+def booking_invoice(request, booking_id):
+    booking = get_object_or_404(
+        Booking.objects.select_related('package', 'traveler', 'vendor'),
+        id=booking_id,
+    )
+    if not _can_access_booking_invoice(request.user, booking):
+        raise Http404('Invoice not found.')
+
+    if booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED:
+        messages.error(request, 'Invoice is available only after successful payment.')
+        if booking.traveler_id == request.user.id:
+            return redirect('booking_confirmation', booking_id=booking.id)
+        return redirect('admin_dashboard')
+
+    return render(
+        request,
+        'core/invoice_detail.html',
+        {
+            'booking': booking,
+            'invoice': invoice_data_for_booking(booking),
+        },
+    )
+
+
+@login_required(login_url='account_login_choice')
+def booking_invoice_download(request, booking_id):
+    booking = get_object_or_404(
+        Booking.objects.select_related('package', 'traveler', 'vendor'),
+        id=booking_id,
+    )
+    if not _can_access_booking_invoice(request.user, booking):
+        raise Http404('Invoice not found.')
+
+    if booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED:
+        messages.error(request, 'Invoice is available only after successful payment.')
+        if booking.traveler_id == request.user.id:
+            return redirect('booking_confirmation', booking_id=booking.id)
+        return redirect('admin_dashboard')
+
+    try:
+        pdf_bytes = generate_invoice_pdf(booking.id)
+    except (Booking.DoesNotExist, ValueError, RuntimeError) as exc:
+        messages.error(request, str(exc))
+        if booking.traveler_id == request.user.id:
+            return redirect('booking_confirmation', booking_id=booking.id)
+        return redirect('admin_dashboard')
+    except Exception:
+        messages.error(request, 'Unable to generate invoice for this booking.')
+        if booking.traveler_id == request.user.id:
+            return redirect('booking_confirmation', booking_id=booking.id)
+        return redirect('admin_dashboard')
+
+    filename = f"invoice_{booking.id}.pdf"
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
 
 
 def about(request):

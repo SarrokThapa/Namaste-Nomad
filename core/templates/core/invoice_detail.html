@@ -1,0 +1,154 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Invoice - Namaste Nomad</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f3f4f6;
+            --card: #ffffff;
+            --text: #111827;
+            --muted: #6b7280;
+            --line: #d1d5db;
+            --brand: #0f766e;
+        }
+        body {
+            margin: 0;
+            font-family: "Manrope", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+        .invoice-wrap {
+            max-width: 840px;
+            margin: 40px auto;
+            padding: 0 16px;
+        }
+        .invoice-card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+        .invoice-head {
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 16px;
+            margin-bottom: 20px;
+        }
+        .invoice-head h1 {
+            margin: 0 0 6px;
+            font-size: 1.5rem;
+        }
+        .invoice-head p {
+            margin: 0;
+            color: var(--muted);
+        }
+        .invoice-meta {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+        .meta-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .meta-item span {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+        .meta-item strong {
+            font-size: 0.96rem;
+        }
+        .invoice-total {
+            border-top: 1px solid var(--line);
+            margin-top: 16px;
+            padding-top: 14px;
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+        .invoice-actions {
+            margin-top: 22px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 14px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.92rem;
+        }
+        .btn-primary {
+            background: var(--brand);
+            color: #fff;
+        }
+        .btn-secondary {
+            border: 1px solid var(--line);
+            color: #111827;
+            background: #fff;
+        }
+        .invoice-foot {
+            margin-top: 18px;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+        @media (max-width: 700px) {
+            .invoice-meta {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="invoice-wrap">
+        <section class="invoice-card">
+            <header class="invoice-head">
+                <h1>Namaste Nomad</h1>
+                <p>Booking Invoice</p>
+            </header>
+
+            <div class="invoice-meta">
+                <div class="meta-item"><span>Invoice ID</span><strong>{{ invoice.invoice_id }}</strong></div>
+                <div class="meta-item"><span>Booking ID</span><strong>{{ invoice.booking_id }}</strong></div>
+                <div class="meta-item"><span>Traveler Name</span><strong>{{ invoice.traveler_name }}</strong></div>
+                <div class="meta-item"><span>Package Name</span><strong>{{ invoice.package_name }}</strong></div>
+                <div class="meta-item"><span>Vendor Name</span><strong>{{ invoice.vendor_name }}</strong></div>
+                <div class="meta-item"><span>Number of People</span><strong>{{ invoice.number_of_people }}</strong></div>
+                <div class="meta-item"><span>Travel Date</span><strong>{{ invoice.travel_date }}</strong></div>
+                <div class="meta-item"><span>Booking Date</span><strong>{{ invoice.booking_date }}</strong></div>
+                <div class="meta-item"><span>Payment Method</span><strong>{{ invoice.payment_method }}</strong></div>
+                <div class="meta-item"><span>Payment Status</span><strong>{{ invoice.payment_status }}</strong></div>
+            </div>
+
+            <div class="invoice-total">
+                Total Paid: Rs {{ invoice.total_amount_paid|floatformat:0 }}
+            </div>
+
+            <div class="invoice-actions">
+                <a class="btn btn-primary" href="{% url 'booking_invoice_download' booking.id %}">Download Invoice (PDF)</a>
+                {% if booking.traveler_id == request.user.id %}
+                    <a class="btn btn-secondary" href="{% url 'traveler_bookings' %}">Back to My Bookings</a>
+                {% else %}
+                    <a class="btn btn-secondary" href="{% url 'admin_dashboard' %}">Back to Admin Dashboard</a>
+                {% endif %}
+            </div>
+
+            <p class="invoice-foot">Thank you for booking with us!</p>
+        </section>
+    </main>
+</body>
+</html>

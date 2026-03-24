@@ -111,6 +111,9 @@
                 {% if can_continue_payment %}
                     <a href="{% url 'booking_stripe_checkout' booking.id %}" class="btn-primary">Pay via Stripe</a>
                     <a href="{% url 'booking_esewa_checkout' booking.id %}" class="btn-primary">Pay via eSewa</a>
+                {% elif booking.payment_status == 'completed' %}
+                    <a href="{% url 'booking_invoice' booking.id %}" class="btn-primary">View Invoice</a>
+                    <a href="{% url 'booking_invoice_download' booking.id %}" class="btn-primary">Download Invoice</a>
                 {% endif %}
                 <a href="{% url 'traveler_bookings' %}" class="btn-primary">Go to My Bookings</a>
                 <a href="{% url 'package_detail' booking.package.id %}" class="btn-outline-dark">Back to Package</a>
