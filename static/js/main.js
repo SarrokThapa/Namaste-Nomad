@@ -16,27 +16,46 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileUpload = document.getElementById('fileUpload');
     const fileInput = document.getElementById('fileInput');
     const fileName = document.getElementById('fileName');
+    const allowedExtensions = new Set(['pdf', 'jpg', 'jpeg', 'png']);
+
+    const validateSelectedFile = (inputEl) => {
+        if (!inputEl || !inputEl.files || !inputEl.files[0]) {
+            return true;
+        }
+
+        const file = inputEl.files[0];
+        const fileSizeMb = file.size / 1024 / 1024;
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+
+        if (!allowedExtensions.has(ext)) {
+            alert('Please upload PDF, JPG, JPEG, or PNG file only.');
+            inputEl.value = '';
+            if (fileName) {
+                fileName.textContent = '';
+            }
+            return false;
+        }
+
+        if (fileSizeMb > 10) {
+            alert('File size must be less than 10MB.');
+            inputEl.value = '';
+            if (fileName) {
+                fileName.textContent = '';
+            }
+            return false;
+        }
+
+        if (fileName) {
+            fileName.textContent = `Selected: ${file.name} (${fileSizeMb.toFixed(2)} MB)`;
+        }
+        return true;
+    };
 
     if (fileUpload && fileInput) {
-        // Click to upload
-        fileUpload.addEventListener('click', function() {
-            fileInput.click();
-        });
-
         // File selection
         fileInput.addEventListener('change', function() {
-            if (this.files && this.files[0]) {
-                const file = this.files[0];
-                const fileSize = (file.size / 1024 / 1024).toFixed(2);
-                
-                if (fileSize > 10) {
-                    alert('File size must be less than 10MB');
-                    this.value = '';
-                    return;
-                }
-                
-                fileName.textContent = `Selected: ${file.name} (${fileSize} MB)`;
-            }
+            fileInput.setCustomValidity('');
+            validateSelectedFile(this);
         });
 
         // Drag and drop
@@ -57,17 +76,15 @@ document.addEventListener('DOMContentLoaded', function() {
             this.style.background = 'white';
             
             if (e.dataTransfer.files.length) {
-                fileInput.files = e.dataTransfer.files;
-                const file = e.dataTransfer.files[0];
-                const fileSize = (file.size / 1024 / 1024).toFixed(2);
-                
-                if (fileSize > 10) {
-                    alert('File size must be less than 10MB');
-                    fileInput.value = '';
+                try {
+                    const dt = new DataTransfer();
+                    dt.items.add(e.dataTransfer.files[0]);
+                    fileInput.files = dt.files;
+                } catch (_err) {
+                    alert('Drag and drop is not supported in this browser. Please click to attach file.');
                     return;
                 }
-                
-                fileName.textContent = `Selected: ${file.name} (${fileSize} MB)`;
+                validateSelectedFile(fileInput);
             }
         });
     }
@@ -94,6 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
         form.addEventListener('submit', function(e) {
             const password = this.querySelector('input[name="password"]');
             const confirmPassword = this.querySelector('input[name="confirm_password"]');
+            const hasVendorFileInput = fileInput && this.contains(fileInput);
             
             if (password && confirmPassword) {
                 if (password.value !== confirmPassword.value) {
@@ -105,6 +123,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (password.value.length < 6) {
                     e.preventDefault();
                     alert('Password must be at least 6 characters long!');
+                    return false;
+                }
+            }
+
+            if (hasVendorFileInput) {
+                if (!fileInput.files || !fileInput.files.length) {
+                    e.preventDefault();
+                    fileInput.setCustomValidity('Please attach a verification document before registering.');
+                    fileInput.reportValidity();
+                    alert('Please attach a verification document before registering.');
+                    return false;
+                }
+                fileInput.setCustomValidity('');
+                if (!validateSelectedFile(fileInput)) {
+                    e.preventDefault();
                     return false;
                 }
             }

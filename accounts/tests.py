@@ -51,6 +51,30 @@ class VendorApprovalFlowTests(TestCase):
         self.assertFalse(profile.is_approved)
         self.assertTrue(bool(profile.document))
 
+    def test_vendor_registration_rejects_invalid_document_type(self):
+        document = SimpleUploadedFile(
+            'verification.txt',
+            b'not supported',
+            content_type='text/plain',
+        )
+
+        response = self.client.post(
+            reverse('vendor_register'),
+            data={
+                'business_name': 'Bad Doc Vendor',
+                'owner_name': 'Owner Bad',
+                'email': 'vendor-bad-doc@example.com',
+                'phone': '+9779800000099',
+                'password': 'strong-pass-123',
+                'confirm_password': 'strong-pass-123',
+                'document': document,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Please upload a valid PDF, JPG, JPEG, or PNG file.')
+        self.assertFalse(User.objects.filter(email='vendor-bad-doc@example.com').exists())
+
     def test_pending_vendor_cannot_access_package_create(self):
         vendor = User.objects.create_user(
             username='pending-vendor@example.com',
@@ -133,3 +157,44 @@ class VendorApprovalFlowTests(TestCase):
         self.assertRedirects(response, reverse('admin_vendor_detail', args=[vendor.id]))
         self.assertTrue(vendor.is_active)
         self.assertTrue(vendor.vendor_profile.is_approved)
+
+    def test_rejected_vendor_not_listed_in_pending_approval_requests(self):
+        admin = User.objects.create_user(
+            username='admin-reject@example.com',
+            email='admin-reject@example.com',
+            password='admin-pass-123',
+            user_type='admin',
+            is_staff=True,
+        )
+        vendor = User.objects.create_user(
+            username='reject-vendor@example.com',
+            email='reject-vendor@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            is_active=True,
+        )
+        VendorProfile.objects.create(
+            user=vendor,
+            business_name='Reject Me Travels',
+            owner_name='Reject Owner',
+            is_approved=False,
+        )
+        self.client.force_login(admin)
+
+        self.client.post(
+            reverse('admin_vendor_action', args=[vendor.id]),
+            data={
+                'action': 'reject',
+                'next': reverse('admin_dashboard'),
+            },
+        )
+
+        response = self.client.get(reverse('admin_dashboard'))
+        pending_vendors = response.context['pending_vendors']
+
+        vendor.refresh_from_db()
+        vendor.vendor_profile.refresh_from_db()
+
+        self.assertFalse(vendor.is_active)
+        self.assertFalse(vendor.vendor_profile.is_approved)
+        self.assertFalse(pending_vendors.filter(id=vendor.id).exists())

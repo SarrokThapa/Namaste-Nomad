@@ -2,6 +2,7 @@ from calendar import monthrange
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
+from pathlib import Path
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
@@ -1069,7 +1070,10 @@ def admin_dashboard(request):
     vendors = User.objects.filter(user_type='vendor').select_related('vendor_profile').annotate(
         package_count=Count('vendor_packages', distinct=True),
     ).order_by('-date_joined')
-    pending_vendors = vendors.filter(vendor_profile__is_approved=False)
+    pending_vendors = vendors.filter(
+        vendor_profile__is_approved=False,
+        is_active=True,
+    )
     travelers = User.objects.filter(user_type='traveler').order_by('-date_joined')
     packages = Package.objects.select_related('vendor').order_by('-created_at')
     bookings = Booking.objects.select_related(
@@ -1273,6 +1277,7 @@ def admin_profile(request):
     pending_vendors = User.objects.filter(
         user_type='vendor',
         vendor_profile__is_approved=False,
+        is_active=True,
     ).select_related('vendor_profile').order_by('-date_joined')
 
     return render(request, 'accounts/admin_profile.html', {
@@ -1981,6 +1986,14 @@ def vendor_register(request):
 
         if not document:
             messages.error(request, 'Verification document is required for vendor registration.')
+            return render(request, 'accounts/vendor_register.html')
+
+        allowed_extensions = {'.pdf', '.jpg', '.jpeg', '.png'}
+        allowed_mime_types = {'application/pdf', 'image/jpeg', 'image/png'}
+        document_ext = Path(document.name).suffix.lower()
+        document_type = (getattr(document, 'content_type', '') or '').lower()
+        if document_ext not in allowed_extensions or (document_type and document_type not in allowed_mime_types):
+            messages.error(request, 'Please upload a valid PDF, JPG, JPEG, or PNG file.')
             return render(request, 'accounts/vendor_register.html')
         
         if password != confirm_password:

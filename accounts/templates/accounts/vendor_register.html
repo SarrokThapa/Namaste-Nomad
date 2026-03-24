@@ -1,11 +1,12 @@
 <!-- FILE: accounts/templates/accounts/vendor_register.html -->
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vendor Registration - NamasteNomad</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=20260324b">
 </head>
 <body>
     <nav class="navbar">
@@ -54,7 +55,7 @@
 
             <div class="divider">OR</div>
 
-            <form method="POST" enctype="multipart/form-data" action="{% url 'vendor_register' %}">
+            <form id="vendorRegisterForm" method="POST" enctype="multipart/form-data" action="{% url 'vendor_register' %}">
                 {% csrf_token %}
                 <div class="form-row">
                     <div class="form-group">
@@ -148,6 +149,6 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js"></script>
+    <script src="{% static 'js/main.js' %}?v=20260324b"></script>
 </body>
 </html>
