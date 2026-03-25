@@ -153,7 +153,12 @@
             </nav>
         </aside>
 
-        <main class="dashboard-main admin-main" id="dashboard">
+        <main
+            class="dashboard-main admin-main"
+            id="dashboard"
+            data-admin-analytics-dashboard
+            data-analytics-url="{% url 'admin_analytics_api' %}"
+        >
             {% if messages %}
                 <div class="alert-stack">
                     {% for message in messages %}
@@ -173,68 +178,108 @@
                 <div class="admin-stat-card">
                     <div>
                         <span>Platform Earnings</span>
-                        <strong>Rs {{ stats.platform_earnings|floatformat:0 }}</strong>
-                        <small>+0%</small>
+                        <strong data-stat-value="platform_earnings">Rs {{ stats.platform_earnings|floatformat:0 }}</strong>
+                        <small data-growth-key="revenue">--</small>
                     </div>
                     <div class="stat-icon revenue">Rs</div>
                 </div>
                 <div class="admin-stat-card">
                     <div>
                         <span>Vendor Earnings</span>
-                        <strong>Rs {{ stats.vendor_earnings|floatformat:0 }}</strong>
-                        <small>+0%</small>
+                        <strong data-stat-value="vendor_earnings">Rs {{ stats.vendor_earnings|floatformat:0 }}</strong>
+                        <small data-growth-key="vendor_earnings">--</small>
                     </div>
                     <div class="stat-icon revenue">VE</div>
                 </div>
                 <div class="admin-stat-card">
                     <div>
                         <span>Subscription Revenue</span>
-                        <strong>Rs {{ stats.subscription_revenue|floatformat:0 }}</strong>
-                        <small>+0%</small>
+                        <strong data-stat-value="subscription_revenue">Rs {{ stats.subscription_revenue|floatformat:0 }}</strong>
+                        <small data-growth-key="subscriptions">--</small>
                     </div>
                     <div class="stat-icon revenue">SR</div>
                 </div>
                 <div class="admin-stat-card">
                     <div>
                         <span>Total Users</span>
-                        <strong>{{ stats.total_users }}</strong>
-                        <small>+0%</small>
+                        <strong data-stat-value="total_users">{{ stats.total_users }}</strong>
+                        <small data-growth-key="users">--</small>
                     </div>
                     <div class="stat-icon users">US</div>
                 </div>
                 <div class="admin-stat-card">
                     <div>
                         <span>Active Vendors</span>
-                        <strong>{{ stats.active_vendors }}</strong>
-                        <small>+0%</small>
+                        <strong data-stat-value="active_vendors">{{ stats.active_vendors }}</strong>
+                        <small data-growth-key="active_vendors">--</small>
                     </div>
                     <div class="stat-icon vendors">VN</div>
                 </div>
                 <div class="admin-stat-card">
                     <div>
                         <span>Total Bookings</span>
-                        <strong>{{ stats.total_bookings }}</strong>
-                        <small>+0%</small>
+                        <strong data-stat-value="total_bookings">{{ stats.total_bookings }}</strong>
+                        <small data-growth-key="bookings">--</small>
                     </div>
                     <div class="stat-icon bookings">BK</div>
                 </div>
             </section>
 
-            <section class="admin-card admin-chart-card">
+            <section class="admin-card admin-analytics-toolbar">
                 <div class="card-header">
-                    <h2>Platform Earnings Overview</h2>
-                    <div class="year-select">2026</div>
+                    <h2>Analytics Overview</h2>
+                    <div class="year-select-wrap">
+                        <label class="year-select-label" for="adminAnalyticsYear">Year</label>
+                        <select id="adminAnalyticsYear" class="year-select">
+                            {% for year in analytics_years %}
+                                <option value="{{ year }}" {% if year == selected_analytics_year %}selected{% endif %}>{{ year }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
-                <div class="chart-canvas">
-                    <svg viewBox="0 0 720 200" preserveAspectRatio="none" aria-hidden="true">
-                        <polyline points="{{ revenue_points }}" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
+                <div class="analytics-toolbar-meta" id="adminAnalyticsStatus" aria-live="polite">
+                    Loading analytics data...
                 </div>
-                <div class="chart-labels">
-                    {% for label in revenue_labels %}
-                        <span>{{ label }}</span>
-                    {% endfor %}
-                </div>
+            </section>
+
+            <section class="admin-analytics-grid">
+                <article class="admin-card analytics-card analytics-card--wide">
+                    <div class="card-header analytics-card-head">
+                        <h2>Platform Revenue by Month</h2>
+                        <span class="chart-growth-chip" data-chart-growth="revenue">--</span>
+                    </div>
+                    <div class="chart-canvas chart-canvas--fixed">
+                        <canvas id="adminRevenueChart" aria-label="Platform monthly revenue chart"></canvas>
+                    </div>
+                </article>
+
+                <article class="admin-card analytics-card">
+                    <div class="card-header analytics-card-head">
+                        <h2>Bookings per Month</h2>
+                        <span class="chart-growth-chip" data-chart-growth="bookings">--</span>
+                    </div>
+                    <div class="chart-canvas chart-canvas--fixed">
+                        <canvas id="adminBookingsChart" aria-label="Monthly bookings chart"></canvas>
+                    </div>
+                </article>
+
+                <article class="admin-card analytics-card">
+                    <div class="card-header analytics-card-head">
+                        <h2>Top Vendors by Earnings</h2>
+                    </div>
+                    <div class="chart-canvas chart-canvas--fixed">
+                        <canvas id="adminVendorsChart" aria-label="Top vendors earnings chart"></canvas>
+                    </div>
+                </article>
+
+                <article class="admin-card analytics-card">
+                    <div class="card-header analytics-card-head">
+                        <h2>Package Category Split</h2>
+                    </div>
+                    <div class="chart-canvas chart-canvas--fixed chart-canvas--pie">
+                        <canvas id="adminCategoryChart" aria-label="Package category chart"></canvas>
+                    </div>
+                </article>
             </section>
 
             <section class="admin-panels">
@@ -632,6 +677,8 @@
             </section>
         </main>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="{% static 'js/admin_dashboard_analytics.js' %}?v=20260325a"></script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 </body>
 </html>

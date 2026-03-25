@@ -1,4 +1,5 @@
 from calendar import monthrange
+from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
@@ -1204,39 +1205,6 @@ def admin_dashboard(request):
     total_reviews = reviews.count()
     avg_rating = reviews.aggregate(avg=Avg('rating'))['avg'] or 0
 
-    today = timezone.now().date()
-    month_labels = []
-    month_values = []
-    for offset in range(11, -1, -1):
-        total_months = today.year * 12 + (today.month - 1) - offset
-        year = total_months // 12
-        month = total_months % 12 + 1
-        start = date(year, month, 1)
-        end = date(year, month, monthrange(year, month)[1])
-        total = bookings.filter(
-            status='confirmed',
-            created_at__date__range=(start, end),
-        ).aggregate(total=Sum('platform_fee'))['total'] or 0
-        month_labels.append(start.strftime('%b'))
-        month_values.append(float(total))
-
-    width = 720
-    height = 200
-    pad_x = 20
-    pad_y = 20
-    step = (width - pad_x * 2) / max(len(month_values) - 1, 1)
-    max_value = max(month_values) if month_values else 0
-    min_value = min(month_values) if month_values else 0
-    revenue_points = []
-    for idx, value in enumerate(month_values):
-        x = pad_x + idx * step
-        if max_value == min_value:
-            y = height / 2
-        else:
-            ratio = (value - min_value) / (max_value - min_value)
-            y = height - pad_y - ratio * (height - pad_y * 2)
-        revenue_points.append(f"{x:.0f},{y:.0f}")
-
     activity_items = []
     for booking in bookings[:3]:
         actor = booking.traveler.get_full_name() if booking.traveler else 'Traveler'
@@ -1287,6 +1255,8 @@ def admin_dashboard(request):
         'avg_rating': round(avg_rating or 0, 1),
         'forum_posts': 0,
     }
+    current_year = timezone.localdate().year
+    analytics_years = [current_year - 2, current_year - 1, current_year]
 
     return render(request, 'accounts/admin_dashboard.html', {
         'admin_profile': admin_profile,
@@ -1299,11 +1269,288 @@ def admin_dashboard(request):
         'vendor_subscriptions': vendor_subscriptions,
         'featured_packages': featured_packages,
         'stats': stats,
-        'revenue_points': " ".join(revenue_points),
-        'revenue_labels': month_labels,
         'activity_items': activity_items,
+        'analytics_years': analytics_years,
+        'selected_analytics_year': current_year,
         'active_page': 'dashboard',
     })
+
+
+def _admin_analytics_year_options():
+    current_year = timezone.localdate().year
+    return [current_year - 2, current_year - 1, current_year]
+
+
+def _parse_admin_analytics_year(raw_year, year_options):
+    try:
+        parsed = int(raw_year)
+    except (TypeError, ValueError):
+        return year_options[-1]
+    if parsed not in year_options:
+        return year_options[-1]
+    return parsed
+
+
+def _month_labels():
+    return [date(2000, month, 1).strftime('%b') for month in range(1, 13)]
+
+
+def _month_range_dates(year, month):
+    start = date(year, month, 1)
+    end = date(year, month, monthrange(year, month)[1])
+    return start, end
+
+
+def _monthly_sum_for_bookings(bookings_queryset, year, field_name, *, confirmed_only=False):
+    values = []
+    for month in range(1, 13):
+        start, end = _month_range_dates(year, month)
+        month_qs = bookings_queryset.filter(created_at__date__range=(start, end))
+        if confirmed_only:
+            month_qs = month_qs.filter(status=Booking.STATUS_CONFIRMED)
+        total = month_qs.aggregate(total=Sum(field_name))['total'] or 0
+        values.append(float(total))
+    return values
+
+
+def _monthly_count_for_queryset(queryset, year, date_field):
+    values = []
+    for month in range(1, 13):
+        start, end = _month_range_dates(year, month)
+        filter_kwargs = {
+            f'{date_field}__date__range': (start, end),
+        }
+        values.append(queryset.filter(**filter_kwargs).count())
+    return values
+
+
+def _monthly_growth(values, year):
+    if not values:
+        return {
+            'percent': None,
+            'current': 0.0,
+            'previous': 0.0,
+            'current_month': '',
+            'previous_month': '',
+        }
+
+    now = timezone.localdate()
+    current_month = now.month if year == now.year else 12
+    current_idx = max(current_month - 1, 0)
+    previous_idx = current_idx - 1
+    current_value = float(values[current_idx])
+    previous_value = float(values[previous_idx]) if previous_idx >= 0 else 0.0
+
+    if previous_idx < 0:
+        percent = None
+        previous_month_label = ''
+    elif previous_value == 0:
+        percent = None if current_value > 0 else 0.0
+        previous_month_label = date(year, previous_idx + 1, 1).strftime('%b')
+    else:
+        percent = round(((current_value - previous_value) / previous_value) * 100, 1)
+        previous_month_label = date(year, previous_idx + 1, 1).strftime('%b')
+
+    return {
+        'percent': percent,
+        'current': current_value,
+        'previous': previous_value,
+        'current_month': date(year, current_idx + 1, 1).strftime('%b'),
+        'previous_month': previous_month_label,
+    }
+
+
+def _is_cultural_package(package):
+    keywords = (
+        'cultural',
+        'culture',
+        'heritage',
+        'temple',
+        'monastery',
+        'pilgrimage',
+        'museum',
+    )
+    searchable_text = ' '.join([
+        package.title or '',
+        package.description or '',
+        package.itinerary or '',
+        package.location_name or '',
+        package.location or '',
+    ]).lower()
+    return any(keyword in searchable_text for keyword in keywords)
+
+
+def _package_category_breakdown_for_year(year):
+    packages = Package.objects.filter(created_at__year=year)
+    trek_count = 0
+    tour_count = 0
+    cultural_count = 0
+
+    for package in packages:
+        if _is_cultural_package(package):
+            cultural_count += 1
+        elif package.category == Package.CATEGORY_TREK:
+            trek_count += 1
+        else:
+            tour_count += 1
+
+    return {
+        'labels': ['Treks', 'Tours', 'Cultural'],
+        'values': [trek_count, tour_count, cultural_count],
+    }
+
+
+def _vendor_display_label(vendor_user):
+    profile = _get_vendor_profile(vendor_user)
+    if profile and profile.business_name:
+        return profile.business_name
+    full_name = vendor_user.get_full_name().strip()
+    if full_name:
+        return full_name
+    return vendor_user.email or vendor_user.username or f'Vendor #{vendor_user.id}'
+
+
+def _top_vendor_earnings_for_year(year, limit=8):
+    bookings = Booking.objects.filter(
+        status=Booking.STATUS_CONFIRMED,
+        created_at__year=year,
+    ).select_related(
+        'vendor',
+        'vendor__vendor_profile',
+        'package__vendor',
+        'package__vendor__vendor_profile',
+    )
+
+    earnings_by_vendor = defaultdict(float)
+    vendor_labels = {}
+
+    for booking in bookings:
+        vendor_user = booking.vendor or (booking.package.vendor if booking.package_id else None)
+        if not vendor_user:
+            continue
+        earnings_by_vendor[vendor_user.id] += float(booking.vendor_amount or 0)
+        if vendor_user.id not in vendor_labels:
+            vendor_labels[vendor_user.id] = _vendor_display_label(vendor_user)
+
+    ranked = sorted(
+        earnings_by_vendor.items(),
+        key=lambda item: item[1],
+        reverse=True,
+    )[:limit]
+    return [
+        {
+            'name': vendor_labels[vendor_id],
+            'earnings': round(total, 2),
+        }
+        for vendor_id, total in ranked
+    ]
+
+
+@admin_required
+def admin_analytics_api(request):
+    year_options = _admin_analytics_year_options()
+    selected_year = _parse_admin_analytics_year(
+        request.GET.get('year'),
+        year_options,
+    )
+
+    bookings_for_year = Booking.objects.filter(created_at__year=selected_year)
+    confirmed_bookings_for_year = bookings_for_year.filter(status=Booking.STATUS_CONFIRMED)
+    subscriptions_for_year = VendorSubscription.objects.filter(created_at__year=selected_year)
+    users_for_year = User.objects.filter(date_joined__year=selected_year)
+    active_vendors_for_year = User.objects.filter(
+        user_type='vendor',
+        is_active=True,
+        vendor_profile__is_approved=True,
+        date_joined__year=selected_year,
+    )
+
+    monthly_platform_revenue = _monthly_sum_for_bookings(
+        bookings_for_year,
+        selected_year,
+        'platform_fee',
+        confirmed_only=True,
+    )
+    monthly_vendor_earnings = _monthly_sum_for_bookings(
+        bookings_for_year,
+        selected_year,
+        'vendor_amount',
+        confirmed_only=True,
+    )
+    monthly_bookings = _monthly_count_for_queryset(
+        bookings_for_year,
+        selected_year,
+        'created_at',
+    )
+    monthly_subscription_revenue = []
+    for month in range(1, 13):
+        start, end = _month_range_dates(selected_year, month)
+        total = subscriptions_for_year.filter(
+            created_at__date__range=(start, end),
+        ).aggregate(total=Sum('price'))['total'] or 0
+        monthly_subscription_revenue.append(float(total))
+    monthly_new_users = _monthly_count_for_queryset(
+        users_for_year,
+        selected_year,
+        'date_joined',
+    )
+    monthly_new_active_vendors = _monthly_count_for_queryset(
+        active_vendors_for_year,
+        selected_year,
+        'date_joined',
+    )
+
+    category_data = _package_category_breakdown_for_year(selected_year)
+    top_vendors = _top_vendor_earnings_for_year(selected_year)
+
+    summary = {
+        'platform_earnings': float(
+            confirmed_bookings_for_year.aggregate(total=Sum('platform_fee'))['total'] or 0
+        ),
+        'vendor_earnings': float(
+            confirmed_bookings_for_year.aggregate(total=Sum('vendor_amount'))['total'] or 0
+        ),
+        'subscription_revenue': float(
+            subscriptions_for_year.aggregate(total=Sum('price'))['total'] or 0
+        ),
+        'total_users': users_for_year.count(),
+        'active_vendors': active_vendors_for_year.count(),
+        'total_bookings': bookings_for_year.count(),
+    }
+
+    payload = {
+        'year': selected_year,
+        'years': year_options,
+        'months': _month_labels(),
+        'summary': summary,
+        'revenue': {
+            'values': monthly_platform_revenue,
+            'growth': _monthly_growth(monthly_platform_revenue, selected_year),
+        },
+        'vendor_earnings': {
+            'values': monthly_vendor_earnings,
+            'growth': _monthly_growth(monthly_vendor_earnings, selected_year),
+        },
+        'bookings': {
+            'values': monthly_bookings,
+            'growth': _monthly_growth(monthly_bookings, selected_year),
+        },
+        'subscriptions': {
+            'values': monthly_subscription_revenue,
+            'growth': _monthly_growth(monthly_subscription_revenue, selected_year),
+        },
+        'users': {
+            'values': monthly_new_users,
+            'growth': _monthly_growth(monthly_new_users, selected_year),
+        },
+        'active_vendors': {
+            'values': monthly_new_active_vendors,
+            'growth': _monthly_growth(monthly_new_active_vendors, selected_year),
+        },
+        'top_vendors': top_vendors,
+        'categories': category_data,
+    }
+    return JsonResponse(payload)
 
 
 @admin_required

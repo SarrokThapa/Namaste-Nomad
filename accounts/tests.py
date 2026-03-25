@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -265,3 +265,116 @@ class VendorAnalyticsChartTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Revenue by Month')
         self.assertContains(response, 'Payment Method Mix')
+
+
+class AdminAnalyticsApiTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='analytics-admin@example.com',
+            email='analytics-admin@example.com',
+            password='admin-pass-123',
+            user_type='admin',
+            is_staff=True,
+            is_active=True,
+        )
+        self.vendor = User.objects.create_user(
+            username='analytics-vendor-admin@example.com',
+            email='analytics-vendor-admin@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            is_active=True,
+        )
+        VendorProfile.objects.create(
+            user=self.vendor,
+            business_name='Atlas Peak Treks',
+            owner_name='Admin Analytics Vendor',
+            is_approved=True,
+        )
+        self.traveler = User.objects.create_user(
+            username='analytics-traveler-admin@example.com',
+            email='analytics-traveler-admin@example.com',
+            password='traveler-pass-123',
+            user_type='traveler',
+        )
+        self.package_trek = Package.objects.create(
+            vendor=self.vendor,
+            title='Everest Ridge Trek',
+            category=Package.CATEGORY_TREK,
+            location='Khumbu',
+            price='10000.00',
+            available_slots=12,
+            available_from=timezone.localdate() - timedelta(days=10),
+            available_until=timezone.localdate() + timedelta(days=40),
+            is_active=True,
+        )
+        self.package_cultural = Package.objects.create(
+            vendor=self.vendor,
+            title='Kathmandu Cultural Heritage Tour',
+            category=Package.CATEGORY_TOUR,
+            location='Kathmandu',
+            price='8000.00',
+            available_slots=15,
+            available_from=timezone.localdate() - timedelta(days=10),
+            available_until=timezone.localdate() + timedelta(days=40),
+            is_active=True,
+        )
+
+    def _set_created_at(self, instance, target_datetime):
+        model = type(instance)
+        model.objects.filter(id=instance.id).update(created_at=target_datetime)
+
+    def _aware(self, year, month, day):
+        return timezone.make_aware(datetime(year, month, day, 10, 0, 0))
+
+    def _create_booking(self, package, year, month, day):
+        booking = Booking.objects.create(
+            package=package,
+            traveler=self.traveler,
+            vendor=self.vendor,
+            number_of_people=1,
+            travel_date=timezone.localdate() + timedelta(days=7),
+            status=Booking.STATUS_CONFIRMED,
+            payment_method=Booking.PAYMENT_METHOD_ESEWA,
+            payment_status=Booking.PAYMENT_STATUS_COMPLETED,
+            total_price='0',
+        )
+        self._set_created_at(booking, self._aware(year, month, day))
+        return booking
+
+    def test_admin_analytics_api_requires_admin_login(self):
+        response = self.client.get(reverse('admin_analytics_api'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('admin_login'), response.url)
+
+    def test_admin_analytics_api_returns_chart_payload_for_year(self):
+        self._create_booking(self.package_trek, 2026, 3, 10)
+        self._create_booking(self.package_cultural, 2026, 2, 10)
+        old_booking = self._create_booking(self.package_trek, 2025, 4, 10)
+        self.assertIsNotNone(old_booking.id)
+
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('admin_analytics_api'), {'year': 2026})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['year'], 2026)
+        self.assertEqual(len(payload['months']), 12)
+        self.assertEqual(payload['bookings']['values'][1], 1)  # Feb
+        self.assertEqual(payload['bookings']['values'][2], 1)  # Mar
+        self.assertGreater(payload['revenue']['values'][2], 0)
+        self.assertEqual(payload['categories']['labels'], ['Treks', 'Tours', 'Cultural'])
+        self.assertEqual(payload['categories']['values'], [1, 0, 1])
+        self.assertTrue(any(vendor['name'] == 'Atlas Peak Treks' for vendor in payload['top_vendors']))
+
+    def test_admin_analytics_api_applies_year_filter(self):
+        self._create_booking(self.package_trek, 2026, 3, 11)
+        self._create_booking(self.package_trek, 2025, 4, 11)
+
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('admin_analytics_api'), {'year': 2025})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['year'], 2025)
+        self.assertEqual(payload['bookings']['values'][3], 1)  # Apr
+        self.assertEqual(payload['bookings']['values'][2], 0)  # Mar

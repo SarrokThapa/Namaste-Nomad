@@ -42,6 +42,7 @@ urlpatterns = [
     path('admin/support/', views.admin_support_inbox, name='admin_support_inbox'),
     path('admin/support/<int:conversation_id>/', views.admin_support_chat, name='admin_support_chat'),
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('admin/analytics/', views.admin_analytics_api, name='admin_analytics_api'),
     path('admin/profile/', views.admin_profile, name='admin_profile'),
     path('admin/vendors/<int:vendor_id>/', views.admin_vendor_detail, name='admin_vendor_detail'),
     path('admin/vendors/<int:vendor_id>/action/', views.admin_vendor_action, name='admin_vendor_action'),
