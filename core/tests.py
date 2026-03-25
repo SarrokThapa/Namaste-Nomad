@@ -1,12 +1,14 @@
 from datetime import timedelta
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import User, VendorProfile
-from .models import Booking, Package, Post
+from .models import Booking, Package, PackageImage, Post
 from .payments import StripeError
 
 
@@ -120,6 +122,93 @@ class TaggedVendorDisplayTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Himalayan Horizon Treks')
         self.assertNotContains(response, 'vendor-tag-feed@example.com')
+
+
+class PackageMapApiTests(TestCase):
+    def setUp(self):
+        self.vendor = User.objects.create_user(
+            username='map_vendor',
+            password='vendor-pass-123',
+            email='map-vendor@example.com',
+            user_type='vendor',
+        )
+        self.package = Package.objects.create(
+            vendor=self.vendor,
+            title='Langtang Valley Trek',
+            location_name='Langtang',
+            latitude=28.211,
+            longitude=85.558,
+            description='A scenic Himalayan route.',
+            price='1200.00',
+            available_slots=6,
+            available_from=timezone.localdate() - timedelta(days=3),
+            available_until=timezone.localdate() + timedelta(days=20),
+            is_active=True,
+        )
+
+    def test_packages_map_api_includes_details_endpoint_url(self):
+        response = self.client.get(reverse('packages_map_api'))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload), 1)
+        package_data = payload[0]
+        self.assertEqual(package_data['id'], self.package.id)
+        self.assertEqual(
+            package_data['details_url'],
+            reverse('package_details_api', args=[self.package.id]),
+        )
+
+    def test_package_details_api_returns_uploaded_images(self):
+        with TemporaryDirectory() as media_root:
+            with self.settings(MEDIA_ROOT=media_root):
+                package = Package.objects.create(
+                    vendor=self.vendor,
+                    title='Annapurna Circuit Trek',
+                    location_name='Annapurna',
+                    latitude=28.598,
+                    longitude=83.931,
+                    description='Classic multi-day trekking package.',
+                    price='1500.00',
+                    available_slots=8,
+                    available_from=timezone.localdate() - timedelta(days=2),
+                    available_until=timezone.localdate() + timedelta(days=25),
+                    is_active=True,
+                )
+                PackageImage.objects.create(
+                    package=package,
+                    image=SimpleUploadedFile(
+                        'annapurna-one.jpg',
+                        b'fake-image-data-1',
+                        content_type='image/jpeg',
+                    ),
+                    order=1,
+                )
+                PackageImage.objects.create(
+                    package=package,
+                    image=SimpleUploadedFile(
+                        'annapurna-two.jpg',
+                        b'fake-image-data-2',
+                        content_type='image/jpeg',
+                    ),
+                    order=2,
+                )
+
+                response = self.client.get(reverse('package_details_api', args=[package.id]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['name'], 'Annapurna Circuit Trek')
+        self.assertEqual(payload['description'], 'Classic multi-day trekking package.')
+        self.assertEqual(len(payload['images']), 2)
+
+    def test_package_details_api_hides_inactive_package(self):
+        self.package.is_active = False
+        self.package.save(update_fields=['is_active'])
+
+        response = self.client.get(reverse('package_details_api', args=[self.package.id]))
+
+        self.assertEqual(response.status_code, 404)
 
 
 class BookingStripeFlowTests(TestCase):

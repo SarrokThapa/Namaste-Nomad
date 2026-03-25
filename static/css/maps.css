@@ -68,6 +68,46 @@
 
 .map-popup {
     font-family: 'Manrope', sans-serif;
+    width: min(320px, 75vw);
+}
+
+.map-popup--rich {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.map-popup--loading,
+.map-popup--error {
+    font-size: 0.82rem;
+    color: #334155;
+    font-weight: 600;
+    padding: 0.25rem 0;
+}
+
+.map-popup__group-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #2563eb;
+}
+
+.map-popup__package-list {
+    max-height: 340px;
+    overflow-y: auto;
+    display: grid;
+    gap: 0.8rem;
+    padding-right: 0.3rem;
+}
+
+.map-popup__package {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.map-popup__package + .map-popup__package {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 0.75rem;
 }
 
 .map-popup__image {
@@ -82,6 +122,13 @@
 .map-popup__body {
     display: grid;
     gap: 0.35rem;
+}
+
+.map-popup__description {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: #475569;
 }
 
 .map-popup__title {
@@ -99,6 +146,31 @@
     font-size: 0.85rem;
     font-weight: 600;
     color: #111827;
+}
+
+.map-popup__gallery {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.35rem;
+}
+
+.map-popup__gallery-image {
+    width: 100%;
+    height: 68px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid #dbe3ef;
+    display: block;
+}
+
+.map-popup__gallery-empty {
+    font-size: 0.76rem;
+    color: #64748b;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 10px;
+    text-align: center;
+    padding: 0.5rem;
 }
 
 .map-popup__link {
@@ -156,5 +228,13 @@
     .map-legend {
         right: 12px;
         top: 12px;
+    }
+
+    .map-popup {
+        width: min(290px, 78vw);
+    }
+
+    .map-popup__gallery-image {
+        height: 62px;
     }
 }

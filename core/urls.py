@@ -16,6 +16,7 @@ urlpatterns = [
     path('packages/treks/', views.trek_package_list, name='package_treks'),
     path('packages/tours/', views.tour_package_list, name='package_tours'),
     path('explore-map/', views.explore_map, name='explore_map'),
+    path('package/<int:package_id>/details/', views.package_details_api, name='package_details_api'),
     path('api/destinations/', views.destinations_api, name='destinations_api'),
     path('api/packages/map/', views.packages_map_api, name='packages_map_api'),
     path('api/packages/search/', views.packages_search_api, name='packages_search_api'),

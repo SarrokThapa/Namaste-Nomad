@@ -62,6 +62,14 @@ class Package(models.Model):
     def __str__(self):
         return self.title
 
+    @property
+    def name(self):
+        return self.title
+
+    @name.setter
+    def name(self, value):
+        self.title = value
+
     def is_in_season(self, on_date=None):
         check_date = on_date or timezone.localdate()
         if not self.available_from or not self.available_until:

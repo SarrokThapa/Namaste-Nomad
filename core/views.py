@@ -922,11 +922,36 @@ def packages_map_api(request):
             'lng': package.longitude,
             'price': float(package.price) if package.price is not None else None,
             'url': reverse('package_detail', kwargs={'package_id': package.id}),
+            'details_url': reverse('package_details_api', kwargs={'package_id': package.id}),
             'image': image_url,
             'category': package.category,
         })
 
     return JsonResponse(data, safe=False)
+
+
+def package_details_api(request, package_id):
+    package = get_object_or_404(
+        Package.objects.prefetch_related('images'),
+        id=package_id,
+        is_active=True,
+    )
+
+    image_urls = []
+    for package_image in package.images.all():
+        try:
+            image_urls.append(package_image.image.url)
+        except (ValueError, AttributeError):
+            continue
+
+    if not image_urls and package.image_url:
+        image_urls.append(package.image_url)
+
+    return JsonResponse({
+        'name': package.title,
+        'images': image_urls,
+        'description': package.description or '',
+    })
 
 
 def packages_search_api(request):
