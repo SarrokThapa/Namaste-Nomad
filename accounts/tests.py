@@ -1,8 +1,12 @@
+from datetime import timedelta
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from .models import User, VendorProfile
+from core.models import Booking, Package
 
 
 class VendorApprovalFlowTests(TestCase):
@@ -198,3 +202,66 @@ class VendorApprovalFlowTests(TestCase):
         self.assertFalse(vendor.is_active)
         self.assertFalse(vendor.vendor_profile.is_approved)
         self.assertFalse(pending_vendors.filter(id=vendor.id).exists())
+
+
+class VendorAnalyticsChartTests(TestCase):
+    def setUp(self):
+        self.vendor = User.objects.create_user(
+            username='analytics-vendor@example.com',
+            email='analytics-vendor@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            is_active=True,
+        )
+        self.traveler = User.objects.create_user(
+            username='analytics-traveler@example.com',
+            email='analytics-traveler@example.com',
+            password='traveler-pass-123',
+            user_type='traveler',
+        )
+        VendorProfile.objects.create(
+            user=self.vendor,
+            business_name='Analytics Treks',
+            owner_name='Analytics Owner',
+            is_approved=True,
+        )
+        self.package = Package.objects.create(
+            vendor=self.vendor,
+            title='Analytics Trek',
+            location='Solukhumbu',
+            price='12000.00',
+            available_slots=20,
+            available_from=timezone.localdate() - timedelta(days=2),
+            available_until=timezone.localdate() + timedelta(days=60),
+            is_active=True,
+        )
+
+    def test_vendor_analytics_renders_chart_sections(self):
+        Booking.objects.create(
+            package=self.package,
+            traveler=self.traveler,
+            vendor=self.vendor,
+            number_of_people=2,
+            travel_date=timezone.localdate() + timedelta(days=8),
+            status=Booking.STATUS_CONFIRMED,
+            payment_method=Booking.PAYMENT_METHOD_ESEWA,
+            payment_status=Booking.PAYMENT_STATUS_COMPLETED,
+            total_price='0',
+        )
+
+        self.client.force_login(self.vendor)
+        response = self.client.get(reverse('vendor_analytics'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Revenue by Month')
+        self.assertContains(response, 'Revenue Trend')
+        self.assertContains(response, 'Payment Method Mix')
+        self.assertContains(response, 'conic-gradient(')
+
+    def test_vendor_analytics_charts_render_without_bookings(self):
+        self.client.force_login(self.vendor)
+        response = self.client.get(reverse('vendor_analytics'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Revenue by Month')
+        self.assertContains(response, 'Payment Method Mix')

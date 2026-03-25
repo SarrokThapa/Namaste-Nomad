@@ -396,6 +396,10 @@ body {
     align-items: end;
 }
 
+.analytics-bars {
+    grid-template-columns: repeat(6, 1fr);
+}
+
 .bar {
     background: var(--sky);
     border-radius: 0.7rem;
@@ -429,6 +433,12 @@ body {
     z-index: 2;
 }
 
+.chart-note {
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+}
+
 .line-chart {
     height: 200px;
     display: flex;
@@ -450,6 +460,10 @@ body {
     font-size: 0.75rem;
     color: var(--muted);
     text-align: center;
+}
+
+.analytics-labels {
+    grid-template-columns: repeat(6, 1fr);
 }
 
 .pie-wrapper {

@@ -41,6 +41,67 @@
     </div>
 </section>
 
+<section class="cards-grid">
+    <div class="card chart-card">
+        <div class="card-header">
+            <h3>Revenue by Month</h3>
+            <span class="card-meta">Last 6 months</span>
+        </div>
+        <div class="bar-chart analytics-bars">
+            {% for month in monthly_revenue %}
+                <div class="bar" style="--bar: {{ month.percent }}%;">
+                    <span>{{ month.label }}</span>
+                </div>
+            {% endfor %}
+        </div>
+        <div class="chart-note">
+            Confirmed booking revenue is used for this chart.
+        </div>
+    </div>
+
+    <div class="card chart-card">
+        <div class="card-header">
+            <h3>Revenue Trend</h3>
+            <span class="card-meta">Monthly progression</span>
+        </div>
+        <div class="line-chart">
+            <svg viewBox="0 0 420 170" preserveAspectRatio="none" aria-hidden="true">
+                <polyline points="{{ monthly_line_points }}"
+                          fill="none" stroke="url(#analyticsLineGradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <defs>
+                    <linearGradient id="analyticsLineGradient" x1="0" x2="1" y1="0" y2="1">
+                        <stop offset="0%" stop-color="#0f766e"/>
+                        <stop offset="100%" stop-color="#22c55e"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+            <div class="chart-labels analytics-labels">
+                {% for month in monthly_revenue %}
+                    <span>{{ month.label }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card chart-card">
+        <div class="card-header">
+            <h3>Payment Method Mix</h3>
+            <span class="card-meta">All bookings</span>
+        </div>
+        <div class="pie-wrapper">
+            <div class="pie-chart" style="background: {{ payment_method_gradient }};"></div>
+            <div class="pie-legend">
+                {% for method in payment_method_breakdown %}
+                    <div class="legend-item">
+                        <span class="dot" style="background: {{ method.color }};"></span>
+                        {{ method.label }} ({{ method.percent }}%)
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+
 <section class="card list-card">
     <div class="card-header">
         <h3>Next Steps</h3>
