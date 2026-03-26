@@ -606,6 +606,9 @@ def vendor_dashboard(request):
     vendor_profile = _get_vendor_profile(request.user)
     vendor_packages = Package.objects.filter(vendor=request.user)
     vendor_bookings = Booking.objects.filter(package__vendor=request.user)
+    completed_vendor_bookings = vendor_bookings.filter(
+        payment_status=Booking.PAYMENT_STATUS_COMPLETED,
+    )
     active_subscription = _get_active_subscription(request.user)
     featured_count = vendor_packages.filter(is_featured=True).count()
     featured_limit = active_subscription.max_featured_packages if active_subscription else None
@@ -621,101 +624,140 @@ def vendor_dashboard(request):
         avg=Avg('rating')
     )['avg'] or 0
 
-    today = timezone.now().date()
-    weekly_revenue = []
-    max_revenue = 0
-    end = today
-    periods = []
-    for _ in range(4):
-        start = end - timedelta(days=6)
-        periods.append((start, end))
-        end = start - timedelta(days=1)
-    periods.reverse()
+    today = timezone.localdate()
 
-    for index, (start, end) in enumerate(periods, start=1):
-        total = vendor_bookings.filter(
-            status='confirmed',
-            created_at__date__range=(start, end),
-        ).aggregate(total=Sum('vendor_amount'))['total'] or 0
-        total_value = float(total)
-        max_revenue = max(max_revenue, total_value)
-        weekly_revenue.append({
-            'label': f'Week {index}',
-            'value': total_value,
-        })
-
-    for entry in weekly_revenue:
-        if max_revenue == 0:
-            entry['percent'] = 12
+    month_cursor = today.replace(day=1)
+    month_periods = []
+    for _ in range(6):
+        last_day = monthrange(month_cursor.year, month_cursor.month)[1]
+        start = month_cursor
+        end = date(month_cursor.year, month_cursor.month, last_day)
+        month_periods.append((start, end, start.strftime('%b')))
+        if month_cursor.month == 1:
+            month_cursor = date(month_cursor.year - 1, 12, 1)
         else:
-            entry['percent'] = max(12, int((entry['value'] / max_revenue) * 100))
+            month_cursor = date(month_cursor.year, month_cursor.month - 1, 1)
+    month_periods.reverse()
 
-    daily_counts = []
-    for i in range(6, -1, -1):
-        day = today - timedelta(days=i)
-        count = vendor_bookings.filter(created_at__date=day).count()
-        daily_counts.append({
-            'label': day.strftime('%a'),
-            'value': count,
+    monthly_earnings = []
+    monthly_bookings = []
+    for start, end, label in month_periods:
+        month_total = completed_vendor_bookings.filter(
+            created_at__date__range=(start, end),
+        ).aggregate(total=Sum('total_price'))['total'] or Decimal('0')
+        vendor_share = (Decimal(month_total) * Booking.COMMISSION_VENDOR_RATE).quantize(Decimal('0.01'))
+        booking_count = completed_vendor_bookings.filter(created_at__date__range=(start, end)).count()
+        monthly_earnings.append({
+            'label': label,
+            'value': float(vendor_share),
+        })
+        monthly_bookings.append({
+            'label': label,
+            'value': booking_count,
         })
 
-    values = [item['value'] for item in daily_counts]
-    max_value = max(values) if values else 0
-    min_value = min(values) if values else 0
-
-    width = 320
-    height = 160
+    earnings_values = [entry['value'] for entry in monthly_earnings]
+    earnings_max = max(earnings_values) if earnings_values else 0
+    earnings_min = min(earnings_values) if earnings_values else 0
+    chart_width = 320
+    chart_height = 160
     padding_x = 10
     padding_y = 20
-    step = (width - padding_x * 2) / max(len(values) - 1, 1)
-    line_points = []
-    for idx, value in enumerate(values):
-        x = padding_x + idx * step
-        if max_value == min_value:
-            y = height / 2
+    earnings_step = (chart_width - padding_x * 2) / max(len(earnings_values) - 1, 1)
+    earnings_points = []
+    for idx, value in enumerate(earnings_values):
+        x = padding_x + idx * earnings_step
+        if earnings_max == earnings_min:
+            y = chart_height / 2
         else:
-            ratio = (value - min_value) / (max_value - min_value)
-            y = height - padding_y - ratio * (height - padding_y * 2)
-        line_points.append(f"{x:.0f},{y:.0f}")
-    line_points_str = " ".join(line_points)
+            ratio = (value - earnings_min) / (earnings_max - earnings_min)
+            y = chart_height - padding_y - ratio * (chart_height - padding_y * 2)
+        month_label = monthly_earnings[idx]['label']
+        earnings_points.append({
+            'x': round(x, 1),
+            'y': round(y, 1),
+            'label': month_label,
+            'value': value,
+            'tooltip': f"Month: {month_label} | Earnings: Rs {value:,.0f}",
+        })
+    earnings_line_points = ' '.join(f"{point['x']},{point['y']}" for point in earnings_points)
 
-    source_totals = {key: 0 for key, _ in Booking.SOURCE_CHOICES}
-    for row in vendor_bookings.values('source').annotate(count=Count('id')):
-        source_totals[row['source']] = row['count']
+    max_monthly_bookings = max((item['value'] for item in monthly_bookings), default=0)
+    for entry in monthly_bookings:
+        if max_monthly_bookings == 0:
+            entry['percent'] = 12
+        else:
+            entry['percent'] = max(12, int((entry['value'] / max_monthly_bookings) * 100))
 
-    total_sources = sum(source_totals.values())
-    source_order = ['direct', 'partner', 'social', 'marketplace']
-    source_labels = dict(Booking.SOURCE_CHOICES)
-    source_colors = {
-        'direct': '#1d4ed8',
-        'partner': '#1e3a8a',
-        'social': '#60a5fa',
-        'marketplace': '#bfdbfe',
+    package_performance_chart = list(
+        vendor_packages.annotate(
+            completed_booking_count=Count(
+                'bookings',
+                filter=Q(bookings__payment_status=Booking.PAYMENT_STATUS_COMPLETED),
+            ),
+        )
+        .order_by('-completed_booking_count', '-views_count')[:5]
+    )
+    max_package_bookings = max(
+        (package.completed_booking_count for package in package_performance_chart),
+        default=0,
+    )
+    for package in package_performance_chart:
+        if max_package_bookings == 0:
+            package.chart_percent = 12
+        else:
+            package.chart_percent = max(12, int((package.completed_booking_count / max_package_bookings) * 100))
+
+    vendor_trek_count = vendor_packages.filter(category=Package.CATEGORY_TREK).count()
+    vendor_tour_queryset = vendor_packages.filter(category=Package.CATEGORY_TOUR)
+    vendor_cultural_count = vendor_tour_queryset.filter(
+        Q(title__icontains='cultural')
+        | Q(description__icontains='cultural')
+        | Q(itinerary__icontains='cultural')
+        | Q(title__icontains='heritage')
+        | Q(description__icontains='heritage')
+        | Q(title__icontains='temple')
+        | Q(description__icontains='temple')
+        | Q(title__icontains='monastery')
+        | Q(description__icontains='monastery')
+    ).count()
+    vendor_tour_count = max(vendor_tour_queryset.count() - vendor_cultural_count, 0)
+
+    category_colors = {
+        'trek': '#1d4ed8',
+        'tour': '#1e3a8a',
+        'cultural': '#60a5fa',
     }
-    source_breakdown = []
-    current = 0
-    segments = []
-    for source in source_order:
-        count = source_totals.get(source, 0)
-        percent = (count / total_sources * 100) if total_sources else 0
-        source_breakdown.append({
-            'key': source,
-            'label': source_labels.get(source, source.title()),
+    category_rows = [
+        ('trek', 'Treks', vendor_trek_count),
+        ('tour', 'Tours', vendor_tour_count),
+        ('cultural', 'Cultural', vendor_cultural_count),
+    ]
+    category_total = sum(count for _, _, count in category_rows)
+    category_breakdown = []
+    category_segments = []
+    category_pointer = 0
+    for key, label, count in category_rows:
+        percent = (count / category_total * 100) if category_total else 0
+        rounded_percent = round(percent)
+        category_breakdown.append({
+            'key': key,
+            'label': label,
             'count': count,
-            'percent': round(percent),
-            'color': source_colors[source],
+            'percent': rounded_percent,
+            'color': category_colors[key],
         })
         if percent > 0:
-            next_point = current + percent
-            segments.append(f"{source_colors[source]} {current:.1f}% {next_point:.1f}%")
-            current = next_point
+            next_pointer = category_pointer + percent
+            category_segments.append(f"{category_colors[key]} {category_pointer:.1f}% {next_pointer:.1f}%")
+            category_pointer = next_pointer
 
-    if not segments:
-        pie_gradient = "conic-gradient(#e5e7eb 0 100%)"
+    if not category_segments:
+        pie_gradient = 'conic-gradient(#e5e7eb 0 100%)'
     else:
-        if current < 100:
-            segments.append(f"#e5e7eb {current:.1f}% 100%")
-        pie_gradient = f"conic-gradient({', '.join(segments)})"
+        if category_pointer < 100:
+            category_segments.append(f"#e5e7eb {category_pointer:.1f}% 100%")
+        pie_gradient = f"conic-gradient({', '.join(category_segments)})"
 
     upcoming_bookings = vendor_bookings.filter(
         travel_date__gte=today,
@@ -741,11 +783,13 @@ def vendor_dashboard(request):
         'featured_count': featured_count,
         'featured_limit': featured_limit,
         'subscription_plans': subscription_plans,
-        'weekly_revenue': weekly_revenue,
-        'line_points': line_points_str,
-        'daily_counts': daily_counts,
+        'monthly_earnings': monthly_earnings,
+        'earnings_line_points': earnings_line_points,
+        'earnings_points': earnings_points,
+        'monthly_bookings': monthly_bookings,
+        'package_performance_chart': package_performance_chart,
         'pie_gradient': pie_gradient,
-        'source_breakdown': source_breakdown,
+        'category_breakdown': category_breakdown,
         'upcoming_bookings': upcoming_bookings,
         'package_performance': package_performance,
     })

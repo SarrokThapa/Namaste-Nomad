@@ -99,40 +99,31 @@
     {% endif %}
 </section>
 
-<section class="cards-grid">
+<section class="cards-grid charts-grid">
     <div class="card chart-card">
         <div class="card-header">
-            <h3>Revenue This Month</h3>
-            <span class="card-meta">Last 4 weeks</span>
-        </div>
-        <div class="bar-chart">
-            {% for week in weekly_revenue %}
-                <div class="bar" style="--bar: {{ week.percent }}%;">
-                    <span>{{ week.label }}</span>
-                </div>
-            {% endfor %}
-        </div>
-    </div>
-
-    <div class="card chart-card">
-        <div class="card-header">
-            <h3>Bookings Over Time</h3>
-            <span class="card-meta">Last 7 days</span>
+            <h3>Vendor Earnings (Monthly)</h3>
+            <span class="card-meta">Completed bookings · 75% share</span>
         </div>
         <div class="line-chart">
             <svg viewBox="0 0 320 160" preserveAspectRatio="none" aria-hidden="true">
-                <polyline points="{{ line_points }}"
-                          fill="none" stroke="url(#lineGradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <polyline points="{{ earnings_line_points }}"
+                          fill="none" stroke="url(#earningsLineGradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                {% for point in earnings_points %}
+                    <circle cx="{{ point.x }}" cy="{{ point.y }}" r="4" fill="#1d4ed8">
+                        <title>{{ point.tooltip }}</title>
+                    </circle>
+                {% endfor %}
                 <defs>
-                    <linearGradient id="lineGradient" x1="0" x2="1" y1="0" y2="1">
+                    <linearGradient id="earningsLineGradient" x1="0" x2="1" y1="0" y2="1">
                         <stop offset="0%" stop-color="#2563eb"/>
                         <stop offset="100%" stop-color="#60a5fa"/>
                     </linearGradient>
                 </defs>
             </svg>
-            <div class="chart-labels">
-                {% for day in daily_counts %}
-                    <span>{{ day.label }}</span>
+            <div class="chart-labels analytics-labels">
+                {% for month in monthly_earnings %}
+                    <span>{{ month.label }}</span>
                 {% endfor %}
             </div>
         </div>
@@ -140,16 +131,48 @@
 
     <div class="card chart-card">
         <div class="card-header">
-            <h3>Booking Sources</h3>
-            <span class="card-meta">Top channels</span>
+            <h3>Vendor Bookings (Monthly)</h3>
+            <span class="card-meta">Completed payments only</span>
+        </div>
+        <div class="bar-chart analytics-bars">
+            {% for month in monthly_bookings %}
+                <div class="bar" style="--bar: {{ month.percent }}%;" title="Month: {{ month.label }} | Bookings: {{ month.value }}">
+                    <span>{{ month.label }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card chart-card">
+        <div class="card-header">
+            <h3>Top Performing Packages</h3>
+            <span class="card-meta">By completed bookings</span>
+        </div>
+        <div class="bar-chart analytics-bars">
+            {% if package_performance_chart %}
+                {% for package in package_performance_chart %}
+                    <div class="bar" style="--bar: {{ package.chart_percent }}%;" title="Package: {{ package.title }} | Bookings: {{ package.completed_booking_count }}">
+                        <span>{{ package.title|truncatechars:12 }}</span>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">No package performance data yet.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card chart-card">
+        <div class="card-header">
+            <h3>Package Category Distribution</h3>
+            <span class="card-meta">Treks vs Tours vs Cultural</span>
         </div>
         <div class="pie-wrapper">
             <div class="pie-chart" style="background: {{ pie_gradient }};"></div>
             <div class="pie-legend">
-                {% for source in source_breakdown %}
-                    <div class="legend-item">
-                        <span class="dot" style="background: {{ source.color }};"></span>
-                        {{ source.label }} ({{ source.percent }}%)
+                {% for category in category_breakdown %}
+                    <div class="legend-item" title="{{ category.label }}: {{ category.count }} package{{ category.count|pluralize }}">
+                        <span class="dot" style="background: {{ category.color }};"></span>
+                        {{ category.label }} ({{ category.percent }}%)
                     </div>
                 {% endfor %}
             </div>
