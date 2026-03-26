@@ -70,5 +70,14 @@
             </article>
         </section>
     </main>
+
+        <script>
+            if (window.history && window.history.pushState) {
+                window.history.pushState(null, '', window.location.href);
+                window.onpopstate = function () {
+                    window.location.replace("{% url 'account_login_choice' %}");
+                };
+            }
+        </script>
 </body>
 </html>

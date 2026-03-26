@@ -1,8 +1,11 @@
-
+import logging
 import random
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import OTP
+
+
+logger = logging.getLogger(__name__)
 
 def generate_otp():
     """Generate a 6-digit OTP"""
@@ -10,16 +13,20 @@ def generate_otp():
 
 def send_otp_email(user, otp_code):
     """Send OTP via email"""
+    if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+        logger.error('OTP email not sent: EMAIL_HOST_USER or EMAIL_HOST_PASSWORD is missing.')
+        return False
+
     subject = 'Your OTP Code'
     message = f'Your OTP code is: {otp_code}\n\nThis code will expire in 10 minutes.'
     from_email = settings.DEFAULT_FROM_EMAIL
     recipient_list = [user.email]
     
     try:
-        send_mail(subject, message, from_email, recipient_list)
+        send_mail(subject, message, from_email, recipient_list, fail_silently=False)
         return True
-    except Exception as e:
-        print(f"Error sending email: {e}")
+    except Exception:
+        logger.exception('OTP email sending failed for %s', user.email)
         return False
 
 def create_otp(user):

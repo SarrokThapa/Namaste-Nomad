@@ -1168,6 +1168,7 @@ def vendor_profile(request):
     })
 
 
+@never_cache
 @admin_required
 def admin_dashboard(request):
     VendorSubscription.expire_overdue()
@@ -2289,19 +2290,33 @@ def traveler_profile(request):
     })
 
 
+@never_cache
 @csrf_protect
 def vendor_login(request):
     if request.user.is_authenticated:
         return redirect(_dashboard_route_name(request.user))
 
     if request.method == 'POST':
-        email = request.POST.get('email')
-        password = request.POST.get('password')
+        email = (request.POST.get('email') or '').strip()
+        password = request.POST.get('password') or ''
         remember_me = request.POST.get('remember_me')
         next_url = _safe_next_url(request, 'vendor_dashboard')
         
         try:
             user = User.objects.get(email=email, user_type='vendor')
+
+            if not user.is_verified:
+                if user.check_password(password):
+                    _, sent = create_otp(user)
+                    request.session['user_id'] = user.id
+                    if sent:
+                        messages.info(request, 'Please verify OTP before login. We sent a new OTP to your email.')
+                    else:
+                        messages.error(request, 'Please verify OTP before login. OTP could not be sent, check SMTP credentials and try resend OTP.')
+                    return redirect('verify_otp')
+                messages.error(request, 'Invalid credentials')
+                return render(request, 'accounts/vendor_login.html')
+
             user = authenticate(request, username=user.username, password=password)
             
             if user is not None:
@@ -2320,8 +2335,12 @@ def vendor_login(request):
     
     return render(request, 'accounts/vendor_login.html')
 
+@never_cache
 @csrf_protect
 def vendor_register(request):
+    if request.user.is_authenticated:
+        return redirect(_dashboard_route_name(request.user))
+
     if request.method == 'POST':
         business_name = (request.POST.get('business_name') or '').strip()
         owner_name = (request.POST.get('owner_name') or '').strip()
@@ -2361,7 +2380,9 @@ def vendor_register(request):
             email=email,
             password=password,
             user_type='vendor',
-            phone=phone
+            phone=phone,
+            is_verified=False,
+            is_active=False,
         )
         
         # Create vendor profile
@@ -2385,23 +2406,37 @@ def vendor_register(request):
         
         messages.success(request, 'Registration successful! Please verify your email.')
         if not sent:
-            messages.error(request, 'OTP email could not be sent. Please check email settings or spam folder.')
+            messages.error(request, 'OTP email could not be sent. Check SMTP credentials (EMAIL_HOST_USER/EMAIL_HOST_PASSWORD app password) and try again.')
         return redirect('verify_otp')
     
     return render(request, 'accounts/vendor_register.html')
 
+@never_cache
 @csrf_protect
 def traveler_login(request):
     if request.user.is_authenticated:
         return redirect(_dashboard_route_name(request.user))
 
     if request.method == 'POST':
-        email = request.POST.get('email')
-        password = request.POST.get('password')
+        email = (request.POST.get('email') or '').strip()
+        password = request.POST.get('password') or ''
         next_url = _safe_next_url(request, 'traveler_home')
         
         try:
             user = User.objects.get(email=email, user_type='traveler')
+
+            if not user.is_verified:
+                if user.check_password(password):
+                    _, sent = create_otp(user)
+                    request.session['user_id'] = user.id
+                    if sent:
+                        messages.info(request, 'Please verify OTP before login. We sent a new OTP to your email.')
+                    else:
+                        messages.error(request, 'Please verify OTP before login. OTP could not be sent, check SMTP credentials and try resend OTP.')
+                    return redirect('verify_otp')
+                messages.error(request, 'Invalid credentials')
+                return render(request, 'accounts/traveler_login.html')
+
             user = authenticate(request, username=user.username, password=password)
             
             if user is not None:
@@ -2416,19 +2451,33 @@ def traveler_login(request):
     
     return render(request, 'accounts/traveler_login.html')
 
+@never_cache
 @csrf_protect
 def admin_login(request):
     if request.user.is_authenticated:
         return redirect(_dashboard_route_name(request.user))
 
     if request.method == 'POST':
-        email = request.POST.get('email')
-        password = request.POST.get('password')
+        email = (request.POST.get('email') or '').strip()
+        password = request.POST.get('password') or ''
         remember_me = request.POST.get('remember_me')
         next_url = _safe_next_url(request, 'admin_dashboard')
         
         try:
             user = User.objects.get(email=email, user_type='admin')
+
+            if not user.is_verified:
+                if user.check_password(password):
+                    _, sent = create_otp(user)
+                    request.session['user_id'] = user.id
+                    if sent:
+                        messages.info(request, 'Please verify OTP before login. We sent a new OTP to your email.')
+                    else:
+                        messages.error(request, 'Please verify OTP before login. OTP could not be sent, check SMTP credentials and try resend OTP.')
+                    return redirect('verify_otp')
+                messages.error(request, 'Invalid credentials or insufficient permissions')
+                return render(request, 'accounts/admin_login.html')
+
             user = authenticate(request, username=user.username, password=password)
             
             if user is not None and user.is_staff:
@@ -2459,6 +2508,7 @@ def verify_otp_view(request):
         
         if verify_otp_util(user, otp_code):
             user.is_verified = True
+            user.is_active = True
             user.save()
             login(request, user)
             del request.session['user_id']
@@ -2485,7 +2535,7 @@ def resend_otp(request):
         if sent:
             messages.success(request, 'New OTP sent to your email')
         else:
-            messages.error(request, 'OTP email could not be sent. Please check email settings or spam folder.')
+            messages.error(request, 'OTP email could not be sent. Check SMTP credentials (EMAIL_HOST_USER/EMAIL_HOST_PASSWORD app password) and try again.')
     except User.DoesNotExist:
         messages.error(request, 'User not found')
     
@@ -2497,8 +2547,12 @@ def logout_view(request):
     messages.success(request, 'You have been logged out successfully.')
     return redirect('home')
 
+@never_cache
 @csrf_protect
 def traveler_register(request):
+    if request.user.is_authenticated:
+        return redirect(_dashboard_route_name(request.user))
+
     if request.method == 'POST':
         first_name = request.POST.get('first_name')
         last_name = request.POST.get('last_name')
@@ -2523,7 +2577,9 @@ def traveler_register(request):
             user_type='traveler',
             phone=phone,
             first_name=first_name,
-            last_name=last_name
+            last_name=last_name,
+            is_verified=False,
+            is_active=False,
         )
 
         TravelerProfile.objects.create(user=user)
@@ -2540,7 +2596,7 @@ def traveler_register(request):
         
         messages.success(request, 'Registration successful! Please verify your email.')
         if not sent:
-            messages.error(request, 'OTP email could not be sent. Please check email settings or spam folder.')
+            messages.error(request, 'OTP email could not be sent. Check SMTP credentials (EMAIL_HOST_USER/EMAIL_HOST_PASSWORD app password) and try again.')
         return redirect('verify_otp')
     
     return render(request, 'accounts/traveler_register.html')
@@ -2550,12 +2606,14 @@ def landing(request):
     return render(request, 'landing.html')
 
 
+@never_cache
 def account_register_choice(request):
     if request.user.is_authenticated:
         return redirect(_dashboard_route_name(request.user))
     return render(request, 'accounts/register_choice.html')
 
 
+@never_cache
 def account_login_choice(request):
     if request.user.is_authenticated:
         return redirect(_dashboard_route_name(request.user))
