@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Booking, Comment, Package, Post, PostMedia, Review
+from .models import Booking, Comment, Package, Post, PostMedia, Review, Transaction
 
 
 @admin.register(Package)
@@ -59,3 +59,25 @@ class CommentAdmin(admin.ModelAdmin):
     list_display = ('id', 'post', 'user', 'created_at')
     list_filter = ('created_at',)
     search_fields = ('post__caption', 'user__username', 'user__email', 'body')
+
+
+@admin.register(Transaction)
+class TransactionAdmin(admin.ModelAdmin):
+    list_display = (
+        'transaction_id',
+        'booking',
+        'traveler',
+        'vendor',
+        'total_amount',
+        'payment_method',
+        'payment_status',
+        'created_at',
+    )
+    list_filter = ('payment_method', 'payment_status', 'created_at')
+    search_fields = (
+        'transaction_id',
+        'booking__id',
+        'traveler__email',
+        'vendor__email',
+        'booking__package__title',
+    )

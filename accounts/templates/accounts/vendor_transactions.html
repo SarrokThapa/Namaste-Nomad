@@ -1,0 +1,81 @@
+{% extends "accounts/vendor_base.html" %}
+{% load static %}
+
+{% block title %}Vendor Transactions - Namaste Nomad{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/transactions.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="transactions-page">
+    <div class="transactions-card transactions-header">
+        <div>
+            <h1 class="transactions-title">Vendor Transactions / Earnings</h1>
+            <p class="transactions-subtitle">See gross amount, platform fee, and your 75% share.</p>
+        </div>
+        <a class="btn-sm light" href="?date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&status={{ filters.status }}&export=csv">Download CSV</a>
+    </div>
+
+    <div class="transactions-card">
+        <form method="GET" class="filters-form">
+            <div>
+                <label for="date_from">From</label>
+                <input id="date_from" type="date" name="date_from" value="{{ filters.date_from }}">
+            </div>
+            <div>
+                <label for="date_to">To</label>
+                <input id="date_to" type="date" name="date_to" value="{{ filters.date_to }}">
+            </div>
+            <div>
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="">All</option>
+                    <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="failed" {% if filters.status == 'failed' %}selected{% endif %}>Failed</option>
+                </select>
+            </div>
+            <div class="filters-actions">
+                <button type="submit" class="btn-sm primary">Apply</button>
+                <a class="btn-sm light" href="{% url 'vendor_transactions' %}">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="transactions-card table-wrap">
+        {% if transactions %}
+            <table class="transactions-table">
+                <thead>
+                    <tr>
+                        <th>Transaction</th>
+                        <th>Package</th>
+                        <th>Total Amount</th>
+                        <th>Platform Fee (25%)</th>
+                        <th>Vendor Earnings (75%)</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in transactions %}
+                        <tr>
+                            <td>{{ tx.transaction_id }}</td>
+                            <td>{{ tx.booking.package.title }}</td>
+                            <td>Rs {{ tx.total_amount|floatformat:2 }}</td>
+                            <td>Rs {{ tx.platform_fee|floatformat:2 }}</td>
+                            <td>Rs {{ tx.vendor_earnings|floatformat:2 }}</td>
+                            <td>
+                                <span class="status-badge {{ tx.payment_status }}">{{ tx.get_payment_status_display }}</span>
+                            </td>
+                            <td>{{ tx.created_at|date:"M d, Y H:i" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="empty-note">No transactions found for selected filters.</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

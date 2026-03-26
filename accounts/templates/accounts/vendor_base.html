@@ -90,6 +90,16 @@
                     </span>
                     Bookings
                 </a>
+                <a class="nav-item {% if active_page == 'transactions' %}active{% endif %}" href="{% url 'vendor_transactions' %}">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M3 6h18"/>
+                            <path d="M7 12h10"/>
+                            <path d="M10 18h4"/>
+                        </svg>
+                    </span>
+                    Transactions
+                </a>
                 <a class="nav-item {% if active_page == 'reviews' %}active{% endif %}" href="{% url 'vendor_reviews' %}">
                     <span class="nav-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">

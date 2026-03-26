@@ -99,34 +99,16 @@
     {% endif %}
 </section>
 
-<section class="cards-grid charts-grid">
+<section class="dashboard-charts">
     <div class="card chart-card">
         <div class="card-header">
             <h3>Vendor Earnings (Monthly)</h3>
             <span class="card-meta">Completed bookings · 75% share</span>
         </div>
-        <div class="line-chart">
-            <svg viewBox="0 0 320 160" preserveAspectRatio="none" aria-hidden="true">
-                <polyline points="{{ earnings_line_points }}"
-                          fill="none" stroke="url(#earningsLineGradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                {% for point in earnings_points %}
-                    <circle cx="{{ point.x }}" cy="{{ point.y }}" r="4" fill="#1d4ed8">
-                        <title>{{ point.tooltip }}</title>
-                    </circle>
-                {% endfor %}
-                <defs>
-                    <linearGradient id="earningsLineGradient" x1="0" x2="1" y1="0" y2="1">
-                        <stop offset="0%" stop-color="#2563eb"/>
-                        <stop offset="100%" stop-color="#60a5fa"/>
-                    </linearGradient>
-                </defs>
-            </svg>
-            <div class="chart-labels analytics-labels">
-                {% for month in monthly_earnings %}
-                    <span>{{ month.label }}</span>
-                {% endfor %}
-            </div>
+        <div class="chart-canvas-wrap">
+            <canvas id="earningsChart"></canvas>
         </div>
+        <div class="chart-note">{{ chart_insights.earnings }}</div>
     </div>
 
     <div class="card chart-card">
@@ -134,13 +116,10 @@
             <h3>Vendor Bookings (Monthly)</h3>
             <span class="card-meta">Completed payments only</span>
         </div>
-        <div class="bar-chart analytics-bars">
-            {% for month in monthly_bookings %}
-                <div class="bar" style="--bar: {{ month.percent }}%;" title="Month: {{ month.label }} | Bookings: {{ month.value }}">
-                    <span>{{ month.label }}</span>
-                </div>
-            {% endfor %}
+        <div class="chart-canvas-wrap">
+            <canvas id="bookingsChart"></canvas>
         </div>
+        <div class="chart-note">{{ chart_insights.bookings }}</div>
     </div>
 
     <div class="card chart-card">
@@ -148,37 +127,169 @@
             <h3>Top Performing Packages</h3>
             <span class="card-meta">By completed bookings</span>
         </div>
-        <div class="bar-chart analytics-bars">
-            {% if package_performance_chart %}
-                {% for package in package_performance_chart %}
-                    <div class="bar" style="--bar: {{ package.chart_percent }}%;" title="Package: {{ package.title }} | Bookings: {{ package.completed_booking_count }}">
-                        <span>{{ package.title|truncatechars:12 }}</span>
-                    </div>
-                {% endfor %}
-            {% else %}
-                <div class="empty-state">No package performance data yet.</div>
-            {% endif %}
+        <div class="chart-canvas-wrap">
+            <canvas id="packagesChart"></canvas>
         </div>
+        <div class="chart-note">{{ chart_insights.packages }}</div>
     </div>
 
     <div class="card chart-card">
         <div class="card-header">
             <h3>Package Category Distribution</h3>
-            <span class="card-meta">Treks vs Tours vs Cultural</span>
+            <span class="card-meta">Treks vs Tours vs Others</span>
         </div>
-        <div class="pie-wrapper">
-            <div class="pie-chart" style="background: {{ pie_gradient }};"></div>
-            <div class="pie-legend">
-                {% for category in category_breakdown %}
-                    <div class="legend-item" title="{{ category.label }}: {{ category.count }} package{{ category.count|pluralize }}">
-                        <span class="dot" style="background: {{ category.color }};"></span>
-                        {{ category.label }} ({{ category.percent }}%)
-                    </div>
-                {% endfor %}
-            </div>
+        <div class="chart-canvas-wrap">
+            <canvas id="categoryChart"></canvas>
         </div>
+        <div class="chart-note">{{ chart_insights.categories }}</div>
     </div>
 </section>
+
+{{ earnings_chart|json_script:"earnings-chart-data" }}
+{{ bookings_chart|json_script:"bookings-chart-data" }}
+{{ packages_chart|json_script:"packages-chart-data" }}
+{{ category_chart|json_script:"category-chart-data" }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    (function () {
+        const earningsData = JSON.parse(document.getElementById('earnings-chart-data').textContent);
+        const bookingsData = JSON.parse(document.getElementById('bookings-chart-data').textContent);
+        const packagesData = JSON.parse(document.getElementById('packages-chart-data').textContent);
+        const categoryData = JSON.parse(document.getElementById('category-chart-data').textContent);
+
+        const formatRupees = (value) => `Rs ${Number(value).toLocaleString()}`;
+
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 900,
+                easing: 'easeOutQuart'
+            },
+            interaction: {
+                mode: 'nearest',
+                intersect: false
+            }
+        };
+
+        new Chart(document.getElementById('earningsChart'), {
+            type: 'line',
+            data: {
+                labels: earningsData.labels,
+                datasets: [{
+                    label: 'Earnings',
+                    data: earningsData.values,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.15)',
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 4,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: '#1d4ed8'
+                }]
+            },
+            options: {
+                ...commonOptions,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: (items) => `${items[0].label}`,
+                            label: (item) => `Earnings: ${formatRupees(item.raw)}`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (value) => formatRupees(value)
+                        }
+                    }
+                }
+            }
+        });
+
+        new Chart(document.getElementById('bookingsChart'), {
+            type: 'bar',
+            data: {
+                labels: bookingsData.labels,
+                datasets: [{
+                    label: 'Bookings',
+                    data: bookingsData.values,
+                    backgroundColor: '#60a5fa',
+                    borderRadius: 8,
+                    hoverBackgroundColor: '#2563eb'
+                }]
+            },
+            options: {
+                ...commonOptions,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: (items) => `${items[0].label}`,
+                            label: (item) => `Bookings: ${item.raw}`
+                        }
+                    }
+                },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        new Chart(document.getElementById('packagesChart'), {
+            type: 'bar',
+            data: {
+                labels: packagesData.labels,
+                datasets: [{
+                    label: 'Bookings',
+                    data: packagesData.values,
+                    backgroundColor: '#1e3a8a',
+                    borderRadius: 8,
+                    hoverBackgroundColor: '#1d4ed8'
+                }]
+            },
+            options: {
+                ...commonOptions,
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: (items) => `${items[0].label}`,
+                            label: (item) => `Bookings: ${item.raw}`
+                        }
+                    }
+                },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        new Chart(document.getElementById('categoryChart'), {
+            type: 'pie',
+            data: {
+                labels: categoryData.labels,
+                datasets: [{
+                    data: categoryData.values,
+                    backgroundColor: categoryData.colors,
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                ...commonOptions,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: (item) => `${item.label}: ${item.raw}`
+                        }
+                    }
+                }
+            }
+        });
+    })();
+</script>
 
 <section class="cards-grid split">
     <div class="card list-card">

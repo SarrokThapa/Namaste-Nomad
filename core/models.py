@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+import uuid
 
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -275,6 +276,61 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"{self.package.title} ({self.status})"
+
+
+class Transaction(models.Model):
+    transaction_id = models.CharField(max_length=32, unique=True, editable=False)
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='transactions')
+    traveler = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='traveler_transactions',
+        null=True,
+        blank=True,
+    )
+    vendor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='vendor_transactions',
+        null=True,
+        blank=True,
+    )
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    payment_method = models.CharField(
+        max_length=20,
+        choices=Booking.PAYMENT_METHOD_CHOICES,
+        default=Booking.PAYMENT_METHOD_STRIPE,
+    )
+    payment_status = models.CharField(
+        max_length=20,
+        choices=Booking.PAYMENT_STATUS_CHOICES,
+        default=Booking.PAYMENT_STATUS_PENDING,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-created_at',)
+        constraints = [
+            models.UniqueConstraint(fields=['booking'], name='unique_transaction_booking')
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.transaction_id:
+            self.transaction_id = f"TXN-{timezone.localdate():%Y%m%d}-{uuid.uuid4().hex[:8].upper()}"
+        super().save(*args, **kwargs)
+
+    @property
+    def platform_fee(self):
+        total = self.total_amount or Decimal('0')
+        return (total * Booking.COMMISSION_PLATFORM_RATE).quantize(Decimal('0.01'))
+
+    @property
+    def vendor_earnings(self):
+        total = self.total_amount or Decimal('0')
+        return (total * Booking.COMMISSION_VENDOR_RATE).quantize(Decimal('0.01'))
+
+    def __str__(self):
+        return self.transaction_id
 
 
 class Review(models.Model):

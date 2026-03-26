@@ -1,5 +1,6 @@
 from calendar import monthrange
 from collections import defaultdict
+import csv
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
@@ -26,7 +27,7 @@ from django.db.models import (
     Value,
     When,
 )
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -42,6 +43,7 @@ from core.models import (
     PackageImage,
     SupportConversation,
     SupportMessage,
+    Transaction,
     Wishlist,
 )
 from .models import (
@@ -149,6 +151,91 @@ def _safe_next_url(request, fallback_name):
     ):
         return candidate
     return reverse(fallback_name)
+
+
+def _parse_filter_date(raw_value):
+    if not raw_value:
+        return None
+    try:
+        return date.fromisoformat(raw_value)
+    except ValueError:
+        return None
+
+
+def _apply_transaction_filters(queryset, request, *, allow_vendor=False):
+    date_from_raw = (request.GET.get('date_from') or '').strip()
+    date_to_raw = (request.GET.get('date_to') or '').strip()
+    status = (request.GET.get('status') or '').strip().lower()
+    vendor_raw = (request.GET.get('vendor') or '').strip()
+
+    date_from = _parse_filter_date(date_from_raw)
+    date_to = _parse_filter_date(date_to_raw)
+    if date_from:
+        queryset = queryset.filter(created_at__date__gte=date_from)
+    if date_to:
+        queryset = queryset.filter(created_at__date__lte=date_to)
+
+    allowed_statuses = {
+        Booking.PAYMENT_STATUS_PENDING,
+        Booking.PAYMENT_STATUS_COMPLETED,
+        Booking.PAYMENT_STATUS_FAILED,
+    }
+    if status in allowed_statuses:
+        queryset = queryset.filter(payment_status=status)
+    else:
+        status = ''
+
+    selected_vendor = ''
+    if allow_vendor:
+        try:
+            selected_vendor = str(int(vendor_raw))
+        except (TypeError, ValueError):
+            selected_vendor = ''
+        if selected_vendor:
+            queryset = queryset.filter(vendor_id=selected_vendor)
+
+    return queryset, {
+        'date_from': date_from_raw,
+        'date_to': date_to_raw,
+        'status': status,
+        'vendor': selected_vendor,
+    }
+
+
+def _transaction_csv_response(rows, filename):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    writer = csv.writer(response)
+    writer.writerow([
+        'Transaction ID',
+        'Date',
+        'Traveler',
+        'Vendor',
+        'Package',
+        'Total Amount',
+        'Platform Fee',
+        'Vendor Earnings',
+        'Payment Method',
+        'Payment Status',
+    ])
+    for row in rows:
+        booking = row.booking
+        package_title = booking.package.title if booking and booking.package_id else ''
+        traveler_email = row.traveler.email if row.traveler else ''
+        vendor_email = row.vendor.email if row.vendor else ''
+        writer.writerow([
+            row.transaction_id,
+            timezone.localtime(row.created_at).strftime('%Y-%m-%d %H:%M'),
+            traveler_email,
+            vendor_email,
+            package_title,
+            row.total_amount,
+            row.platform_fee,
+            row.vendor_earnings,
+            row.get_payment_method_display(),
+            row.get_payment_status_display(),
+        ])
+    return response
 
 
 def _dashboard_route_name(user):
@@ -656,39 +743,6 @@ def vendor_dashboard(request):
             'value': booking_count,
         })
 
-    earnings_values = [entry['value'] for entry in monthly_earnings]
-    earnings_max = max(earnings_values) if earnings_values else 0
-    earnings_min = min(earnings_values) if earnings_values else 0
-    chart_width = 320
-    chart_height = 160
-    padding_x = 10
-    padding_y = 20
-    earnings_step = (chart_width - padding_x * 2) / max(len(earnings_values) - 1, 1)
-    earnings_points = []
-    for idx, value in enumerate(earnings_values):
-        x = padding_x + idx * earnings_step
-        if earnings_max == earnings_min:
-            y = chart_height / 2
-        else:
-            ratio = (value - earnings_min) / (earnings_max - earnings_min)
-            y = chart_height - padding_y - ratio * (chart_height - padding_y * 2)
-        month_label = monthly_earnings[idx]['label']
-        earnings_points.append({
-            'x': round(x, 1),
-            'y': round(y, 1),
-            'label': month_label,
-            'value': value,
-            'tooltip': f"Month: {month_label} | Earnings: Rs {value:,.0f}",
-        })
-    earnings_line_points = ' '.join(f"{point['x']},{point['y']}" for point in earnings_points)
-
-    max_monthly_bookings = max((item['value'] for item in monthly_bookings), default=0)
-    for entry in monthly_bookings:
-        if max_monthly_bookings == 0:
-            entry['percent'] = 12
-        else:
-            entry['percent'] = max(12, int((entry['value'] / max_monthly_bookings) * 100))
-
     package_performance_chart = list(
         vendor_packages.annotate(
             completed_booking_count=Count(
@@ -698,66 +752,44 @@ def vendor_dashboard(request):
         )
         .order_by('-completed_booking_count', '-views_count')[:5]
     )
-    max_package_bookings = max(
-        (package.completed_booking_count for package in package_performance_chart),
-        default=0,
-    )
-    for package in package_performance_chart:
-        if max_package_bookings == 0:
-            package.chart_percent = 12
-        else:
-            package.chart_percent = max(12, int((package.completed_booking_count / max_package_bookings) * 100))
 
     vendor_trek_count = vendor_packages.filter(category=Package.CATEGORY_TREK).count()
-    vendor_tour_queryset = vendor_packages.filter(category=Package.CATEGORY_TOUR)
-    vendor_cultural_count = vendor_tour_queryset.filter(
-        Q(title__icontains='cultural')
-        | Q(description__icontains='cultural')
-        | Q(itinerary__icontains='cultural')
-        | Q(title__icontains='heritage')
-        | Q(description__icontains='heritage')
-        | Q(title__icontains='temple')
-        | Q(description__icontains='temple')
-        | Q(title__icontains='monastery')
-        | Q(description__icontains='monastery')
+    vendor_tour_count = vendor_packages.filter(category=Package.CATEGORY_TOUR).count()
+    vendor_other_count = vendor_packages.exclude(
+        category__in=[Package.CATEGORY_TREK, Package.CATEGORY_TOUR],
     ).count()
-    vendor_tour_count = max(vendor_tour_queryset.count() - vendor_cultural_count, 0)
 
-    category_colors = {
-        'trek': '#1d4ed8',
-        'tour': '#1e3a8a',
-        'cultural': '#60a5fa',
+    earnings_chart = {
+        'labels': [entry['label'] for entry in monthly_earnings],
+        'values': [round(entry['value'], 2) for entry in monthly_earnings],
     }
-    category_rows = [
-        ('trek', 'Treks', vendor_trek_count),
-        ('tour', 'Tours', vendor_tour_count),
-        ('cultural', 'Cultural', vendor_cultural_count),
-    ]
-    category_total = sum(count for _, _, count in category_rows)
-    category_breakdown = []
-    category_segments = []
-    category_pointer = 0
-    for key, label, count in category_rows:
-        percent = (count / category_total * 100) if category_total else 0
-        rounded_percent = round(percent)
-        category_breakdown.append({
-            'key': key,
-            'label': label,
-            'count': count,
-            'percent': rounded_percent,
-            'color': category_colors[key],
-        })
-        if percent > 0:
-            next_pointer = category_pointer + percent
-            category_segments.append(f"{category_colors[key]} {category_pointer:.1f}% {next_pointer:.1f}%")
-            category_pointer = next_pointer
+    bookings_chart = {
+        'labels': [entry['label'] for entry in monthly_bookings],
+        'values': [entry['value'] for entry in monthly_bookings],
+    }
+    packages_chart = {
+        'labels': [package.title for package in package_performance_chart],
+        'values': [package.completed_booking_count for package in package_performance_chart],
+    }
+    category_chart = {
+        'labels': ['Treks', 'Tours', 'Others'],
+        'values': [vendor_trek_count, vendor_tour_count, vendor_other_count],
+        'colors': ['#1d4ed8', '#1e3a8a', '#60a5fa'],
+    }
 
-    if not category_segments:
-        pie_gradient = 'conic-gradient(#e5e7eb 0 100%)'
-    else:
-        if category_pointer < 100:
-            category_segments.append(f"#e5e7eb {category_pointer:.1f}% 100%")
-        pie_gradient = f"conic-gradient({', '.join(category_segments)})"
+    def _growth_text(values):
+        if len(values) < 2 or values[-2] == 0:
+            return 'No baseline from last month'
+        change = ((values[-1] - values[-2]) / values[-2]) * 100
+        sign = '+' if change >= 0 else ''
+        return f'{sign}{change:.0f}% from last month'
+
+    chart_insights = {
+        'earnings': _growth_text(earnings_chart['values']),
+        'bookings': _growth_text(bookings_chart['values']),
+        'packages': _growth_text(packages_chart['values']),
+        'categories': 'Distribution based on your packages',
+    }
 
     upcoming_bookings = vendor_bookings.filter(
         travel_date__gte=today,
@@ -783,13 +815,11 @@ def vendor_dashboard(request):
         'featured_count': featured_count,
         'featured_limit': featured_limit,
         'subscription_plans': subscription_plans,
-        'monthly_earnings': monthly_earnings,
-        'earnings_line_points': earnings_line_points,
-        'earnings_points': earnings_points,
-        'monthly_bookings': monthly_bookings,
-        'package_performance_chart': package_performance_chart,
-        'pie_gradient': pie_gradient,
-        'category_breakdown': category_breakdown,
+        'earnings_chart': earnings_chart,
+        'bookings_chart': bookings_chart,
+        'packages_chart': packages_chart,
+        'category_chart': category_chart,
+        'chart_insights': chart_insights,
         'upcoming_bookings': upcoming_bookings,
         'package_performance': package_performance,
     })
@@ -2244,6 +2274,87 @@ def traveler_bookings(request):
 
 @never_cache
 @login_required(login_url='traveler_login')
+def traveler_transactions(request):
+    if not _ensure_traveler(request):
+        return redirect('traveler_login')
+
+    profile = _get_traveler_profile(request.user)
+    if profile is None:
+        profile = TravelerProfile.objects.create(user=request.user)
+
+    transactions = Transaction.objects.filter(traveler=request.user).select_related(
+        'booking',
+        'booking__package',
+        'vendor',
+    )
+    transactions, filters = _apply_transaction_filters(transactions, request)
+    transactions = transactions.order_by('-created_at')
+
+    if request.GET.get('export') == 'csv':
+        return _transaction_csv_response(transactions, 'traveler-transactions.csv')
+
+    return render(request, 'accounts/traveler_transactions.html', {
+        'traveler_profile': profile,
+        'transactions': transactions,
+        'filters': filters,
+        'active_page': 'transactions',
+    })
+
+
+@never_cache
+@login_required(login_url='vendor_login')
+def vendor_transactions(request):
+    if not _ensure_vendor(request):
+        return redirect('vendor_login')
+
+    vendor_profile = _get_vendor_profile(request.user)
+    transactions = Transaction.objects.filter(vendor=request.user).select_related(
+        'booking',
+        'booking__package',
+        'traveler',
+    )
+    transactions, filters = _apply_transaction_filters(transactions, request)
+    transactions = transactions.order_by('-created_at')
+
+    if request.GET.get('export') == 'csv':
+        return _transaction_csv_response(transactions, 'vendor-transactions.csv')
+
+    return render(request, 'accounts/vendor_transactions.html', {
+        'vendor_profile': vendor_profile,
+        'transactions': transactions,
+        'filters': filters,
+        'active_page': 'transactions',
+    })
+
+
+@never_cache
+@admin_required
+def admin_transactions(request):
+    admin_profile = _get_admin_profile(request.user)
+    transactions = Transaction.objects.select_related(
+        'booking',
+        'booking__package',
+        'traveler',
+        'vendor',
+    )
+    transactions, filters = _apply_transaction_filters(transactions, request, allow_vendor=True)
+    transactions = transactions.order_by('-created_at')
+    vendor_choices = User.objects.filter(user_type='vendor').order_by('email')
+
+    if request.GET.get('export') == 'csv':
+        return _transaction_csv_response(transactions, 'admin-transactions.csv')
+
+    return render(request, 'accounts/admin_transactions.html', {
+        'admin_profile': admin_profile,
+        'transactions': transactions,
+        'filters': filters,
+        'vendor_choices': vendor_choices,
+        'active_page': 'transactions',
+    })
+
+
+@never_cache
+@login_required(login_url='traveler_login')
 def traveler_profile(request):
     if not _ensure_traveler(request):
         return redirect('traveler_login')
@@ -2348,18 +2459,6 @@ def vendor_login(request):
         
         try:
             user = User.objects.get(email=email, user_type='vendor')
-
-            if not user.is_verified:
-                if user.check_password(password):
-                    _, sent = create_otp(user)
-                    request.session['user_id'] = user.id
-                    if sent:
-                        messages.info(request, 'Please verify OTP before login. We sent a new OTP to your email.')
-                    else:
-                        messages.error(request, 'Please verify OTP before login. OTP could not be sent, check SMTP credentials and try resend OTP.')
-                    return redirect('verify_otp')
-                messages.error(request, 'Invalid credentials')
-                return render(request, 'accounts/vendor_login.html')
 
             user = authenticate(request, username=user.username, password=password)
             
@@ -2469,18 +2568,6 @@ def traveler_login(request):
         try:
             user = User.objects.get(email=email, user_type='traveler')
 
-            if not user.is_verified:
-                if user.check_password(password):
-                    _, sent = create_otp(user)
-                    request.session['user_id'] = user.id
-                    if sent:
-                        messages.info(request, 'Please verify OTP before login. We sent a new OTP to your email.')
-                    else:
-                        messages.error(request, 'Please verify OTP before login. OTP could not be sent, check SMTP credentials and try resend OTP.')
-                    return redirect('verify_otp')
-                messages.error(request, 'Invalid credentials')
-                return render(request, 'accounts/traveler_login.html')
-
             user = authenticate(request, username=user.username, password=password)
             
             if user is not None:
@@ -2509,18 +2596,6 @@ def admin_login(request):
         
         try:
             user = User.objects.get(email=email, user_type='admin')
-
-            if not user.is_verified:
-                if user.check_password(password):
-                    _, sent = create_otp(user)
-                    request.session['user_id'] = user.id
-                    if sent:
-                        messages.info(request, 'Please verify OTP before login. We sent a new OTP to your email.')
-                    else:
-                        messages.error(request, 'Please verify OTP before login. OTP could not be sent, check SMTP credentials and try resend OTP.')
-                    return redirect('verify_otp')
-                messages.error(request, 'Invalid credentials or insufficient permissions')
-                return render(request, 'accounts/admin_login.html')
 
             user = authenticate(request, username=user.username, password=password)
             

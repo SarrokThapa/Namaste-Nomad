@@ -99,12 +99,13 @@ class VendorApprovalFlowTests(TestCase):
         self.assertTrue(any(reverse('vendor_login') in url for url, _code in response.redirect_chain))
         self.assertTrue(any(reverse('vendor_profile') in url for url, _code in response.redirect_chain))
 
-    def test_pending_vendor_login_redirects_to_otp_when_unverified(self):
+    def test_pending_vendor_login_redirects_to_profile_with_notice(self):
         vendor = User.objects.create_user(
             username='pending-login@example.com',
             email='pending-login@example.com',
             password='vendor-pass-123',
             user_type='vendor',
+            is_verified=True,
         )
         VendorProfile.objects.create(
             user=vendor,
@@ -122,7 +123,7 @@ class VendorApprovalFlowTests(TestCase):
             follow=True,
         )
 
-        self.assertTrue(any(reverse('verify_otp') in url for url, _code in response.redirect_chain))
+        self.assertTrue(any(reverse('vendor_profile') in url for url, _code in response.redirect_chain))
 
     def test_admin_can_approve_vendor_from_detail_page(self):
         admin = User.objects.create_user(

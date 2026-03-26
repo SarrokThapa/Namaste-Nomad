@@ -29,7 +29,7 @@ from accounts.achievements import (
 from accounts.notifications import create_notification, notify_admins
 from .forms import BookingForm, CommentForm, PostEditForm, PostForm, ReviewForm
 from .invoices import generate_invoice_pdf, invoice_data_for_booking
-from .models import Booking, Comment, Package, Post, PostMedia, Review, Wishlist
+from .models import Booking, Comment, Package, Post, PostMedia, Review, Transaction, Wishlist
 from .payments import (
     EsewaError,
     StripeError,
@@ -492,6 +492,16 @@ def _complete_paid_booking(
             'paid_at',
             'payment_expires_at',
         ]
+    )
+    Transaction.objects.update_or_create(
+        booking=booking,
+        defaults={
+            'traveler': booking.traveler,
+            'vendor': booking.vendor,
+            'total_amount': booking.paid_amount or booking.total_price,
+            'payment_method': booking.payment_method,
+            'payment_status': booking.payment_status,
+        },
     )
 
 

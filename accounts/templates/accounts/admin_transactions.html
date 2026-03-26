@@ -1,0 +1,101 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Transactions - Namaste Nomad</title>
+    <link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/transactions.css' %}">
+</head>
+<body class="admin-page">
+    <main class="admin-shell" style="max-width: 1300px; margin: 0 auto; padding: 24px;">
+        <section class="transactions-page">
+            <div class="transactions-card transactions-header">
+                <div>
+                    <h1 class="transactions-title">All Transactions</h1>
+                    <p class="transactions-subtitle">Platform-wide financial records by traveler, vendor, and package.</p>
+                </div>
+                <div class="filters-actions">
+                    <a class="btn-sm light" href="{% url 'admin_dashboard' %}">Back to Dashboard</a>
+                    <a class="btn-sm light" href="?date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&status={{ filters.status }}&vendor={{ filters.vendor }}&export=csv">Download CSV</a>
+                </div>
+            </div>
+
+            <div class="transactions-card">
+                <form method="GET" class="filters-form">
+                    <div>
+                        <label for="date_from">From</label>
+                        <input id="date_from" type="date" name="date_from" value="{{ filters.date_from }}">
+                    </div>
+                    <div>
+                        <label for="date_to">To</label>
+                        <input id="date_to" type="date" name="date_to" value="{{ filters.date_to }}">
+                    </div>
+                    <div>
+                        <label for="status">Status</label>
+                        <select id="status" name="status">
+                            <option value="">All</option>
+                            <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Completed</option>
+                            <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="failed" {% if filters.status == 'failed' %}selected{% endif %}>Failed</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="vendor">Vendor</label>
+                        <select id="vendor" name="vendor">
+                            <option value="">All vendors</option>
+                            {% for vendor in vendor_choices %}
+                                <option value="{{ vendor.id }}" {% if filters.vendor == vendor.id|stringformat:"s" %}selected{% endif %}>{{ vendor.email }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="filters-actions">
+                        <button type="submit" class="btn-sm primary">Apply</button>
+                        <a class="btn-sm light" href="{% url 'admin_transactions' %}">Reset</a>
+                    </div>
+                </form>
+            </div>
+
+            <div class="transactions-card table-wrap">
+                {% if transactions %}
+                    <table class="transactions-table">
+                        <thead>
+                            <tr>
+                                <th>Transaction</th>
+                                <th>Traveler</th>
+                                <th>Vendor</th>
+                                <th>Package</th>
+                                <th>Total Amount</th>
+                                <th>Platform Revenue (25%)</th>
+                                <th>Vendor Share (75%)</th>
+                                <th>Method</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in transactions %}
+                                <tr>
+                                    <td>{{ tx.transaction_id }}</td>
+                                    <td>{{ tx.traveler.email|default:"-" }}</td>
+                                    <td>{{ tx.vendor.email|default:"-" }}</td>
+                                    <td>{{ tx.booking.package.title }}</td>
+                                    <td>Rs {{ tx.total_amount|floatformat:2 }}</td>
+                                    <td>Rs {{ tx.platform_fee|floatformat:2 }}</td>
+                                    <td>Rs {{ tx.vendor_earnings|floatformat:2 }}</td>
+                                    <td>{{ tx.get_payment_method_display }}</td>
+                                    <td><span class="status-badge {{ tx.payment_status }}">{{ tx.get_payment_status_display }}</span></td>
+                                    <td>{{ tx.created_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="empty-note">No transactions found for selected filters.</p>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>
