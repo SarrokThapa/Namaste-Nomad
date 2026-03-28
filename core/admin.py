@@ -65,7 +65,9 @@ class CommentAdmin(admin.ModelAdmin):
 class TransactionAdmin(admin.ModelAdmin):
     list_display = (
         'transaction_id',
+        'transaction_type',
         'booking',
+        'vendor_subscription',
         'traveler',
         'vendor',
         'total_amount',
@@ -73,10 +75,11 @@ class TransactionAdmin(admin.ModelAdmin):
         'payment_status',
         'created_at',
     )
-    list_filter = ('payment_method', 'payment_status', 'created_at')
+    list_filter = ('transaction_type', 'payment_method', 'payment_status', 'created_at')
     search_fields = (
         'transaction_id',
         'booking__id',
+        'vendor_subscription__id',
         'traveler__email',
         'vendor__email',
         'booking__package__title',

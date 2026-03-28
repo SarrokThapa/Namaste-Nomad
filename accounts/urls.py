@@ -32,6 +32,10 @@ urlpatterns = [
     path('vendor/analytics/', views.vendor_analytics, name='vendor_analytics'),
     path('vendor/settings/', views.vendor_settings, name='vendor_settings'),
     path('vendor/subscriptions/<int:plan_id>/purchase/', views.vendor_subscription_purchase, name='vendor_subscription_purchase'),
+    path('vendor/subscriptions/esewa/success/', views.vendor_subscription_esewa_success, name='vendor_subscription_esewa_success'),
+    path('vendor/subscriptions/esewa/failure/', views.vendor_subscription_esewa_failure, name='vendor_subscription_esewa_failure'),
+    path('vendor/subscriptions/stripe/success/', views.vendor_subscription_stripe_success, name='vendor_subscription_stripe_success'),
+    path('vendor/subscriptions/stripe/cancel/', views.vendor_subscription_stripe_cancel, name='vendor_subscription_stripe_cancel'),
 
     path('support/chat/', views.support_chat, name='support_chat'),
     path('support/widget/', views.support_widget_data, name='support_widget_data'),

@@ -88,6 +88,40 @@ def create_checkout_session(*, booking, success_url, cancel_url):
     return _stripe_request('POST', '/checkout/sessions', payload)
 
 
+def create_checkout_session_for_item(
+    *,
+    amount,
+    name,
+    description,
+    success_url,
+    cancel_url,
+    client_reference_id,
+    metadata=None,
+    customer_email=None,
+):
+    payload = [
+        ('mode', 'payment'),
+        ('success_url', success_url),
+        ('cancel_url', cancel_url),
+        ('payment_method_types[0]', 'card'),
+        ('client_reference_id', str(client_reference_id)),
+        ('line_items[0][quantity]', '1'),
+        ('line_items[0][price_data][currency]', settings.STRIPE_CURRENCY),
+        ('line_items[0][price_data][unit_amount]', str(_amount_to_minor_units(amount))),
+        ('line_items[0][price_data][product_data][name]', str(name)),
+        ('line_items[0][price_data][product_data][description]', str(description)),
+    ]
+
+    if metadata:
+        for key, value in metadata.items():
+            payload.append((f'metadata[{key}]', str(value)))
+
+    if customer_email:
+        payload.append(('customer_email', customer_email))
+
+    return _stripe_request('POST', '/checkout/sessions', payload)
+
+
 def retrieve_checkout_session(session_id):
     safe_session_id = quote(session_id, safe='')
     return _stripe_request('GET', f'/checkout/sessions/{safe_session_id}')

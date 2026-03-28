@@ -49,6 +49,7 @@
                 <thead>
                     <tr>
                         <th>Transaction</th>
+                        <th>Type</th>
                         <th>Package</th>
                         <th>Total Amount</th>
                         <th>Platform Fee (25%)</th>
@@ -61,7 +62,8 @@
                     {% for tx in transactions %}
                         <tr>
                             <td>{{ tx.transaction_id }}</td>
-                            <td>{{ tx.booking.package.title }}</td>
+                            <td>{{ tx.get_transaction_type_display }}</td>
+                            <td>{% if tx.booking and tx.booking.package %}{{ tx.booking.package.title }}{% elif tx.vendor_subscription %}{{ tx.vendor_subscription.plan_name }}{% else %}-{% endif %}</td>
                             <td>Rs {{ tx.total_amount|floatformat:2 }}</td>
                             <td>Rs {{ tx.platform_fee|floatformat:2 }}</td>
                             <td>Rs {{ tx.vendor_earnings|floatformat:2 }}</td>

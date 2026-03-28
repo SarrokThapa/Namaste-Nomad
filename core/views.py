@@ -496,6 +496,8 @@ def _complete_paid_booking(
     Transaction.objects.update_or_create(
         booking=booking,
         defaults={
+            'transaction_type': Transaction.TYPE_BOOKING,
+            'vendor_subscription': None,
             'traveler': booking.traveler,
             'vendor': booking.vendor,
             'total_amount': booking.paid_amount or booking.total_price,
@@ -789,16 +791,16 @@ def _apply_package_filters(request, queryset, forced_category=None, budget_thres
         queryset = queryset.filter(difficulty__in=['easy', 'moderate'])
 
     if sort == 'price_low':
-        queryset = queryset.order_by('price', '-avg_rating')
+        queryset = queryset.order_by('-is_featured', 'price', '-avg_rating')
     elif sort == 'price_high':
-        queryset = queryset.order_by('-price', '-avg_rating')
+        queryset = queryset.order_by('-is_featured', '-price', '-avg_rating')
     elif sort == 'rating':
-        queryset = queryset.order_by('-avg_rating', '-review_count')
+        queryset = queryset.order_by('-is_featured', '-avg_rating', '-review_count')
     elif sort == 'newest':
-        queryset = queryset.order_by('-created_at')
+        queryset = queryset.order_by('-is_featured', '-created_at')
     else:
         sort = 'popular'
-        queryset = queryset.order_by('-booking_count', '-views_count', '-created_at')
+        queryset = queryset.order_by('-is_featured', '-booking_count', '-views_count', '-created_at')
 
     applied = {
         'destination': search_term,

@@ -87,7 +87,8 @@
                         <div class="package-actions">
                             <form method="POST" action="{% url 'vendor_subscription_purchase' plan.id %}">
                                 {% csrf_token %}
-                                <button class="btn small success" type="submit">Buy Plan</button>
+                                <button class="btn small success" type="submit" name="payment_method" value="esewa">Buy with eSewa</button>
+                                <button class="btn small" type="submit" name="payment_method" value="stripe">Buy with Stripe</button>
                             </form>
                         </div>
                     </div>

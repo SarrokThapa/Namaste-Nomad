@@ -5,6 +5,7 @@ import uuid
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 
@@ -279,8 +280,33 @@ class Booking(models.Model):
 
 
 class Transaction(models.Model):
+    TYPE_BOOKING = 'booking'
+    TYPE_SUBSCRIPTION = 'subscription'
+    TRANSACTION_TYPE_CHOICES = (
+        (TYPE_BOOKING, 'Booking'),
+        (TYPE_SUBSCRIPTION, 'Subscription'),
+    )
+
     transaction_id = models.CharField(max_length=32, unique=True, editable=False)
-    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='transactions')
+    transaction_type = models.CharField(
+        max_length=20,
+        choices=TRANSACTION_TYPE_CHOICES,
+        default=TYPE_BOOKING,
+    )
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.CASCADE,
+        related_name='transactions',
+        null=True,
+        blank=True,
+    )
+    vendor_subscription = models.ForeignKey(
+        'accounts.VendorSubscription',
+        on_delete=models.SET_NULL,
+        related_name='transactions',
+        null=True,
+        blank=True,
+    )
     traveler = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -311,7 +337,11 @@ class Transaction(models.Model):
     class Meta:
         ordering = ('-created_at',)
         constraints = [
-            models.UniqueConstraint(fields=['booking'], name='unique_transaction_booking')
+            models.UniqueConstraint(
+                fields=['booking'],
+                condition=Q(booking__isnull=False),
+                name='unique_transaction_booking',
+            )
         ]
 
     def save(self, *args, **kwargs):

@@ -15,8 +15,8 @@
     <main class="booking-shell">
         <section class="booking-form-card">
             <h1>Redirecting to eSewa</h1>
-            <p>Total Price: <strong>Rs {{ booking.total_price|floatformat:0 }}</strong></p>
-            <p>Your booking is reserved. Complete payment on eSewa to confirm.</p>
+            <p>Total Price: <strong>Rs {% if booking %}{{ booking.total_price|floatformat:0 }}{% else %}{{ esewa_payload.tAmt }}{% endif %}</strong></p>
+            <p>{% if booking %}Your booking is reserved. Complete payment on eSewa to confirm.{% else %}Complete payment on eSewa to activate your subscription.{% endif %}</p>
 
             <form id="esewaCheckoutForm" method="POST" action="{{ esewa_payment_url }}">
                 <input type="hidden" name="amt" value="{{ esewa_payload.amt }}">
@@ -30,7 +30,11 @@
                 <input type="hidden" name="fu" value="{{ esewa_payload.fu }}">
                 <div class="booking-form-actions">
                     <button type="submit" class="btn-primary">Pay with eSewa</button>
-                    <a href="{% url 'booking_confirmation' booking.id %}" class="btn-outline-dark">Back to Booking</a>
+                    {% if booking %}
+                        <a href="{% url 'booking_confirmation' booking.id %}" class="btn-outline-dark">Back to Booking</a>
+                    {% else %}
+                        <a href="{% url 'vendor_settings' %}" class="btn-outline-dark">Back to Settings</a>
+                    {% endif %}
                 </div>
             </form>
         </section>
