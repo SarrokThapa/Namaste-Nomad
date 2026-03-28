@@ -155,6 +155,12 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = (os.getenv('EMAIL_HOST_PASSWORD', '') or '').replace(' ', '')
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '20'))
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+CONTACT_RECEIVER_EMAIL = os.getenv('CONTACT_RECEIVER_EMAIL', 'namastenomad.np@gmail.com')
+CONTACT_RECEIVER_EMAILS = [
+    item.strip()
+    for item in os.getenv('CONTACT_RECEIVER_EMAILS', '').split(',')
+    if item.strip()
+]
 
 # Static files
 STATIC_URL = '/static/'

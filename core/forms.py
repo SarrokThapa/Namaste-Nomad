@@ -2,7 +2,7 @@ from django.conf import settings
 from django import forms
 from django.utils import timezone
 
-from .models import Booking, Comment, Post, Review
+from .models import Booking, Comment, ContactMessage, Post, Review
 
 
 class MultiFileInput(forms.ClearableFileInput):
@@ -168,3 +168,28 @@ class BookingForm(forms.ModelForm):
                 )
 
         return cleaned_data
+
+
+class ContactMessageForm(forms.ModelForm):
+    class Meta:
+        model = ContactMessage
+        fields = ['full_name', 'email', 'subject', 'message']
+        widgets = {
+            'full_name': forms.TextInput(attrs={
+                'placeholder': 'Your full name',
+                'required': True,
+            }),
+            'email': forms.EmailInput(attrs={
+                'placeholder': 'you@example.com',
+                'required': True,
+            }),
+            'subject': forms.TextInput(attrs={
+                'placeholder': 'How can we help?',
+                'required': True,
+            }),
+            'message': forms.Textarea(attrs={
+                'rows': 6,
+                'placeholder': 'Tell us what you are planning, and we will help you with the best options.',
+                'required': True,
+            }),
+        }

@@ -454,6 +454,28 @@ class Comment(models.Model):
         return f"{self.user.username} on post #{self.post_id}"
 
 
+class ContactMessage(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='contact_messages',
+        null=True,
+        blank=True,
+    )
+    full_name = models.CharField(max_length=120)
+    email = models.EmailField()
+    subject = models.CharField(max_length=180)
+    message = models.TextField(max_length=3000)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_resolved = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        return f"{self.full_name} - {self.subject}"
+
+
 class SupportConversation(models.Model):
     STATUS_OPEN = 'open'
     STATUS_CLOSED = 'closed'

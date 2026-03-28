@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Booking, Comment, Package, Post, PostMedia, Review, Transaction
+from .models import Booking, Comment, ContactMessage, Package, Post, PostMedia, Review, Transaction
 
 
 @admin.register(Package)
@@ -84,3 +84,10 @@ class TransactionAdmin(admin.ModelAdmin):
         'vendor__email',
         'booking__package__title',
     )
+
+
+@admin.register(ContactMessage)
+class ContactMessageAdmin(admin.ModelAdmin):
+    list_display = ('full_name', 'email', 'subject', 'is_resolved', 'created_at')
+    list_filter = ('is_resolved', 'created_at')
+    search_fields = ('full_name', 'email', 'subject', 'message')

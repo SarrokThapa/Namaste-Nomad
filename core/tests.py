@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import User, VendorProfile
-from .models import Booking, Package, PackageImage, Post
+from .models import Booking, ContactMessage, Package, PackageImage, Post
 from .payments import StripeError
 
 
@@ -209,6 +209,48 @@ class PackageMapApiTests(TestCase):
         response = self.client.get(reverse('package_details_api', args=[self.package.id]))
 
         self.assertEqual(response.status_code, 404)
+
+
+class ContactPageTests(TestCase):
+    @patch('core.views.send_mail')
+    def test_contact_submit_saves_message_and_sends_admin_email(self, mock_send_mail):
+        response = self.client.post(
+            reverse('contact'),
+            data={
+                'full_name': 'Contact Tester',
+                'email': 'contact.tester@example.com',
+                'subject': 'Need itinerary help',
+                'message': 'Can you help plan a 7-day Annapurna trip?',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Message sent successfully')
+        self.assertEqual(ContactMessage.objects.count(), 1)
+        saved_message = ContactMessage.objects.first()
+        self.assertEqual(saved_message.subject, 'Need itinerary help')
+        self.assertEqual(saved_message.email, 'contact.tester@example.com')
+        mock_send_mail.assert_called_once()
+
+    @patch('core.views.send_mail')
+    def test_contact_submit_skips_email_when_no_recipient_configured(self, mock_send_mail):
+        with self.settings(CONTACT_RECEIVER_EMAIL='', CONTACT_RECEIVER_EMAILS=[], EMAIL_HOST_USER=''):
+            response = self.client.post(
+                reverse('contact'),
+                data={
+                    'full_name': 'No Recipient Tester',
+                    'email': 'norecipient@example.com',
+                    'subject': 'General inquiry',
+                    'message': 'Testing fallback behavior.',
+                },
+                follow=True,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Message sent successfully')
+        self.assertEqual(ContactMessage.objects.count(), 1)
+        mock_send_mail.assert_not_called()
 
 
 class BookingStripeFlowTests(TestCase):

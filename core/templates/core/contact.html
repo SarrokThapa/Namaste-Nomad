@@ -1,0 +1,194 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Contact Us - Namaste Nomad</title>
+	<link rel="stylesheet" href="{% static 'css/landing.css' %}">
+	<link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+	<link rel="stylesheet" href="{% static 'css/contact.css' %}?v=20260328a">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body class="contact-page-body">
+	<nav class="landing-nav">
+		<div class="nav-container">
+			<a class="nav-brand" href="{% url 'home' %}">
+				<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M4 19l8-14 8 14H4z"/>
+				</svg>
+				<span>Namaste Nomad</span>
+			</a>
+			<div class="nav-menu">
+				<a href="#">Destinations</a>
+				<a href="{% url 'package_treks' %}">Treks</a>
+				<a href="{% url 'package_tours' %}">Tours</a>
+				<a href="{% url 'package_list' %}">Packages</a>
+				<a href="{% url 'community_feed' %}">Explore</a>
+				<a href="{% url 'about' %}">About</a>
+				<a href="{% url 'blog_list' %}">Blog</a>
+				<a href="{% url 'contact' %}" class="nav-active">Contact</a>
+			</div>
+			{% include "core/includes/public_nav_actions.html" %}
+		</div>
+	</nav>
+
+	<main class="contact-main">
+		<section class="contact-hero">
+			<div class="contact-hero-overlay"></div>
+			<div class="container-landing contact-hero-content">
+				<h1>Contact Us</h1>
+				<p>Have questions? We are here to help you plan your journey.</p>
+			</div>
+		</section>
+
+		<section class="container-landing contact-info-cards">
+			<article class="contact-card">
+				<span class="contact-card-icon">&#128205;</span>
+				<h3>Address</h3>
+				<p>Pokhara, Nepal</p>
+				<small>Lakeside-6, Tourism Hub</small>
+			</article>
+			<article class="contact-card">
+				<span class="contact-card-icon">&#128222;</span>
+				<h3>Phone</h3>
+				<p>+977 1 5551234</p>
+				<small>Support hotline</small>
+			</article>
+			<article class="contact-card">
+				<span class="contact-card-icon">&#128231;</span>
+				<h3>Email</h3>
+				<p>support@namastenomad.com</p>
+				<small>Response within 24 hours</small>
+			</article>
+			<article class="contact-card">
+				<span class="contact-card-icon">&#128339;</span>
+				<h3>Working Hours</h3>
+				<p>Sun - Fri: 9:00 AM - 6:00 PM</p>
+				<small>Saturday closed</small>
+			</article>
+		</section>
+
+		{% if messages %}
+			<div class="alert-stack container-landing">
+				{% for message in messages %}
+					<div class="alert alert-{{ message.tags }}">{{ message }}</div>
+				{% endfor %}
+			</div>
+		{% endif %}
+
+		<section class="container-landing contact-grid">
+			<div class="contact-form-panel">
+				<div class="section-headline">
+					<h2>Send Us a Message</h2>
+					<p>Tell us about your trip plan or any issue you need help with.</p>
+				</div>
+
+				<form method="post" class="contact-form" novalidate>
+					{% csrf_token %}
+					<div class="form-row">
+						<label for="id_full_name">Full Name</label>
+						{{ form.full_name }}
+						{% if form.full_name.errors %}<small class="field-error">{{ form.full_name.errors|join:', ' }}</small>{% endif %}
+					</div>
+
+					<div class="form-row">
+						<label for="id_email">Email</label>
+						{{ form.email }}
+						{% if form.email.errors %}<small class="field-error">{{ form.email.errors|join:', ' }}</small>{% endif %}
+					</div>
+
+					<div class="form-row">
+						<label for="id_subject">Subject</label>
+						{{ form.subject }}
+						{% if form.subject.errors %}<small class="field-error">{{ form.subject.errors|join:', ' }}</small>{% endif %}
+					</div>
+
+					<div class="form-row">
+						<label for="id_message">Message</label>
+						{{ form.message }}
+						{% if form.message.errors %}<small class="field-error">{{ form.message.errors|join:', ' }}</small>{% endif %}
+					</div>
+
+					{% if form.non_field_errors %}
+						<small class="field-error">{{ form.non_field_errors|join:', ' }}</small>
+					{% endif %}
+
+					<button type="submit" class="btn-contact-submit">Send Message</button>
+				</form>
+			</div>
+
+			<aside class="contact-side-panel">
+				<div class="contact-side-card">
+					<h3>Quick Support</h3>
+					<p>Need urgent help with booking or payments? Reach us directly via phone during office hours.</p>
+				</div>
+				<div class="contact-side-card">
+					<h3>Vendor Partnerships</h3>
+					<p>If you are a tour operator or trekking agency, send details and we will guide you through onboarding.</p>
+				</div>
+				<div class="contact-side-card">
+					<h3>Safety First</h3>
+					<p>For route safety, weather alerts, and policy questions, our team coordinates with verified local partners.</p>
+				</div>
+			</aside>
+		</section>
+
+		<section class="container-landing map-section">
+			<div class="section-headline">
+				<h2>Visit Our Office</h2>
+				<p>Find us in Kathmandu and plan your next adventure with our support team.</p>
+			</div>
+			<div id="contactOfficeMap" class="contact-map" data-lat="{{ office_lat }}" data-lng="{{ office_lng }}"></div>
+		</section>
+
+		<section class="container-landing faq-section">
+			<div class="section-headline">
+				<h2>Frequently Asked Questions</h2>
+			</div>
+			<div class="faq-list">
+				{% for item in faq_items %}
+					<article class="faq-item">
+						<h3>{{ item.question }}</h3>
+						<p>{{ item.answer }}</p>
+					</article>
+				{% endfor %}
+			</div>
+		</section>
+	</main>
+
+	<footer class="footer">
+		<div class="container-landing">
+			<div class="footer-bottom">
+				<p>&copy; 2026 Namaste Nomad. All rights reserved.</p>
+			</div>
+		</div>
+	</footer>
+
+	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+	<script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
+	<script>
+		(function () {
+			const mapElement = document.getElementById('contactOfficeMap');
+			if (!mapElement || typeof L === 'undefined') return;
+
+			const lat = Number(mapElement.dataset.lat || 28.2096);
+			const lng = Number(mapElement.dataset.lng || 83.9856);
+			const map = L.map(mapElement, { scrollWheelZoom: false }).setView([lat, lng], 13);
+
+			L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+				maxZoom: 19,
+				attribution: '&copy; OpenStreetMap contributors',
+			}).addTo(map);
+
+			L.marker([lat, lng])
+				.addTo(map)
+				.bindPopup('<strong>Namaste Nomad Office</strong><br>Pokhara, Nepal')
+				.openPopup();
+		})();
+	</script>
+</body>
+</html>

@@ -7,6 +7,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.core.mail import send_mail
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -27,7 +28,7 @@ from accounts.achievements import (
     discount_for_points,
 )
 from accounts.notifications import create_notification, notify_admins
-from .forms import BookingForm, CommentForm, PostEditForm, PostForm, ReviewForm
+from .forms import BookingForm, CommentForm, ContactMessageForm, PostEditForm, PostForm, ReviewForm
 from .invoices import generate_invoice_pdf, invoice_data_for_booking
 from .models import Booking, Comment, Package, Post, PostMedia, Review, Transaction, Wishlist
 from .payments import (
@@ -1695,7 +1696,84 @@ def blog_detail(request, slug):
 
 def contact(request):
     """Contact page"""
-    return render(request, 'core/contact.html')
+    initial = {}
+    if request.user.is_authenticated:
+        initial['email'] = request.user.email or ''
+        initial['full_name'] = request.user.get_full_name().strip() or request.user.username
+
+    if request.method == 'POST':
+        form = ContactMessageForm(request.POST)
+        if form.is_valid():
+            contact_message = form.save(commit=False)
+            if request.user.is_authenticated:
+                contact_message.user = request.user
+            contact_message.save()
+
+            recipients = []
+            recipients.extend(getattr(settings, 'CONTACT_RECEIVER_EMAILS', []) or [])
+            fallback_recipient = getattr(settings, 'CONTACT_RECEIVER_EMAIL', '') or getattr(settings, 'EMAIL_HOST_USER', '')
+            if fallback_recipient:
+                recipients.append(fallback_recipient)
+            recipients = list(dict.fromkeys([email for email in recipients if email]))
+
+            if recipients:
+                sender_label = contact_message.full_name
+                if request.user.is_authenticated:
+                    sender_label = f'{sender_label} ({request.user.email})'
+                email_subject = f'[Namaste Nomad] New Contact Message: {contact_message.subject}'
+                email_body = (
+                    f'You received a new contact message.\n\n'
+                    f'Name: {contact_message.full_name}\n'
+                    f'Email: {contact_message.email}\n'
+                    f'Subject: {contact_message.subject}\n'
+                    f'Sender: {sender_label}\n\n'
+                    f'Message:\n{contact_message.message}\n\n'
+                    f'Submitted at: {contact_message.created_at:%Y-%m-%d %H:%M:%S %Z}'
+                )
+                try:
+                    send_mail(
+                        subject=email_subject,
+                        message=email_body,
+                        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', '') or None,
+                        recipient_list=recipients,
+                        fail_silently=False,
+                    )
+                except Exception:
+                    messages.warning(
+                        request,
+                        'Message saved, but email notification to admin could not be sent right now.',
+                    )
+
+            messages.success(request, 'Message sent successfully')
+            return redirect('contact')
+    else:
+        form = ContactMessageForm(initial=initial)
+
+    faq_items = [
+        {
+            'question': 'How do I book a package?',
+            'answer': 'Open any package, select travel date and travelers, then complete secure checkout.',
+        },
+        {
+            'question': 'How can vendors join?',
+            'answer': 'Register as a vendor, complete profile verification, and publish packages after approval.',
+        },
+        {
+            'question': 'Can I customize an itinerary?',
+            'answer': 'Yes. Send your request through this form and our team will connect you with suitable vendors.',
+        },
+    ]
+
+    return render(
+        request,
+        'core/contact.html',
+        {
+            'form': form,
+            'faq_items': faq_items,
+            'office_lat': 28.2096,
+            'office_lng': 83.9856,
+        },
+    )
 
 
 def review_list(request):
