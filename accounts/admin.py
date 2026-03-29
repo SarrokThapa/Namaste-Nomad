@@ -11,16 +11,16 @@ from .models import (
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    list_display = ('username', 'email', 'user_type', 'is_verified', 'is_active', 'date_joined')
-    list_filter = ('user_type', 'is_verified', 'is_active', 'is_staff')
+    list_display = ('username', 'email', 'user_type', 'wants_promotions', 'is_verified', 'is_active', 'date_joined')
+    list_filter = ('user_type', 'wants_promotions', 'is_verified', 'is_active', 'is_staff')
     search_fields = ('username', 'email', 'first_name', 'last_name')
     
     fieldsets = UserAdmin.fieldsets + (
-        ('Additional Info', {'fields': ('user_type', 'phone', 'is_verified')}),
+        ('Additional Info', {'fields': ('user_type', 'phone', 'is_verified', 'wants_promotions')}),
     )
     
     add_fieldsets = UserAdmin.add_fieldsets + (
-        ('Additional Info', {'fields': ('user_type', 'phone', 'is_verified')}),
+        ('Additional Info', {'fields': ('user_type', 'phone', 'is_verified', 'wants_promotions')}),
     )
 
 @admin.register(VendorProfile)

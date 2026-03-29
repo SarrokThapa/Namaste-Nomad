@@ -41,6 +41,7 @@ from django.views.decorators.http import require_POST
 from core.models import (
     Booking,
     Package,
+    SpecialOffer,
     Review,
     PackageImage,
     SupportConversation,
@@ -106,6 +107,56 @@ def _get_traveler_profile(user):
 
 def _get_active_subscription(vendor):
     return VendorSubscription.active_for_vendor(vendor)
+
+
+def _sync_active_special_offers_for_user(user):
+    if not user or not user.is_active:
+        return 0
+
+    today = timezone.localdate()
+    offers = SpecialOffer.objects.filter(is_active=True).filter(
+        Q(valid_until__isnull=True) | Q(valid_until__gte=today)
+    )
+
+    created_count = 0
+    for offer in offers:
+        message_text = f'Special offer available: {offer.title}'
+        exists = Notification.objects.filter(
+            user=user,
+            type=Notification.TYPE_PROMOTION,
+            message=message_text,
+            related_object_id=offer.id,
+        ).exists()
+        if not exists:
+            create_notification(
+                user,
+                message_text,
+                Notification.TYPE_PROMOTION,
+                related_object_id=offer.id,
+            )
+            created_count += 1
+    return created_count
+
+
+def _notify_opted_in_travelers_for_limited_package_offer(package):
+    if package is None:
+        return 0
+
+    travelers = User.objects.filter(
+        user_type='traveler',
+        is_active=True,
+        wants_promotions=True,
+    )
+    notified = 0
+    for traveler in travelers:
+        create_notification(
+            traveler,
+            f'Limited-time package offer: {package.title}',
+            Notification.TYPE_PROMOTION,
+            related_object_id=package.id,
+        )
+        notified += 1
+    return notified
 
 
 def _delete_stored_file(instance, field_name, file_name):
@@ -1545,10 +1596,12 @@ def vendor_profile(request):
         )
 
     if request.method == 'POST':
+        had_promotions_enabled = bool(request.user.wants_promotions)
         old_logo_name = vendor_profile.logo.name if vendor_profile.logo else ''
         form = VendorProfileForm(request.POST, request.FILES, instance=vendor_profile)
         email = (request.POST.get('email') or '').strip()
         phone = (request.POST.get('phone') or '').strip()
+        wants_promotions = request.POST.get('wants_promotions') == 'on'
         remove_logo = request.POST.get('remove_logo') == '1'
 
         if email and email != request.user.email:
@@ -1559,6 +1612,7 @@ def vendor_profile(request):
             request.user.username = email
 
         request.user.phone = phone
+        request.user.wants_promotions = wants_promotions
         request.user.save()
 
         if form.is_valid():
@@ -1573,6 +1627,14 @@ def vendor_profile(request):
                 current_logo_name = profile_instance.logo.name if profile_instance.logo else ''
                 if old_logo_name and old_logo_name != current_logo_name:
                     _delete_stored_file(profile_instance, 'logo', old_logo_name)
+
+            if wants_promotions and not had_promotions_enabled:
+                offers_count = _sync_active_special_offers_for_user(request.user)
+                if offers_count:
+                    messages.info(
+                        request,
+                        f'Limited-time special offers enabled. {offers_count} active offer notification(s) were added.',
+                    )
             messages.success(request, 'Profile updated successfully.')
             return redirect('vendor_profile')
         messages.error(request, 'Please correct the errors below.')
@@ -2306,6 +2368,7 @@ def vendor_package_create(request):
     if request.method == 'POST':
         form = PackageForm(request.POST, vendor=request.user)
         if form.is_valid():
+            limited_time_offer = bool(form.cleaned_data.get('limited_time_offer'))
             package = form.save(commit=False)
             package.vendor = request.user
             package.save()
@@ -2315,6 +2378,13 @@ def vendor_package_create(request):
                 Notification.TYPE_PACKAGE_SUBMISSION,
                 related_object_id=package.id,
             )
+            if limited_time_offer:
+                notified_count = _notify_opted_in_travelers_for_limited_package_offer(package)
+                if notified_count:
+                    messages.info(
+                        request,
+                        f'Limited-time offer notifications sent to {notified_count} opted-in traveler(s).',
+                    )
             messages.success(request, 'Package created successfully.')
             return redirect('vendor_packages')
     else:
@@ -2715,6 +2785,7 @@ def traveler_profile(request):
         full_name = (request.POST.get('full_name') or '').strip()
         email = (request.POST.get('email') or '').strip()
         phone = (request.POST.get('phone') or '').strip()
+        wants_promotions = request.POST.get('wants_promotions') == 'on'
         date_of_birth = request.POST.get('date_of_birth')
         gender = request.POST.get('gender') or ''
         nationality = (request.POST.get('nationality') or '').strip()
@@ -2739,6 +2810,7 @@ def traveler_profile(request):
             request.user.username = email
 
         request.user.phone = phone
+        request.user.wants_promotions = wants_promotions
         request.user.save()
 
         profile.gender = gender
@@ -2836,6 +2908,7 @@ def vendor_register(request):
         owner_name = (request.POST.get('owner_name') or '').strip()
         email = (request.POST.get('email') or '').strip()
         phone = (request.POST.get('phone') or '').strip()
+        wants_promotions = request.POST.get('wants_promotions') == 'on'
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
         document = request.FILES.get('document')
@@ -2873,7 +2946,11 @@ def vendor_register(request):
             phone=phone,
             is_verified=False,
             is_active=False,
+            wants_promotions=wants_promotions,
         )
+
+        if wants_promotions:
+            _sync_active_special_offers_for_user(user)
         
         # Create vendor profile
         VendorProfile.objects.create(
@@ -3024,6 +3101,7 @@ def traveler_register(request):
         last_name = request.POST.get('last_name')
         email = request.POST.get('email')
         phone = request.POST.get('phone')
+        wants_promotions = request.POST.get('wants_promotions') == 'on' or request.POST.get('newsletter') == 'on'
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
         
@@ -3046,6 +3124,7 @@ def traveler_register(request):
             last_name=last_name,
             is_verified=False,
             is_active=False,
+            wants_promotions=wants_promotions,
         )
 
         TravelerProfile.objects.create(user=user)

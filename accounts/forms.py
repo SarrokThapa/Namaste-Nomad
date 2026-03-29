@@ -6,6 +6,12 @@ from .models import VendorProfile
 
 
 class PackageForm(forms.ModelForm):
+    limited_time_offer = forms.BooleanField(
+        required=False,
+        initial=False,
+        label='Limited-time special offer',
+    )
+
     class Meta:
         model = Package
         fields = [

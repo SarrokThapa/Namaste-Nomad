@@ -5,8 +5,8 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import User, VendorProfile
-from core.models import Booking, Package
+from .models import Notification, TravelerProfile, User, VendorProfile
+from core.models import Booking, Package, SpecialOffer
 
 
 class VendorApprovalFlowTests(TestCase):
@@ -379,3 +379,212 @@ class AdminAnalyticsApiTests(TestCase):
         self.assertEqual(payload['year'], 2025)
         self.assertEqual(payload['bookings']['values'][3], 1)  # Apr
         self.assertEqual(payload['bookings']['values'][2], 0)  # Mar
+
+
+class PromotionsPreferenceTests(TestCase):
+    def test_traveler_registration_saves_promotions_preference(self):
+        response = self.client.post(
+            reverse('traveler_register'),
+            data={
+                'first_name': 'Promo',
+                'last_name': 'Traveler',
+                'email': 'promo-traveler@example.com',
+                'phone': '+9779800001234',
+                'password': 'strong-pass-123',
+                'confirm_password': 'strong-pass-123',
+                'wants_promotions': 'on',
+            },
+        )
+
+        self.assertRedirects(response, reverse('verify_otp'))
+        user = User.objects.get(email='promo-traveler@example.com')
+        self.assertTrue(user.wants_promotions)
+
+    def test_vendor_registration_saves_promotions_preference(self):
+        document = SimpleUploadedFile(
+            'verification.pdf',
+            b'fake verification payload',
+            content_type='application/pdf',
+        )
+        response = self.client.post(
+            reverse('vendor_register'),
+            data={
+                'business_name': 'Offer Trails',
+                'owner_name': 'Offer Owner',
+                'email': 'promo-vendor@example.com',
+                'phone': '+9779800005678',
+                'password': 'strong-pass-123',
+                'confirm_password': 'strong-pass-123',
+                'document': document,
+                'wants_promotions': 'on',
+            },
+        )
+
+        self.assertRedirects(response, reverse('verify_otp'))
+        user = User.objects.get(email='promo-vendor@example.com')
+        self.assertTrue(user.wants_promotions)
+
+    def test_traveler_profile_updates_promotions_preference(self):
+        user = User.objects.create_user(
+            username='profile-traveler',
+            email='profile-traveler@example.com',
+            password='traveler-pass-123',
+            user_type='traveler',
+            wants_promotions=False,
+        )
+        TravelerProfile.objects.create(user=user)
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse('traveler_profile'),
+            data={
+                'full_name': 'Profile Traveler',
+                'email': 'profile-traveler@example.com',
+                'phone': '+9779800012345',
+                'gender': 'male',
+                'nationality': 'Nepali',
+                'bio': 'Test bio',
+                'wants_promotions': 'on',
+            },
+        )
+
+        self.assertRedirects(response, reverse('traveler_profile'))
+        user.refresh_from_db()
+        self.assertTrue(user.wants_promotions)
+
+    def test_vendor_profile_enabling_promotions_adds_active_offer_notification(self):
+        vendor = User.objects.create_user(
+            username='profile-vendor@example.com',
+            email='profile-vendor@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            wants_promotions=False,
+            is_active=True,
+        )
+        VendorProfile.objects.create(
+            user=vendor,
+            business_name='Offer Vendor',
+            owner_name='Vendor Owner',
+            is_approved=True,
+        )
+        SpecialOffer.objects.create(
+            title='Weekend Escape Deal',
+            summary='Limited-time package discount.',
+            content='Save more when you book this weekend.',
+            is_active=True,
+        )
+        self.client.force_login(vendor)
+
+        response = self.client.post(
+            reverse('vendor_profile'),
+            data={
+                'business_name': 'Offer Vendor',
+                'owner_name': 'Vendor Owner',
+                'email': 'profile-vendor@example.com',
+                'phone': '+9779800099999',
+                'tagline': '',
+                'website': '',
+                'license_number': '',
+                'business_address': '',
+                'description': '',
+                'bank_name': '',
+                'account_number': '',
+                'routing_number': '',
+                'paypal_email': '',
+                'wants_promotions': 'on',
+            },
+        )
+
+        self.assertRedirects(response, reverse('vendor_profile'))
+        vendor.refresh_from_db()
+        self.assertTrue(vendor.wants_promotions)
+        self.assertTrue(
+            Notification.objects.filter(
+                user=vendor,
+                type=Notification.TYPE_PROMOTION,
+                message__contains='Special offer available',
+            ).exists()
+        )
+
+    def test_vendor_package_limited_offer_notifies_only_opted_in_travelers(self):
+        vendor = User.objects.create_user(
+            username='limited-offer-vendor@example.com',
+            email='limited-offer-vendor@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            is_active=True,
+        )
+        VendorProfile.objects.create(
+            user=vendor,
+            business_name='Limited Offer Treks',
+            owner_name='Offer Owner',
+            is_approved=True,
+        )
+        opted_in_traveler = User.objects.create_user(
+            username='opted-in-traveler@example.com',
+            email='opted-in-traveler@example.com',
+            password='traveler-pass-123',
+            user_type='traveler',
+            wants_promotions=True,
+            is_active=True,
+        )
+        opted_out_traveler = User.objects.create_user(
+            username='opted-out-traveler@example.com',
+            email='opted-out-traveler@example.com',
+            password='traveler-pass-123',
+            user_type='traveler',
+            wants_promotions=False,
+            is_active=True,
+        )
+
+        self.client.force_login(vendor)
+        response = self.client.post(
+            reverse('vendor_package_create'),
+            data={
+                'title': 'Limited Spring Trek',
+                'category': Package.CATEGORY_TREK,
+                'location_name': 'Manang',
+                'latitude': '28.669',
+                'longitude': '84.021',
+                'price': '14999.00',
+                'duration_days': '8',
+                'available_slots': '12',
+                'available_from': timezone.localdate().isoformat(),
+                'available_until': (timezone.localdate() + timedelta(days=30)).isoformat(),
+                'difficulty': 'moderate',
+                'group_size': '10',
+                'best_season': 'Spring',
+                'image_url': '',
+                'description': 'Limited offer package.',
+                'itinerary': 'Day 1\nDay 2',
+                'inclusions': 'Guide',
+                'exclusions': 'Flights',
+                'has_guide': 'on',
+                'includes_meals': 'on',
+                'includes_accommodation': 'on',
+                'includes_transport': 'on',
+                'includes_permits': 'on',
+                'is_active': 'on',
+                'is_featured': '',
+                'limited_time_offer': 'on',
+            },
+        )
+
+        self.assertRedirects(response, reverse('vendor_packages'))
+        package = Package.objects.get(title='Limited Spring Trek')
+        self.assertTrue(
+            Notification.objects.filter(
+                user=opted_in_traveler,
+                type=Notification.TYPE_PROMOTION,
+                related_object_id=package.id,
+                message__contains='Limited-time package offer',
+            ).exists()
+        )
+        self.assertFalse(
+            Notification.objects.filter(
+                user=opted_out_traveler,
+                type=Notification.TYPE_PROMOTION,
+                related_object_id=package.id,
+                message__contains='Limited-time package offer',
+            ).exists()
+        )

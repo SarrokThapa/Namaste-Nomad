@@ -38,9 +38,11 @@ from .models import (
     Post,
     PostMedia,
     Review,
+    SpecialOffer,
     SupportConversation,
     SupportMessage,
     Transaction,
+    TravelTip,
     Wishlist,
 )
 from .payments import (
@@ -771,10 +773,48 @@ def home(request):
     reviews = _prepare_review_cards(
         Review.objects.select_related('traveler', 'traveler__traveler_profile', 'package').order_by('-created_at')[:5]
     )
+
+    travel_tips = TravelTip.objects.filter(is_active=True).order_by('-created_at')[:3]
+    special_offers = SpecialOffer.objects.filter(is_active=True).filter(
+        Q(valid_until__isnull=True) | Q(valid_until__gte=today)
+    ).order_by('-created_at')[:3]
+
+    recommended_packages = Package.objects.none()
+    show_promotions = bool(
+        request.user.is_authenticated
+        and getattr(request.user, 'wants_promotions', False)
+    )
+    if show_promotions:
+        wishlist_package_ids = Wishlist.objects.filter(traveler=request.user).values_list('package_id', flat=True)
+        preferred_categories = Package.objects.filter(id__in=wishlist_package_ids).values_list('category', flat=True)
+        preferred_locations = Package.objects.filter(id__in=wishlist_package_ids).exclude(location_name='').values_list('location_name', flat=True)
+
+        recommendation_filters = Q(is_active=True)
+        if preferred_categories:
+            recommendation_filters &= Q(category__in=preferred_categories)
+        if preferred_locations:
+            recommendation_filters &= Q(location_name__in=preferred_locations)
+
+        recommended_packages = (
+            Package.objects.filter(recommendation_filters)
+            .exclude(id__in=featured_ids)
+            .select_related('vendor', 'vendor__vendor_profile')
+            .prefetch_related('images')
+            .annotate(
+                review_count=Count('reviews', distinct=True),
+                avg_rating=Avg('reviews__rating'),
+            )
+            .order_by('-views_count', '-avg_rating', '-created_at')[:4]
+        )
+
     return render(request, 'core/home.html', {
         'reviews': reviews,
         'featured_packages': featured_packages,
         'popular_packages': popular_packages,
+        'travel_tips': travel_tips,
+        'special_offers': special_offers,
+        'recommended_packages': recommended_packages,
+        'show_promotions': show_promotions,
         'wishlist_ids': wishlist_ids,
     })
 

@@ -929,3 +929,72 @@ class PostBookingAutoMessageTests(TestCase):
                 related_object_id=booking.id,
             ).exists()
         )
+
+
+class HomePromotionsPersonalizationTests(TestCase):
+    def setUp(self):
+        self.vendor = User.objects.create_user(
+            username='promo_home_vendor',
+            password='vendor-pass-123',
+            email='promo-home-vendor@example.com',
+            user_type='vendor',
+        )
+        self.package = Package.objects.create(
+            vendor=self.vendor,
+            title='Promo Home Trek',
+            category=Package.CATEGORY_TREK,
+            location='Annapurna',
+            location_name='Annapurna',
+            price='12000.00',
+            available_slots=6,
+            available_from=timezone.localdate() - timedelta(days=1),
+            available_until=timezone.localdate() + timedelta(days=10),
+            is_active=True,
+        )
+
+    def test_home_shows_promotions_for_opted_in_traveler(self):
+        from .models import SpecialOffer, TravelTip, Wishlist
+
+        traveler = User.objects.create_user(
+            username='promo_home_traveler',
+            password='traveler-pass-123',
+            email='promo-home-traveler@example.com',
+            user_type='traveler',
+            wants_promotions=True,
+        )
+        Wishlist.objects.create(traveler=traveler, package=self.package)
+        TravelTip.objects.create(
+            title='Pack Better for High Altitude',
+            summary='Layering and hydration essentials.',
+            content='Bring layers, keep water intake steady, and pace your ascent.',
+            is_active=True,
+        )
+        SpecialOffer.objects.create(
+            title='Spring Trek Discount',
+            summary='Save on selected departures.',
+            content='Book this month and receive a special package discount.',
+            is_active=True,
+        )
+
+        self.client.force_login(traveler)
+        response = self.client.get(reverse('home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Recommended for You')
+        self.assertContains(response, 'Special Offers')
+        self.assertContains(response, 'Travel Tips')
+
+    def test_home_shows_opt_in_hint_for_non_opted_traveler(self):
+        traveler = User.objects.create_user(
+            username='no_promo_home_traveler',
+            password='traveler-pass-123',
+            email='no-promo-home-traveler@example.com',
+            user_type='traveler',
+            wants_promotions=False,
+        )
+        self.client.force_login(traveler)
+
+        response = self.client.get(reverse('home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'travel tips and special offers')

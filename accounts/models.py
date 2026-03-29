@@ -15,6 +15,7 @@ class User(AbstractUser):
     user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES)
     phone = models.CharField(max_length=20, blank=True, null=True)
     is_verified = models.BooleanField(default=False)
+    wants_promotions = models.BooleanField(default=False)
     
     def __str__(self):
         return f"{self.username} - {self.user_type}"
@@ -203,6 +204,7 @@ class Notification(models.Model):
     TYPE_SUPPORT_MESSAGE = 'support_message'
     TYPE_PACKAGE_SUBMISSION = 'package_submission'
     TYPE_USER_REGISTRATION = 'user_registration'
+    TYPE_PROMOTION = 'promotion'
 
     TYPE_CHOICES = (
         (TYPE_BOOKING, 'Booking'),
@@ -215,6 +217,7 @@ class Notification(models.Model):
         (TYPE_SUPPORT_MESSAGE, 'Support Message'),
         (TYPE_PACKAGE_SUBMISSION, 'Package Submission'),
         (TYPE_USER_REGISTRATION, 'User Registration'),
+        (TYPE_PROMOTION, 'Promotion'),
     )
 
     user = models.ForeignKey(

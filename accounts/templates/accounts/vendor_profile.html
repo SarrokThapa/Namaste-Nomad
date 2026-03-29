@@ -121,6 +121,18 @@
     </section>
 
     <section class="card vendor-section">
+        <h2>Communication Preferences</h2>
+        <div class="form-grid">
+            <div class="form-group span-2">
+                <label class="check-row">
+                    <input type="checkbox" name="wants_promotions" {% if request.user.wants_promotions %}checked{% endif %}>
+                    Receive limited-time special offers
+                </label>
+            </div>
+        </div>
+    </section>
+
+    <section class="card vendor-section">
         <div class="section-header-inline">
             <div>
                 <h2>My Packages</h2>

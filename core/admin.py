@@ -1,5 +1,21 @@
 from django.contrib import admin
-from .models import Booking, Comment, ContactMessage, Discount, Package, Post, PostMedia, Review, SupportMessage, Transaction
+from accounts.models import Notification, User
+from accounts.notifications import create_notification
+
+from .models import (
+    Booking,
+    Comment,
+    ContactMessage,
+    Discount,
+    Package,
+    Post,
+    PostMedia,
+    Review,
+    SpecialOffer,
+    SupportMessage,
+    Transaction,
+    TravelTip,
+)
 
 
 @admin.register(Package)
@@ -113,3 +129,38 @@ class SupportMessageAdmin(admin.ModelAdmin):
     )
     list_filter = ('is_admin_reply', 'is_system_generated', 'created_at')
     search_fields = ('sender__email', 'message', 'conversation__user__email')
+
+
+class PromotionsNotificationAdminMixin:
+    notification_message = ''
+
+    def _notify_opted_in_users(self, obj):
+        recipients = User.objects.filter(is_active=True, wants_promotions=True)
+        for user in recipients:
+            create_notification(
+                user,
+                self.notification_message.format(title=obj.title),
+                Notification.TYPE_PROMOTION,
+                related_object_id=obj.id,
+            )
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if not change and obj.is_active:
+            self._notify_opted_in_users(obj)
+
+
+@admin.register(TravelTip)
+class TravelTipAdmin(PromotionsNotificationAdminMixin, admin.ModelAdmin):
+    list_display = ('title', 'is_active', 'created_at')
+    list_filter = ('is_active', 'created_at')
+    search_fields = ('title', 'summary', 'content')
+    notification_message = 'New travel tip: {title}'
+
+
+@admin.register(SpecialOffer)
+class SpecialOfferAdmin(PromotionsNotificationAdminMixin, admin.ModelAdmin):
+    list_display = ('title', 'valid_until', 'is_active', 'created_at')
+    list_filter = ('is_active', 'valid_until', 'created_at')
+    search_fields = ('title', 'summary', 'content')
+    notification_message = 'Special offer available: {title}'

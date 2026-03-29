@@ -116,6 +116,13 @@
             </div>
             <div class="preferences-grid">
                 <div>
+                    <h3>Notifications</h3>
+                    <label class="check-row">
+                        <input type="checkbox" name="wants_promotions" {% if request.user.wants_promotions %}checked{% endif %}>
+                        Receive travel tips and special offers
+                    </label>
+                </div>
+                <div>
                     <h3>Preferred Difficulty</h3>
                     <label class="check-row"><input type="checkbox" checked> Easy</label>
                     <label class="check-row"><input type="checkbox" checked> Medium</label>

@@ -198,6 +198,14 @@
                 <span>Publish package immediately</span>
             </label>
         </div>
+        {% if not is_edit %}
+            <div class="form-group checkbox-row">
+                <label class="checkbox-label">
+                    {{ form.limited_time_offer }}
+                    <span>Mark as limited-time special offer (notify opted-in travelers)</span>
+                </label>
+            </div>
+        {% endif %}
         <div class="form-group checkbox-row">
             <label class="checkbox-label">
                 {{ form.is_featured }}

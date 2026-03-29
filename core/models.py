@@ -568,6 +568,36 @@ class ContactMessage(models.Model):
         return f"{self.full_name} - {self.subject}"
 
 
+class TravelTip(models.Model):
+    title = models.CharField(max_length=180)
+    summary = models.CharField(max_length=300)
+    content = models.TextField(max_length=4000)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        return self.title
+
+
+class SpecialOffer(models.Model):
+    title = models.CharField(max_length=180)
+    summary = models.CharField(max_length=300)
+    content = models.TextField(max_length=4000)
+    cta_url = models.URLField(blank=True)
+    valid_until = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        return self.title
+
+
 class SupportConversation(models.Model):
     STATUS_OPEN = 'open'
     STATUS_CLOSED = 'closed'

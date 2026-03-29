@@ -198,6 +198,120 @@
         </div>
     </section>
 
+    {% if show_promotions %}
+        <section class="popular">
+            <div class="container-landing">
+                <div class="section-header">
+                    <div>
+                        <h2 class="section-title">Recommended for You</h2>
+                        <p class="section-subtitle">Based on your saved interests and travel activity.</p>
+                    </div>
+                </div>
+
+                <div class="trek-grid">
+                    {% if recommended_packages %}
+                        {% for package in recommended_packages %}
+                            <article class="trek-card">
+                                {% with cover=package.images.all|first %}
+                                    <div class="trek-image" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
+                                        {% include "core/includes/wishlist_button.html" with package=package %}
+                                        <span class="tag">Recommended</span>
+                                    </div>
+                                {% endwith %}
+                                <div class="trek-body">
+                                    <h3>{{ package.title }}</h3>
+                                    <p class="trek-meta">{{ package.location|default:"Nepal" }}{% if package.duration_days %} | {{ package.duration_days }} days{% endif %}</p>
+                                    <div class="trek-rating">
+                                        <span class="stars">★★★★★</span>
+                                        <span>{{ package.avg_rating|default:0|floatformat:1 }} ({{ package.review_count|default:0 }} reviews)</span>
+                                    </div>
+                                    <div class="trek-footer">
+                                        <span class="trek-price">Rs {{ package.price|floatformat:0 }}</span>
+                                        <a class="btn-outline-dark" href="{% url 'package_detail' package.id %}">View Details</a>
+                                    </div>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    {% else %}
+                        <div class="review-empty">Start adding packages to your wishlist to get personalized recommendations.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    {% endif %}
+
+    {% if show_promotions %}
+        <section class="popular">
+            <div class="container-landing">
+                <div class="section-header">
+                    <div>
+                        <h2 class="section-title">Special Offers</h2>
+                        <p class="section-subtitle">Limited-time promotions from trusted operators.</p>
+                    </div>
+                </div>
+
+                <div class="trek-grid">
+                    {% if special_offers %}
+                        {% for offer in special_offers %}
+                            <article class="trek-card">
+                                <div class="trek-body">
+                                    <h3>{{ offer.title }}</h3>
+                                    <p class="trek-meta">{{ offer.summary }}</p>
+                                    <p class="trek-meta">{{ offer.content|truncatewords:24 }}</p>
+                                    <div class="trek-footer">
+                                        {% if offer.valid_until %}
+                                            <span class="trek-price">Valid until {{ offer.valid_until|date:"M d, Y" }}</span>
+                                        {% else %}
+                                            <span class="trek-price">Limited offer</span>
+                                        {% endif %}
+                                        {% if offer.cta_url %}
+                                            <a class="btn-outline-dark" href="{{ offer.cta_url }}" target="_blank" rel="noopener">View Offer</a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    {% else %}
+                        <div class="review-empty">No active special offers right now.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="popular">
+            <div class="container-landing">
+                <div class="section-header">
+                    <div>
+                        <h2 class="section-title">Travel Tips</h2>
+                        <p class="section-subtitle">Quick insights to help you plan smarter trips.</p>
+                    </div>
+                </div>
+
+                <div class="trek-grid">
+                    {% if travel_tips %}
+                        {% for tip in travel_tips %}
+                            <article class="trek-card">
+                                <div class="trek-body">
+                                    <h3>{{ tip.title }}</h3>
+                                    <p class="trek-meta">{{ tip.summary }}</p>
+                                    <p class="trek-meta">{{ tip.content|truncatewords:26 }}</p>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    {% else %}
+                        <div class="review-empty">No travel tips published yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    {% elif request.user.is_authenticated and request.user.user_type == 'traveler' %}
+        <section class="popular">
+            <div class="container-landing">
+                <div class="review-empty">Turn on "travel tips and special offers" in your profile to unlock personalized recommendations.</div>
+            </div>
+        </section>
+    {% endif %}
+
     <!-- Rewards Promo -->
     <section class="rewards-promo">
         <div class="container-landing">
