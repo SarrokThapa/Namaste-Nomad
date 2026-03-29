@@ -11,7 +11,7 @@ from django.core.mail import send_mail
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Avg, Count, F, Max, Min, Prefetch, Q
+from django.db.models import Avg, Count, F, Max, Min, OuterRef, Prefetch, Q, Subquery, Sum
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -20,7 +20,7 @@ from django.utils.dateparse import parse_date
 from django.utils import timezone
 from django.utils.html import escape, mark_safe
 
-from accounts.models import Notification, TravelerProfile, VendorSubscription
+from accounts.models import FeatureSlot, Notification, TravelerProfile, VendorFeature, VendorSubscription
 from accounts.achievements import (
     add_points,
     sync_badges_for_user,
@@ -734,13 +734,22 @@ def _render_esewa_checkout(request, booking):
 def home(request):
     """Landing page"""
     VendorSubscription.expire_overdue()
+    VendorFeature.expire_overdue()
     wishlist_ids = _wishlist_ids_for_user(request.user)
     today = timezone.localdate()
-    active_vendor_ids = VendorSubscription.objects.filter(
-        status=VendorSubscription.STATUS_ACTIVE,
+    homepage_slot_capacity = FeatureSlot.objects.filter(is_active=True).aggregate(total=Sum('max_slots'))['total'] or 0
+    active_vendor_ids = VendorFeature.objects.filter(
+        is_active=True,
         start_date__lte=today,
         end_date__gte=today,
     ).values_list('vendor_id', flat=True).distinct()
+    active_subscriptions = VendorSubscription.objects.filter(
+        status=VendorSubscription.STATUS_ACTIVE,
+        start_date__lte=today,
+        end_date__gte=today,
+    )
+    latest_subscription_end = active_subscriptions.filter(vendor_id=OuterRef('vendor_id')).order_by('-end_date').values('end_date')[:1]
+    highest_subscription_price = active_subscriptions.filter(vendor_id=OuterRef('vendor_id')).order_by('-price').values('price')[:1]
     featured_packages = (
         Package.objects.filter(
             is_active=True,
@@ -752,8 +761,10 @@ def home(request):
         .annotate(
             review_count=Count('reviews', distinct=True),
             avg_rating=Avg('reviews__rating'),
+            priority_subscription_end=Subquery(latest_subscription_end),
+            priority_subscription_price=Subquery(highest_subscription_price),
         )
-        .order_by('-created_at', '-views_count', '-avg_rating')[:6]
+        .order_by('-priority_subscription_end', '-priority_subscription_price', '-created_at', '-views_count', '-avg_rating')[:homepage_slot_capacity or 0]
     )
     featured_ids = list(featured_packages.values_list('id', flat=True))
     popular_packages = (
@@ -1039,7 +1050,7 @@ def _render_package_list(request, category=None):
     package_type_slug = ''
     page_title = 'Nepal Treks & Tours'
     page_subtitle = 'Explore the Himalayas with trusted local operators.'
-    empty_message = 'No packages available right now.'
+    empty_message = 'No packages available yet'
 
     if category == Package.CATEGORY_TREK:
         packages = packages.filter(category="TREK")
@@ -1047,14 +1058,14 @@ def _render_package_list(request, category=None):
         package_type_slug = 'trek'
         page_title = 'Nepal Treks'
         page_subtitle = 'Browse trekking adventures curated by local experts.'
-        empty_message = 'No trek packages available right now.'
+        empty_message = 'No packages available yet'
     elif category == Package.CATEGORY_TOUR:
         packages = packages.filter(category="TOUR")
         package_scope = 'tours'
         package_type_slug = 'tour'
         page_title = 'Nepal Tours'
         page_subtitle = 'Browse curated tour experiences across Nepal.'
-        empty_message = 'No tour packages available right now.'
+        empty_message = 'No packages available yet'
 
     price_stats = packages.aggregate(min_price=Min('price'), max_price=Max('price'))
     min_price = float(price_stats['min_price'] or 0)

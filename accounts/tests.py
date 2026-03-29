@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Notification, TravelerProfile, User, VendorProfile
+from .models import FeatureSlot, Notification, TravelerProfile, User, VendorFeature, VendorProfile
 from core.models import Booking, Package, SpecialOffer
 
 
@@ -588,3 +588,94 @@ class PromotionsPreferenceTests(TestCase):
                 message__contains='Limited-time package offer',
             ).exists()
         )
+
+
+class FeatureSlotEnforcementTests(TestCase):
+    def setUp(self):
+        self.vendor = User.objects.create_user(
+            username='slot-vendor@example.com',
+            email='slot-vendor@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            is_active=True,
+        )
+        VendorProfile.objects.create(
+            user=self.vendor,
+            business_name='Slot Vendor',
+            owner_name='Slot Owner',
+            is_approved=True,
+        )
+        self.package_one = Package.objects.create(
+            vendor=self.vendor,
+            title='Slot Package One',
+            category=Package.CATEGORY_TREK,
+            location_name='Pokhara',
+            latitude=28.2,
+            longitude=84.0,
+            price='9000.00',
+            available_slots=10,
+            available_from=timezone.localdate(),
+            available_until=timezone.localdate() + timedelta(days=30),
+            is_active=True,
+        )
+        self.package_two = Package.objects.create(
+            vendor=self.vendor,
+            title='Slot Package Two',
+            category=Package.CATEGORY_TREK,
+            location_name='Kathmandu',
+            latitude=27.7,
+            longitude=85.3,
+            price='11000.00',
+            available_slots=10,
+            available_from=timezone.localdate(),
+            available_until=timezone.localdate() + timedelta(days=30),
+            is_active=True,
+        )
+
+    def test_vendor_cannot_feature_package_without_purchased_slots(self):
+        self.client.force_login(self.vendor)
+
+        response = self.client.post(
+            reverse('vendor_feature_toggle', args=[self.package_one.id]),
+            data={'next': reverse('vendor_packages')},
+            follow=True,
+        )
+
+        self.package_one.refresh_from_db()
+        self.assertFalse(self.package_one.is_featured)
+        self.assertContains(response, 'Upgrade subscription to feature more packages')
+
+    def test_vendor_cannot_exceed_purchased_feature_slots(self):
+        slot = FeatureSlot.objects.create(
+            name='Homepage Featured Slot',
+            max_slots=10,
+            price_per_slot='1000.00',
+            is_active=True,
+        )
+        VendorFeature.objects.create(
+            vendor=self.vendor,
+            slot=slot,
+            purchased_slots=1,
+            start_date=timezone.localdate(),
+            end_date=timezone.localdate() + timedelta(days=10),
+            is_active=True,
+        )
+        self.client.force_login(self.vendor)
+
+        first = self.client.post(
+            reverse('vendor_feature_toggle', args=[self.package_one.id]),
+            data={'next': reverse('vendor_packages')},
+            follow=True,
+        )
+        second = self.client.post(
+            reverse('vendor_feature_toggle', args=[self.package_two.id]),
+            data={'next': reverse('vendor_packages')},
+            follow=True,
+        )
+
+        self.package_one.refresh_from_db()
+        self.package_two.refresh_from_db()
+        self.assertTrue(self.package_one.is_featured)
+        self.assertFalse(self.package_two.is_featured)
+        self.assertContains(first, 'featured')
+        self.assertContains(second, 'Upgrade subscription to feature more packages')

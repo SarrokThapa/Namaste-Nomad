@@ -374,9 +374,11 @@ class Booking(models.Model):
 class Transaction(models.Model):
     TYPE_BOOKING = 'booking'
     TYPE_SUBSCRIPTION = 'subscription'
+    TYPE_FEATURE_SLOT = 'feature_slot'
     TRANSACTION_TYPE_CHOICES = (
         (TYPE_BOOKING, 'Booking'),
         (TYPE_SUBSCRIPTION, 'Subscription'),
+        (TYPE_FEATURE_SLOT, 'Feature Slot'),
     )
 
     transaction_id = models.CharField(max_length=32, unique=True, editable=False)
@@ -394,6 +396,13 @@ class Transaction(models.Model):
     )
     vendor_subscription = models.ForeignKey(
         'accounts.VendorSubscription',
+        on_delete=models.SET_NULL,
+        related_name='transactions',
+        null=True,
+        blank=True,
+    )
+    vendor_feature = models.ForeignKey(
+        'accounts.VendorFeature',
         on_delete=models.SET_NULL,
         related_name='transactions',
         null=True,

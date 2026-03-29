@@ -218,13 +218,13 @@
                                                     {% endfor %}
                                                 </div>
                                             </div>
-                                            <p class="review-card-comment">{{ review.comment|default:"Great experience!" }}</p>
+                                            <p class="review-card-comment">{{ review.comment|default:"No comment provided." }}</p>
                                         </article>
                                     {% endwith %}
                                 {% endfor %}
                             </div>
                         {% else %}
-                            <p class="detail-empty">No reviews yet. Be the first to share your experience.</p>
+                            <p class="detail-empty">No reviews yet</p>
                         {% endif %}
 
                         {% if can_review %}

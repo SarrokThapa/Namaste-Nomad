@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -191,6 +192,100 @@ class VendorSubscription(models.Model):
 
     def __str__(self):
         return f"{self.vendor.email} - {self.plan_name} ({self.status})"
+
+
+class FeatureSlot(models.Model):
+    name = models.CharField(max_length=120)
+    max_slots = models.PositiveIntegerField(default=1)
+    price_per_slot = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-created_at',)
+
+    @classmethod
+    def active_total_capacity(cls):
+        return cls.objects.filter(is_active=True).aggregate(total=models.Sum('max_slots'))['total'] or 0
+
+    def __str__(self):
+        return f"{self.name} ({self.max_slots} slots)"
+
+
+class VendorFeature(models.Model):
+    vendor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='vendor_features',
+    )
+    slot = models.ForeignKey(
+        FeatureSlot,
+        on_delete=models.CASCADE,
+        related_name='vendor_purchases',
+    )
+    package = models.ForeignKey(
+        'core.Package',
+        on_delete=models.SET_NULL,
+        related_name='vendor_features',
+        null=True,
+        blank=True,
+    )
+    purchased_slots = models.PositiveIntegerField(default=1)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-created_at',)
+
+    @classmethod
+    def expire_overdue(cls, vendor=None):
+        today = timezone.localdate()
+        overdue = cls.objects.filter(is_active=True, end_date__lt=today)
+        if vendor is not None:
+            overdue = overdue.filter(vendor=vendor)
+        vendor_ids = list(overdue.values_list('vendor_id', flat=True).distinct())
+        overdue.update(is_active=False)
+        if vendor_ids:
+            from core.models import Package
+            for vendor_id in vendor_ids:
+                allowed = cls.total_slots_for_vendor(vendor_id)
+                featured_qs = Package.objects.filter(vendor_id=vendor_id, is_featured=True).order_by('-created_at')
+                if allowed <= 0:
+                    featured_qs.update(is_featured=False)
+                    continue
+                allowed_ids = list(featured_qs.values_list('id', flat=True)[:allowed])
+                if allowed_ids:
+                    featured_qs.exclude(id__in=allowed_ids).update(is_featured=False)
+        return vendor_ids
+
+    @classmethod
+    def total_slots_for_vendor(cls, vendor):
+        vendor_id = getattr(vendor, 'id', vendor)
+        cls.expire_overdue(vendor=vendor)
+        today = timezone.localdate()
+        return cls.objects.filter(
+            vendor_id=vendor_id,
+            is_active=True,
+            start_date__lte=today,
+            end_date__gte=today,
+        ).aggregate(total=models.Sum('purchased_slots'))['total'] or 0
+
+    @classmethod
+    def active_for_vendor(cls, vendor):
+        vendor_id = getattr(vendor, 'id', vendor)
+        cls.expire_overdue(vendor=vendor)
+        today = timezone.localdate()
+        return cls.objects.filter(
+            vendor_id=vendor_id,
+            is_active=True,
+            start_date__lte=today,
+            end_date__gte=today,
+        )
+
+    def __str__(self):
+        return f"{self.vendor.email} · {self.slot.name} · {self.purchased_slots}"
 
 
 class Notification(models.Model):

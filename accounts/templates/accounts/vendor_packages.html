@@ -41,17 +41,15 @@
                             <input type="hidden" name="next" value="{{ request.path }}">
                             <button class="btn small danger" type="submit">Delete</button>
                         </form>
-                        {% if active_subscription %}
-                            <form method="POST" action="{% url 'vendor_feature_toggle' package.id %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="next" value="{{ request.path }}">
-                                {% if package.is_featured %}
-                                    <button class="btn small secondary" type="submit">Unfeature</button>
-                                {% else %}
-                                    <button class="btn small success" type="submit">Feature</button>
-                                {% endif %}
-                            </form>
-                        {% endif %}
+                        <form method="POST" action="{% url 'vendor_feature_toggle' package.id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            {% if package.is_featured %}
+                                <button class="btn small secondary" type="submit">Unfeature</button>
+                            {% else %}
+                                <button class="btn small success" type="submit">Feature this Package</button>
+                            {% endif %}
+                        </form>
                     </div>
                 </div>
             {% endfor %}
@@ -61,16 +59,12 @@
     </div>
 </section>
 
-{% if not active_subscription %}
-    <div class="empty-state">Activate a vendor subscription to feature packages on the homepage.</div>
-{% else %}
-    <div class="empty-state">
-        Featured packages: {{ featured_count }}
-        {% if featured_limit %}
-            / {{ featured_limit }}
-        {% else %}
-            (Unlimited)
-        {% endif %}
-    </div>
-{% endif %}
+<div class="empty-state">
+    Featured packages: {{ featured_count }} / {{ featured_limit }}
+    {% if featured_remaining %}
+        ({{ featured_remaining }} remaining)
+    {% else %}
+        (No slots remaining)
+    {% endif %}
+</div>
 {% endblock %}

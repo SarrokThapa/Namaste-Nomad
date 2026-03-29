@@ -105,6 +105,8 @@
                                 <div class="activity-time">{{ item.time }}</div>
                             </div>
                         </div>
+                    {% empty %}
+                        <div class="empty-state">No recent activity yet.</div>
                     {% endfor %}
                 </div>
             </div>

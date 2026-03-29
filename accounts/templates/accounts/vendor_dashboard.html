@@ -45,7 +45,7 @@
 <section class="card list-card">
     <div class="card-header">
         <h3>Subscription</h3>
-        <span class="card-meta">Featured listings</span>
+        <span class="card-meta">Plan details</span>
     </div>
     {% if active_subscription %}
         <div class="package-list">
@@ -97,6 +97,68 @@
         {% else %}
             <div class="empty-state">No subscription plans configured yet.</div>
         {% endif %}
+    {% endif %}
+</section>
+
+<section class="card list-card">
+    <div class="card-header">
+        <h3>My Featured Slots</h3>
+        <span class="card-meta">Paid homepage feature capacity</span>
+    </div>
+    <div class="settings-grid">
+        <div class="settings-item">
+            <div class="settings-label">Total Slots Purchased</div>
+            <div class="settings-value">{{ featured_limit }}</div>
+        </div>
+        <div class="settings-item">
+            <div class="settings-label">Slots Used</div>
+            <div class="settings-value">{{ featured_count }}</div>
+        </div>
+        <div class="settings-item">
+            <div class="settings-label">Slots Remaining</div>
+            <div class="settings-value">{{ featured_remaining }}</div>
+        </div>
+    </div>
+
+    {% if active_feature_purchases %}
+        <div class="package-list">
+            {% for purchase in active_feature_purchases %}
+                <div class="package-item">
+                    <div>
+                        <div class="package-name">{{ purchase.slot.name }}</div>
+                        <div class="package-meta">
+                            {{ purchase.purchased_slots }} slot{{ purchase.purchased_slots|pluralize }} ·
+                            Active until {{ purchase.end_date|date:"M d, Y" }}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">No active feature slot purchases yet.</div>
+    {% endif %}
+
+    {% if active_feature_slots %}
+        <div class="package-list">
+            {% for slot in active_feature_slots %}
+                <div class="package-item">
+                    <div>
+                        <div class="package-name">{{ slot.name }}</div>
+                        <div class="package-meta">Rs {{ slot.price_per_slot|floatformat:0 }} per slot · Max {{ slot.max_slots }} homepage slot{{ slot.max_slots|pluralize }}</div>
+                    </div>
+                    <div class="package-actions">
+                        <form method="POST" action="{% url 'vendor_feature_slot_purchase' slot.id %}">
+                            {% csrf_token %}
+                            <input class="form-control" type="number" name="quantity" min="1" max="{{ slot.max_slots }}" value="1" style="width:88px; display:inline-block; margin-right:6px;">
+                            <button class="btn small success" type="submit" name="payment_method" value="esewa">Buy with eSewa</button>
+                            <button class="btn small" type="submit" name="payment_method" value="stripe">Buy with Stripe</button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">No active feature slots available right now.</div>
     {% endif %}
 </section>
 

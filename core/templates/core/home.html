@@ -139,7 +139,7 @@
                         </article>
                     {% endfor %}
                 {% else %}
-                    <div class="review-empty">No featured packages available right now.</div>
+                    <div class="review-empty">No packages available yet</div>
                 {% endif %}
             </div>
         </div>
@@ -192,7 +192,7 @@
                         </article>
                     {% endfor %}
                 {% else %}
-                    <div class="review-empty">No trekking packages available right now.</div>
+                    <div class="review-empty">No packages available yet</div>
                 {% endif %}
             </div>
         </div>
@@ -481,12 +481,12 @@
                                     {% endfor %}
                                 </div>
                             </div>
-                            <p class="review-comment">{{ review.comment|default:"Great experience!"|truncatewords:24 }}</p>
+                            <p class="review-comment">{{ review.comment|default:"No comment provided."|truncatewords:24 }}</p>
                             <div class="review-package">{{ review.package.title }}</div>
                         </article>
                     {% endfor %}
                 {% else %}
-                    <div class="review-empty">No reviews yet. Be the first to share your experience.</div>
+                    <div class="review-empty">No reviews yet</div>
                 {% endif %}
             </div>
         </div>

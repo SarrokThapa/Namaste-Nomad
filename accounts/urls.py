@@ -36,6 +36,11 @@ urlpatterns = [
     path('vendor/subscriptions/esewa/failure/', views.vendor_subscription_esewa_failure, name='vendor_subscription_esewa_failure'),
     path('vendor/subscriptions/stripe/success/', views.vendor_subscription_stripe_success, name='vendor_subscription_stripe_success'),
     path('vendor/subscriptions/stripe/cancel/', views.vendor_subscription_stripe_cancel, name='vendor_subscription_stripe_cancel'),
+    path('vendor/feature-slots/<int:slot_id>/purchase/', views.vendor_feature_slot_purchase, name='vendor_feature_slot_purchase'),
+    path('vendor/feature-slots/esewa/success/', views.vendor_feature_slot_esewa_success, name='vendor_feature_slot_esewa_success'),
+    path('vendor/feature-slots/esewa/failure/', views.vendor_feature_slot_esewa_failure, name='vendor_feature_slot_esewa_failure'),
+    path('vendor/feature-slots/stripe/success/', views.vendor_feature_slot_stripe_success, name='vendor_feature_slot_stripe_success'),
+    path('vendor/feature-slots/stripe/cancel/', views.vendor_feature_slot_stripe_cancel, name='vendor_feature_slot_stripe_cancel'),
 
     path('support/chat/', views.support_chat, name='support_chat'),
     path('support/widget/', views.support_widget_data, name='support_widget_data'),
@@ -56,6 +61,7 @@ urlpatterns = [
     path('admin/packages/<int:package_id>/toggle/', views.admin_package_toggle, name='admin_package_toggle'),
     path('admin/packages/<int:package_id>/feature/', views.admin_feature_toggle, name='admin_feature_toggle'),
     path('admin/subscriptions/plans/new/', views.admin_subscription_plan_create, name='admin_subscription_plan_create'),
+    path('admin/feature-slots/new/', views.admin_feature_slot_create, name='admin_feature_slot_create'),
 
     path('verify-otp/', views.verify_otp_view, name='verify_otp'),
     path('resend-otp/', views.resend_otp, name='resend_otp'),

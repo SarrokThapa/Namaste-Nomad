@@ -389,6 +389,10 @@
                     <span>Average Rating</span>
                     <strong>{{ stats.avg_rating }}</strong>
                 </div>
+                <div class="mini-card">
+                    <span>Feature Slots Used</span>
+                    <strong>{{ stats.feature_slot_used }} / {{ stats.feature_slot_capacity }}</strong>
+                </div>
             </section>
 
             <section class="admin-card admin-actions" id="quick-actions">
@@ -532,6 +536,93 @@
                     </table>
                 {% else %}
                     <div class="empty-state">No subscriptions yet.</div>
+                {% endif %}
+            </div>
+
+            <div class="card list-card" id="feature-slots">
+                <div class="card-header">
+                    <h3>Feature Slots</h3>
+                    <span class="card-meta">{{ feature_slots|length }} total</span>
+                </div>
+                <form method="POST" action="{% url 'admin_feature_slot_create' %}">
+                    {% csrf_token %}
+                    <div class="detail-grid">
+                        <div>
+                            <label>Slot Name</label>
+                            <input class="form-control" type="text" name="name" required>
+                        </div>
+                        <div>
+                            <label>Max Slots</label>
+                            <input class="form-control" type="number" name="max_slots" min="1" required>
+                        </div>
+                        <div>
+                            <label>Price Per Slot (Rs)</label>
+                            <input class="form-control" type="number" name="price_per_slot" min="0" step="0.01" required>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn small success" type="submit">Create Feature Slot</button>
+                    </div>
+                </form>
+
+                {% if feature_slots %}
+                    <table class="activity-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Max Slots</th>
+                                <th>Price / Slot</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for slot in feature_slots %}
+                                <tr>
+                                    <td>{{ slot.name }}</td>
+                                    <td>{{ slot.max_slots }}</td>
+                                    <td>Rs {{ slot.price_per_slot|floatformat:0 }}</td>
+                                    <td>{% if slot.is_active %}Active{% else %}Inactive{% endif %}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty-state">No feature slots yet.</div>
+                {% endif %}
+            </div>
+
+            <div class="card list-card" id="vendor-feature-purchases">
+                <div class="card-header">
+                    <h3>Vendor Feature Purchases</h3>
+                    <span class="card-meta">{{ vendor_features|length }} total</span>
+                </div>
+                {% if vendor_features %}
+                    <table class="activity-table">
+                        <thead>
+                            <tr>
+                                <th>Vendor</th>
+                                <th>Slot</th>
+                                <th>Purchased</th>
+                                <th>Start</th>
+                                <th>End</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for feature in vendor_features %}
+                                <tr>
+                                    <td>{{ feature.vendor.get_full_name|default:feature.vendor.email }}</td>
+                                    <td>{{ feature.slot.name }}</td>
+                                    <td>{{ feature.purchased_slots }}</td>
+                                    <td>{{ feature.start_date|date:"M d, Y" }}</td>
+                                    <td>{{ feature.end_date|date:"M d, Y" }}</td>
+                                    <td>{% if feature.is_active %}Active{% else %}Expired{% endif %}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty-state">No vendor feature purchases yet.</div>
                 {% endif %}
             </div>
 

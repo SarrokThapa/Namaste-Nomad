@@ -34,6 +34,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
+from django.utils.timesince import timesince
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
@@ -59,11 +60,13 @@ from core.payments import (
 )
 from .models import (
     AdminProfile,
+    FeatureSlot,
     Notification,
     Badge,
     UserBadge,
     TravelerProfile,
     User,
+    VendorFeature,
     VendorProfile,
     VendorSubscription,
     VendorSubscriptionPlan,
@@ -237,6 +240,10 @@ def _subscription_payment_session_key(vendor_id):
     return f'subscription_payment_{vendor_id}'
 
 
+def _feature_slot_payment_session_key(vendor_id):
+    return f'feature_slot_payment_{vendor_id}'
+
+
 def _record_subscription_transaction(*, vendor, subscription, amount, payment_status, payment_method):
     return Transaction.objects.create(
         transaction_type=Transaction.TYPE_SUBSCRIPTION,
@@ -248,6 +255,59 @@ def _record_subscription_transaction(*, vendor, subscription, amount, payment_st
         payment_method=payment_method,
         payment_status=payment_status,
     )
+
+
+def _record_feature_slot_transaction(*, vendor, vendor_feature, amount, payment_status, payment_method):
+    return Transaction.objects.create(
+        transaction_type=Transaction.TYPE_FEATURE_SLOT,
+        booking=None,
+        vendor_subscription=None,
+        vendor_feature=vendor_feature,
+        traveler=None,
+        vendor=vendor,
+        total_amount=Decimal(str(amount)).quantize(Decimal('0.01')),
+        payment_method=payment_method,
+        payment_status=payment_status,
+    )
+
+
+def _total_active_feature_slots_for_vendor(vendor):
+    return VendorFeature.total_slots_for_vendor(vendor)
+
+
+def _total_featured_packages_for_vendor(vendor):
+    return Package.objects.filter(vendor=vendor, is_featured=True).count()
+
+
+def _total_homepage_feature_capacity():
+    return FeatureSlot.active_total_capacity()
+
+
+def _total_homepage_featured_count():
+    return Package.objects.filter(is_active=True, is_featured=True).count()
+
+
+def _activate_feature_slots_after_verified_payment(*, vendor, slot, purchased_slots, amount, payment_method):
+    today = timezone.localdate()
+    end_date = today + timedelta(days=29)
+    with transaction.atomic():
+        vendor_feature = VendorFeature.objects.create(
+            vendor=vendor,
+            slot=slot,
+            package=None,
+            purchased_slots=max(int(purchased_slots or 0), 1),
+            start_date=today,
+            end_date=end_date,
+            is_active=True,
+        )
+        _record_feature_slot_transaction(
+            vendor=vendor,
+            vendor_feature=vendor_feature,
+            amount=amount,
+            payment_status=Booking.PAYMENT_STATUS_COMPLETED,
+            payment_method=payment_method,
+        )
+    return vendor_feature
 
 
 def _activate_subscription_after_verified_payment(*, vendor, plan, amount, payment_method):
@@ -876,8 +936,12 @@ def vendor_dashboard(request):
         payment_status=Booking.PAYMENT_STATUS_COMPLETED,
     )
     active_subscription = _get_active_subscription(request.user)
+    VendorFeature.expire_overdue(vendor=request.user)
+    active_feature_purchases = VendorFeature.active_for_vendor(request.user).select_related('slot')
     featured_count = vendor_packages.filter(is_featured=True).count()
-    featured_limit = active_subscription.max_featured_packages if active_subscription else None
+    featured_limit = _total_active_feature_slots_for_vendor(request.user)
+    featured_remaining = max(featured_limit - featured_count, 0)
+    active_feature_slots = FeatureSlot.objects.filter(is_active=True).order_by('-created_at')
     subscription_plans = VendorSubscriptionPlan.objects.filter(is_active=True).order_by('price', 'duration_days')
 
     total_revenue = vendor_bookings.filter(status='confirmed').aggregate(
@@ -993,6 +1057,9 @@ def vendor_dashboard(request):
         'active_subscription': active_subscription,
         'featured_count': featured_count,
         'featured_limit': featured_limit,
+        'featured_remaining': featured_remaining,
+        'active_feature_slots': active_feature_slots,
+        'active_feature_purchases': active_feature_purchases,
         'subscription_plans': subscription_plans,
         'earnings_chart': earnings_chart,
         'bookings_chart': bookings_chart,
@@ -1015,8 +1082,9 @@ def vendor_packages(request):
         booking_count=Count('bookings'),
     ).order_by('-created_at')
     active_subscription = _get_active_subscription(request.user)
+    VendorFeature.expire_overdue(vendor=request.user)
     featured_count = packages.filter(is_featured=True).count()
-    featured_limit = active_subscription.max_featured_packages if active_subscription else None
+    featured_limit = _total_active_feature_slots_for_vendor(request.user)
     return render(request, 'accounts/vendor_packages.html', {
         'vendor_profile': vendor_profile,
         'active_page': 'packages',
@@ -1024,6 +1092,7 @@ def vendor_packages(request):
         'active_subscription': active_subscription,
         'featured_count': featured_count,
         'featured_limit': featured_limit,
+        'featured_remaining': max(featured_limit - featured_count, 0),
     })
 
 
@@ -1268,11 +1337,21 @@ def vendor_settings(request):
     vendor_profile = _get_vendor_profile(request.user)
     active_subscription = _get_active_subscription(request.user)
     subscription_plans = VendorSubscriptionPlan.objects.filter(is_active=True).order_by('price', 'duration_days')
+    VendorFeature.expire_overdue(vendor=request.user)
+    active_feature_slots = FeatureSlot.objects.filter(is_active=True).order_by('-created_at')
+    active_feature_purchases = VendorFeature.active_for_vendor(request.user).select_related('slot').order_by('-created_at')
+    used_slots = _total_featured_packages_for_vendor(request.user)
+    purchased_slots = _total_active_feature_slots_for_vendor(request.user)
     return render(request, 'accounts/vendor_settings.html', {
         'vendor_profile': vendor_profile,
         'active_page': 'settings',
         'active_subscription': active_subscription,
         'subscription_plans': subscription_plans,
+        'active_feature_slots': active_feature_slots,
+        'active_feature_purchases': active_feature_purchases,
+        'feature_slots_purchased': purchased_slots,
+        'feature_slots_used': used_slots,
+        'feature_slots_remaining': max(purchased_slots - used_slots, 0),
     })
 
 
@@ -1551,6 +1630,301 @@ def vendor_subscription_stripe_cancel(request):
 @never_cache
 @login_required(login_url='vendor_login')
 @csrf_protect
+def vendor_feature_slot_purchase(request, slot_id):
+    if not _ensure_vendor(request):
+        return redirect('vendor_login')
+    if request.method != 'POST':
+        return redirect('vendor_settings')
+
+    slot = get_object_or_404(FeatureSlot, id=slot_id, is_active=True)
+    quantity_raw = (request.POST.get('quantity') or '1').strip()
+    try:
+        quantity = int(quantity_raw)
+    except (TypeError, ValueError):
+        messages.error(request, 'Invalid slot quantity.')
+        return redirect('vendor_settings')
+
+    if quantity < 1:
+        messages.error(request, 'Quantity must be at least 1.')
+        return redirect('vendor_settings')
+    if quantity > slot.max_slots:
+        messages.error(request, f'You can purchase up to {slot.max_slots} slot(s) per order for this slot type.')
+        return redirect('vendor_settings')
+
+    payment_method = (request.POST.get('payment_method') or Booking.PAYMENT_METHOD_ESEWA).strip().lower()
+    if payment_method not in {Booking.PAYMENT_METHOD_ESEWA, Booking.PAYMENT_METHOD_STRIPE}:
+        payment_method = Booking.PAYMENT_METHOD_ESEWA
+
+    amount = (slot.price_per_slot * quantity).quantize(Decimal('0.01'))
+    payment_pid = f'FSL-{request.user.id}-{slot.id}-{uuid.uuid4().hex[:8].upper()}'
+    payment_session = {
+        'pid': payment_pid,
+        'slot_id': slot.id,
+        'payment_method': payment_method,
+        'quantity': quantity,
+        'amount': format(amount, 'f'),
+        'created_at': timezone.now().isoformat(),
+    }
+    request.session[_feature_slot_payment_session_key(request.user.id)] = payment_session
+    request.session.modified = True
+
+    if payment_method == Booking.PAYMENT_METHOD_STRIPE:
+        success_url = (
+            request.build_absolute_uri(reverse('vendor_feature_slot_stripe_success'))
+            + '?session_id={CHECKOUT_SESSION_ID}'
+        )
+        cancel_url = request.build_absolute_uri(reverse('vendor_feature_slot_stripe_cancel'))
+
+        try:
+            session_data = create_checkout_session_for_item(
+                amount=amount,
+                name=f'{slot.name} Feature Slot',
+                description=f'{quantity} feature slot purchase',
+                success_url=success_url,
+                cancel_url=cancel_url,
+                client_reference_id=payment_pid,
+                metadata={
+                    'type': 'feature_slot',
+                    'pid': payment_pid,
+                    'slot_id': slot.id,
+                    'vendor_id': request.user.id,
+                    'quantity': quantity,
+                },
+                customer_email=request.user.email or None,
+            )
+            checkout_url = session_data.get('url')
+            if not checkout_url:
+                raise StripeError('Stripe did not return a checkout URL.')
+            payment_session['stripe_session_id'] = session_data.get('id', '')
+            request.session[_feature_slot_payment_session_key(request.user.id)] = payment_session
+            request.session.modified = True
+            return redirect(checkout_url)
+        except StripeError as exc:
+            messages.error(request, str(exc))
+            return redirect('vendor_settings')
+
+    success_url = request.build_absolute_uri(reverse('vendor_feature_slot_esewa_success'))
+    failure_url = request.build_absolute_uri(reverse('vendor_feature_slot_esewa_failure'))
+    try:
+        payload = _subscription_esewa_payload(
+            amount=amount,
+            pid=payment_pid,
+            success_url=success_url,
+            failure_url=failure_url,
+        )
+    except EsewaError as exc:
+        messages.error(request, str(exc))
+        return redirect('vendor_settings')
+
+    return render(
+        request,
+        'core/esewa_redirect.html',
+        {
+            'booking': None,
+            'esewa_payment_url': get_esewa_payment_url(),
+            'esewa_payload': payload,
+        },
+    )
+
+
+@never_cache
+@login_required(login_url='vendor_login')
+def vendor_feature_slot_esewa_success(request):
+    if not _ensure_vendor(request):
+        return redirect('vendor_login')
+
+    session_key = _feature_slot_payment_session_key(request.user.id)
+    payment_session = request.session.get(session_key)
+    if not payment_session:
+        messages.error(request, 'Feature slot payment session not found. Please try again.')
+        return redirect('vendor_settings')
+    if payment_session.get('payment_method') != Booking.PAYMENT_METHOD_ESEWA:
+        messages.error(request, 'Invalid payment callback for this feature slot session.')
+        return redirect('vendor_settings')
+
+    transaction_id = ((request.GET.get('refId') or '') or (request.GET.get('rid') or '')).strip()
+    callback_pid = ((request.GET.get('pid') or '') or (request.GET.get('oid') or '')).strip()
+    expected_pid = payment_session.get('pid', '')
+    if callback_pid and callback_pid != expected_pid:
+        messages.error(request, 'Feature slot payment verification failed: Product ID mismatch.')
+        return redirect('vendor_settings')
+    if not transaction_id:
+        messages.error(request, 'Feature slot payment verification failed: Missing transaction id.')
+        return redirect('vendor_settings')
+
+    try:
+        expected_amount = Decimal(str(payment_session.get('amount') or '0')).quantize(Decimal('0.01'))
+    except InvalidOperation:
+        messages.error(request, 'Feature slot payment verification failed: Invalid amount.')
+        return redirect('vendor_settings')
+
+    try:
+        is_verified = verify_esewa_payment(
+            amount=expected_amount,
+            transaction_id=transaction_id,
+            product_id=expected_pid,
+        )
+    except EsewaError as exc:
+        messages.warning(request, f'eSewa verification is pending: {exc}')
+        return redirect('vendor_settings')
+
+    if not is_verified:
+        _record_feature_slot_transaction(
+            vendor=request.user,
+            vendor_feature=None,
+            amount=expected_amount,
+            payment_status=Booking.PAYMENT_STATUS_FAILED,
+            payment_method=Booking.PAYMENT_METHOD_ESEWA,
+        )
+        messages.error(request, 'Feature slot payment failed verification. Please retry.')
+        return redirect('vendor_settings')
+
+    slot = get_object_or_404(FeatureSlot, id=payment_session.get('slot_id'), is_active=True)
+    quantity = int(payment_session.get('quantity') or 1)
+    vendor_feature = _activate_feature_slots_after_verified_payment(
+        vendor=request.user,
+        slot=slot,
+        purchased_slots=quantity,
+        amount=expected_amount,
+        payment_method=Booking.PAYMENT_METHOD_ESEWA,
+    )
+
+    request.session.pop(session_key, None)
+    messages.success(
+        request,
+        f'Feature slots activated: {vendor_feature.purchased_slots}. Valid until {vendor_feature.end_date:%b %d, %Y}.',
+    )
+    return redirect('vendor_settings')
+
+
+@never_cache
+@login_required(login_url='vendor_login')
+def vendor_feature_slot_esewa_failure(request):
+    if not _ensure_vendor(request):
+        return redirect('vendor_login')
+
+    session_key = _feature_slot_payment_session_key(request.user.id)
+    payment_session = request.session.get(session_key)
+    if payment_session:
+        if payment_session.get('payment_method') != Booking.PAYMENT_METHOD_ESEWA:
+            messages.error(request, 'Invalid payment callback for this feature slot session.')
+            return redirect('vendor_settings')
+        try:
+            failed_amount = Decimal(str(payment_session.get('amount') or '0')).quantize(Decimal('0.01'))
+        except InvalidOperation:
+            failed_amount = Decimal('0.00')
+        _record_feature_slot_transaction(
+            vendor=request.user,
+            vendor_feature=None,
+            amount=failed_amount,
+            payment_status=Booking.PAYMENT_STATUS_FAILED,
+            payment_method=Booking.PAYMENT_METHOD_ESEWA,
+        )
+        request.session.pop(session_key, None)
+
+    messages.error(request, 'Feature slot payment failed. Please try again.')
+    return redirect('vendor_settings')
+
+
+@never_cache
+@login_required(login_url='vendor_login')
+def vendor_feature_slot_stripe_success(request):
+    if not _ensure_vendor(request):
+        return redirect('vendor_login')
+
+    session_key = _feature_slot_payment_session_key(request.user.id)
+    payment_session = request.session.get(session_key)
+    if not payment_session:
+        messages.error(request, 'Feature slot payment session not found. Please try again.')
+        return redirect('vendor_settings')
+    if payment_session.get('payment_method') != Booking.PAYMENT_METHOD_STRIPE:
+        messages.error(request, 'Invalid payment callback for this feature slot session.')
+        return redirect('vendor_settings')
+
+    stripe_session_id = (request.GET.get('session_id') or '').strip()
+    if not stripe_session_id:
+        messages.error(request, 'Missing Stripe checkout session id.')
+        return redirect('vendor_settings')
+
+    try:
+        expected_amount = Decimal(str(payment_session.get('amount') or '0')).quantize(Decimal('0.01'))
+    except InvalidOperation:
+        messages.error(request, 'Feature slot payment verification failed: Invalid amount.')
+        return redirect('vendor_settings')
+
+    try:
+        session_data = retrieve_checkout_session(stripe_session_id)
+    except StripeError as exc:
+        messages.warning(request, f'Stripe verification is pending: {exc}')
+        return redirect('vendor_settings')
+
+    metadata = session_data.get('metadata') or {}
+    expected_pid = payment_session.get('pid')
+    is_paid = (
+        session_data.get('status') == 'complete'
+        and session_data.get('payment_status') == 'paid'
+        and str(session_data.get('client_reference_id') or '') == str(expected_pid)
+        and str(metadata.get('pid') or '') == str(expected_pid)
+    )
+
+    if not is_paid:
+        _record_feature_slot_transaction(
+            vendor=request.user,
+            vendor_feature=None,
+            amount=expected_amount,
+            payment_status=Booking.PAYMENT_STATUS_FAILED,
+            payment_method=Booking.PAYMENT_METHOD_STRIPE,
+        )
+        messages.error(request, 'Stripe payment was not marked as paid. Please retry.')
+        return redirect('vendor_settings')
+
+    slot = get_object_or_404(FeatureSlot, id=payment_session.get('slot_id'), is_active=True)
+    quantity = int(payment_session.get('quantity') or 1)
+    vendor_feature = _activate_feature_slots_after_verified_payment(
+        vendor=request.user,
+        slot=slot,
+        purchased_slots=quantity,
+        amount=expected_amount,
+        payment_method=Booking.PAYMENT_METHOD_STRIPE,
+    )
+
+    request.session.pop(session_key, None)
+    messages.success(
+        request,
+        f'Feature slots activated: {vendor_feature.purchased_slots}. Valid until {vendor_feature.end_date:%b %d, %Y}.',
+    )
+    return redirect('vendor_settings')
+
+
+@never_cache
+@login_required(login_url='vendor_login')
+def vendor_feature_slot_stripe_cancel(request):
+    if not _ensure_vendor(request):
+        return redirect('vendor_login')
+
+    session_key = _feature_slot_payment_session_key(request.user.id)
+    payment_session = request.session.get(session_key)
+    if payment_session and payment_session.get('payment_method') == Booking.PAYMENT_METHOD_STRIPE:
+        try:
+            failed_amount = Decimal(str(payment_session.get('amount') or '0')).quantize(Decimal('0.01'))
+        except InvalidOperation:
+            failed_amount = Decimal('0.00')
+        _record_feature_slot_transaction(
+            vendor=request.user,
+            vendor_feature=None,
+            amount=failed_amount,
+            payment_status=Booking.PAYMENT_STATUS_FAILED,
+            payment_method=Booking.PAYMENT_METHOD_STRIPE,
+        )
+        request.session.pop(session_key, None)
+
+    messages.warning(request, 'Stripe checkout was canceled. You can try again anytime.')
+    return redirect('vendor_settings')
+
+
+@never_cache
+@login_required(login_url='vendor_login')
+@csrf_protect
 def vendor_feature_toggle(request, package_id):
     if not _ensure_vendor(request):
         return redirect('vendor_login')
@@ -1558,20 +1932,18 @@ def vendor_feature_toggle(request, package_id):
         return redirect('vendor_packages')
 
     next_url = request.POST.get('next') or reverse('vendor_packages')
+    VendorFeature.expire_overdue(vendor=request.user)
     package = get_object_or_404(Package, id=package_id, vendor=request.user)
-    subscription = _get_active_subscription(request.user)
-
-    if subscription is None:
-        messages.error(request, 'Activate a subscription to feature packages.')
-        return redirect(next_url)
-
-    if not package.is_featured and subscription.max_featured_packages is not None:
+    if not package.is_featured:
+        purchased_slots = _total_active_feature_slots_for_vendor(request.user)
         featured_count = Package.objects.filter(vendor=request.user, is_featured=True).count()
-        if featured_count >= subscription.max_featured_packages:
-            messages.error(
-                request,
-                f'Your plan allows up to {subscription.max_featured_packages} featured package(s).',
-            )
+        if purchased_slots <= featured_count:
+            messages.error(request, 'Upgrade subscription to feature more packages')
+            return redirect(next_url)
+        global_capacity = _total_homepage_feature_capacity()
+        global_used = _total_homepage_featured_count()
+        if global_used >= global_capacity:
+            messages.error(request, 'No homepage feature slots available right now.')
             return redirect(next_url)
 
     package.is_featured = not package.is_featured
@@ -1655,6 +2027,7 @@ def vendor_profile(request):
 @admin_required
 def admin_dashboard(request):
     VendorSubscription.expire_overdue()
+    VendorFeature.expire_overdue()
     admin_profile = _get_admin_profile(request.user)
     vendors = User.objects.filter(user_type='vendor').select_related('vendor_profile').annotate(
         package_count=Count('vendor_packages', distinct=True),
@@ -1674,6 +2047,8 @@ def admin_dashboard(request):
     reviews = Review.objects.select_related('traveler', 'package').order_by('-created_at')
     subscription_plans = VendorSubscriptionPlan.objects.order_by('price', 'duration_days')
     vendor_subscriptions = VendorSubscription.objects.select_related('vendor').order_by('-created_at')
+    feature_slots = FeatureSlot.objects.order_by('-created_at')
+    vendor_features = VendorFeature.objects.select_related('vendor', 'slot', 'package').order_by('-created_at')
     subscription_revenue = vendor_subscriptions.aggregate(total=Sum('price'))['total'] or 0
     featured_packages = Package.objects.filter(is_featured=True).select_related('vendor').order_by('-created_at')
 
@@ -1738,6 +2113,8 @@ def admin_dashboard(request):
         'total_reviews': total_reviews,
         'avg_rating': round(avg_rating or 0, 1),
         'forum_posts': 0,
+        'feature_slot_capacity': _total_homepage_feature_capacity(),
+        'feature_slot_used': _total_homepage_featured_count(),
     }
     current_year = timezone.localdate().year
     analytics_years = [current_year - 2, current_year - 1, current_year]
@@ -1751,6 +2128,8 @@ def admin_dashboard(request):
         'bookings': bookings,
         'subscription_plans': subscription_plans,
         'vendor_subscriptions': vendor_subscriptions,
+        'feature_slots': feature_slots,
+        'vendor_features': vendor_features,
         'featured_packages': featured_packages,
         'stats': stats,
         'activity_items': activity_items,
@@ -2245,21 +2624,20 @@ def admin_feature_toggle(request, package_id):
 
     package = get_object_or_404(Package, id=package_id)
     if not package.is_featured:
-        subscription = VendorSubscription.active_for_vendor(package.vendor)
-        if subscription is None:
-            messages.error(request, 'Vendor has no active subscription for featuring.')
+        VendorFeature.expire_overdue(vendor=package.vendor)
+        purchased_slots = _total_active_feature_slots_for_vendor(package.vendor)
+        featured_count = Package.objects.filter(
+            vendor=package.vendor,
+            is_featured=True,
+        ).count()
+        if purchased_slots <= featured_count:
+            messages.error(request, 'Upgrade subscription to feature more packages')
             return redirect('admin_dashboard')
-        if subscription.max_featured_packages is not None:
-            featured_count = Package.objects.filter(
-                vendor=package.vendor,
-                is_featured=True,
-            ).count()
-            if featured_count >= subscription.max_featured_packages:
-                messages.error(
-                    request,
-                    f'{package.vendor.email} has reached the featured package limit.',
-                )
-                return redirect('admin_dashboard')
+        global_capacity = _total_homepage_feature_capacity()
+        global_used = _total_homepage_featured_count()
+        if global_used >= global_capacity:
+            messages.error(request, 'No homepage feature slots available right now.')
+            return redirect('admin_dashboard')
 
     package.is_featured = not package.is_featured
     package.save(update_fields=['is_featured'])
@@ -2314,6 +2692,44 @@ def admin_subscription_plan_create(request):
         messages.error(request, 'A plan with that name already exists.')
     else:
         messages.success(request, 'Subscription plan created.')
+    return redirect('admin_dashboard')
+
+
+@admin_required
+@csrf_protect
+def admin_feature_slot_create(request):
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+
+    name = (request.POST.get('name') or '').strip()
+    max_slots_raw = (request.POST.get('max_slots') or '').strip()
+    price_raw = (request.POST.get('price_per_slot') or '').strip()
+
+    if not name or not max_slots_raw or not price_raw:
+        messages.error(request, 'Feature slot name, max slots, and price are required.')
+        return redirect('admin_dashboard')
+
+    try:
+        max_slots = int(max_slots_raw)
+        price_per_slot = Decimal(price_raw)
+    except (ValueError, TypeError, InvalidOperation):
+        messages.error(request, 'Invalid feature slot values.')
+        return redirect('admin_dashboard')
+
+    if max_slots < 1:
+        messages.error(request, 'Max slots must be at least 1.')
+        return redirect('admin_dashboard')
+    if price_per_slot < 0:
+        messages.error(request, 'Price per slot must be a positive value.')
+        return redirect('admin_dashboard')
+
+    FeatureSlot.objects.create(
+        name=name,
+        max_slots=max_slots,
+        price_per_slot=price_per_slot,
+        is_active=True,
+    )
+    messages.success(request, 'Feature slot created.')
     return redirect('admin_dashboard')
 
 
@@ -2837,20 +3253,11 @@ def traveler_profile(request):
     review_packages = Package.objects.filter(is_active=True).order_by('title')
     activity = [
         {
-            'title': 'Left a review for Everest Base Camp Trek',
-            'time': '2 days ago',
+            'title': f'Left a review for {review.package.title}',
+            'time': f'{timesince(review.created_at)} ago',
             'variant': 'review',
-        },
-        {
-            'title': 'Completed Annapurna Circuit',
-            'time': '1 week ago',
-            'variant': 'completed',
-        },
-        {
-            'title': 'Earned "High Altitude" badge',
-            'time': '2 weeks ago',
-            'variant': 'badge',
-        },
+        }
+        for review in traveler_reviews[:3]
     ]
 
     return render(request, 'accounts/traveler_profile.html', {

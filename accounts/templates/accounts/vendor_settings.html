@@ -103,4 +103,69 @@
         <div class="empty-state">No subscription plans configured yet.</div>
     {% endif %}
 </section>
+
+<section class="card list-card">
+    <div class="card-header">
+        <h3>My Featured Slots</h3>
+        <span class="card-meta">Homepage feature allocation</span>
+    </div>
+    <div class="settings-grid">
+        <div class="settings-item">
+            <div class="settings-label">Total Slots Purchased</div>
+            <div class="settings-value">{{ feature_slots_purchased }}</div>
+        </div>
+        <div class="settings-item">
+            <div class="settings-label">Slots Used</div>
+            <div class="settings-value">{{ feature_slots_used }}</div>
+        </div>
+        <div class="settings-item">
+            <div class="settings-label">Slots Remaining</div>
+            <div class="settings-value">{{ feature_slots_remaining }}</div>
+        </div>
+    </div>
+
+    {% if active_feature_purchases %}
+        <div class="package-list">
+            {% for purchase in active_feature_purchases %}
+                <div class="package-item">
+                    <div>
+                        <div class="package-name">{{ purchase.slot.name }}</div>
+                        <div class="package-meta">
+                            {{ purchase.purchased_slots }} slot{{ purchase.purchased_slots|pluralize }} ·
+                            {{ purchase.start_date|date:"M d, Y" }} to {{ purchase.end_date|date:"M d, Y" }}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">No active feature slot purchases yet.</div>
+    {% endif %}
+</section>
+
+<section class="card list-card">
+    <div class="card-header">
+        <h3>Buy Featured Slots</h3>
+        <span class="card-meta">Purchase with eSewa or Stripe</span>
+    </div>
+    {% if active_feature_slots %}
+        <div class="settings-grid">
+            {% for slot in active_feature_slots %}
+                <div class="settings-item">
+                    <div class="settings-label">{{ slot.name }}</div>
+                    <div class="settings-value">Rs {{ slot.price_per_slot|floatformat:0 }} per slot</div>
+                    <div class="settings-value">Admin capacity: {{ slot.max_slots }}</div>
+                    <form method="POST" action="{% url 'vendor_feature_slot_purchase' slot.id %}">
+                        {% csrf_token %}
+                        <input class="form-control" type="number" name="quantity" min="1" max="{{ slot.max_slots }}" value="1" required>
+                        <button class="btn small success" type="submit" name="payment_method" value="esewa" style="margin-top:8px;">Buy with eSewa</button>
+                        <button class="btn small" type="submit" name="payment_method" value="stripe" style="margin-top:8px;">Buy with Stripe</button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">No active feature slots configured yet.</div>
+    {% endif %}
+</section>
 {% endblock %}

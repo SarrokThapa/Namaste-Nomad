@@ -1,9 +1,11 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import (
+    FeatureSlot,
     Notification,
     OTP,
     User,
+    VendorFeature,
     VendorProfile,
     VendorSubscription,
     VendorSubscriptionPlan,
@@ -80,6 +82,29 @@ class VendorSubscriptionAdmin(admin.ModelAdmin):
     )
     list_filter = ('status', 'start_date', 'end_date', 'created_at')
     search_fields = ('vendor__email', 'plan_name')
+
+
+@admin.register(FeatureSlot)
+class FeatureSlotAdmin(admin.ModelAdmin):
+    list_display = ('name', 'max_slots', 'price_per_slot', 'is_active', 'created_at')
+    list_filter = ('is_active', 'created_at')
+    search_fields = ('name',)
+
+
+@admin.register(VendorFeature)
+class VendorFeatureAdmin(admin.ModelAdmin):
+    list_display = (
+        'vendor',
+        'slot',
+        'package',
+        'purchased_slots',
+        'start_date',
+        'end_date',
+        'is_active',
+        'created_at',
+    )
+    list_filter = ('is_active', 'slot', 'start_date', 'end_date', 'created_at')
+    search_fields = ('vendor__email', 'slot__name', 'package__title')
 
 
 @admin.register(Notification)

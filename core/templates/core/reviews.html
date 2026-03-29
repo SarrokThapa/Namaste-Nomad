@@ -124,12 +124,12 @@
                                         {% endfor %}
                                     </div>
                                 </div>
-                                <p class="review-comment">{{ review.comment|default:"Great experience!" }}</p>
+                                <p class="review-comment">{{ review.comment|default:"No comment provided." }}</p>
                                 <a class="review-package-link" href="{% url 'package_detail' review.package.id %}">{{ review.package.title }}</a>
                             </article>
                         {% endfor %}
                     {% else %}
-                        <div class="review-empty">No reviews available yet.</div>
+                        <div class="review-empty">No reviews yet</div>
                     {% endif %}
                 </div>
 
