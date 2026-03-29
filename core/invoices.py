@@ -28,7 +28,9 @@ def invoice_data_for_booking(booking):
         'vendor_name': vendor_name or 'N/A',
         'number_of_people': booking.number_of_people,
         'travel_date': booking.travel_date.strftime('%Y-%m-%d'),
-        'total_amount_paid': booking.total_price,
+        'original_price': booking.original_total_price or booking.total_price,
+        'discount_applied': booking.discount_amount or 0,
+        'total_amount_paid': booking.paid_amount or booking.total_price,
         'payment_status': booking.get_payment_status_display(),
         'payment_method': booking.get_payment_method_display(),
         'booking_date': booking_date,
@@ -95,9 +97,12 @@ def generate_invoice_pdf(booking_id):
     pdf.line(margin, y, width - margin, y)
     y -= 26
 
-    pdf.setFont('Helvetica-Bold', 13)
-    total_paid = f"Rs {data['total_amount_paid']:.0f}"
-    pdf.drawString(margin, y, f'Total Paid: {total_paid}')
+    pdf.setFont('Helvetica-Bold', 12)
+    pdf.drawString(margin, y, f"Original Price: Rs {data['original_price']:.0f}")
+    y -= 20
+    pdf.drawString(margin, y, f"Discount Applied: - Rs {data['discount_applied']:.0f}")
+    y -= 20
+    pdf.drawString(margin, y, f"Final Paid Amount: Rs {data['total_amount_paid']:.0f}")
     y -= 32
 
     pdf.setFont('Helvetica-Oblique', 11)

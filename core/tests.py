@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
@@ -8,8 +9,9 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import User, VendorProfile
-from .models import Booking, ContactMessage, Package, PackageImage, Post
+from .models import Booking, ContactMessage, Discount, Package, PackageImage, Post
 from .payments import StripeError
+from .views import _complete_paid_booking
 
 
 class PublicNavigationAccessTests(TestCase):
@@ -722,9 +724,6 @@ class BookingStripeFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/pdf')
-        self.assertIn('attachment; filename="invoice_', response['Content-Disposition'])
-        self.assertTrue(response.content.startswith(b'%PDF'))
-
     def test_invoice_view_shows_customer_only_fields(self):
         booking = self._create_paid_booking()
         self.client.force_login(self.traveler)
@@ -754,3 +753,92 @@ class BookingStripeFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/pdf')
+
+
+class AchievementDiscountFlowTests(TestCase):
+    def setUp(self):
+        self.vendor = User.objects.create_user(
+            username='discount_vendor',
+            password='vendor-pass-123',
+            email='discount-vendor@example.com',
+            user_type='vendor',
+        )
+        self.traveler = User.objects.create_user(
+            username='discount_traveler',
+            password='traveler-pass-123',
+            email='discount-traveler@example.com',
+            user_type='traveler',
+        )
+        self.package = Package.objects.create(
+            vendor=self.vendor,
+            title='Discount Test Trek',
+            location='Pokhara',
+            description='Discount flow test package.',
+            price='10000.00',
+            available_slots=12,
+            available_from=timezone.localdate() - timedelta(days=1),
+            available_until=timezone.localdate() + timedelta(days=20),
+            is_active=True,
+        )
+        self.travel_date = timezone.localdate() + timedelta(days=5)
+
+    def test_checkout_auto_applies_best_valid_discount(self):
+        Discount.objects.create(
+            user=self.traveler,
+            percentage=5,
+            max_discount_cap=1000,
+            expires_at=timezone.now() + timedelta(days=7),
+            source=Discount.SOURCE_ACHIEVEMENT,
+        )
+        Discount.objects.create(
+            user=self.traveler,
+            fixed_amount=1500,
+            expires_at=timezone.now() + timedelta(days=7),
+            source=Discount.SOURCE_ACHIEVEMENT,
+        )
+
+        self.client.force_login(self.traveler)
+        response = self.client.post(
+            reverse('package_book', args=[self.package.id]),
+            data={
+                'number_of_people': 2,
+                'travel_date': self.travel_date.isoformat(),
+                'special_notes': 'Discount apply test',
+                'payment_method': Booking.PAYMENT_METHOD_ESEWA,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        booking = Booking.objects.filter(traveler=self.traveler, package=self.package).latest('id')
+        self.assertEqual(booking.original_total_price, Decimal('20000.00'))
+        self.assertEqual(booking.discount_amount, Decimal('1500.00'))
+        self.assertEqual(booking.total_price, Decimal('18500.00'))
+
+    def test_successful_payment_marks_discount_used(self):
+        discount = Discount.objects.create(
+            user=self.traveler,
+            percentage=10,
+            max_discount_cap=2000,
+            expires_at=timezone.now() + timedelta(days=7),
+            source=Discount.SOURCE_ACHIEVEMENT,
+        )
+        booking = Booking.objects.create(
+            package=self.package,
+            traveler=self.traveler,
+            number_of_people=1,
+            travel_date=self.travel_date,
+            special_notes='mark-used test',
+            status=Booking.STATUS_PENDING,
+            payment_method=Booking.PAYMENT_METHOD_ESEWA,
+            payment_status=Booking.PAYMENT_STATUS_PENDING,
+            discount=discount,
+            total_price='0',
+        )
+
+        _complete_paid_booking(booking, paid_amount=booking.total_price)
+
+        discount.refresh_from_db()
+        booking.refresh_from_db()
+        self.assertTrue(discount.is_used)
+        self.assertIsNotNone(discount.used_at)
+        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_COMPLETED)

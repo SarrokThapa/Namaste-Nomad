@@ -135,7 +135,9 @@
             </div>
 
             <div class="invoice-total">
-                Total Paid: Rs {{ invoice.total_amount_paid|floatformat:0 }}
+                <div>Original Price: Rs {{ invoice.original_price|floatformat:0 }}</div>
+                <div>Discount Applied: - Rs {{ invoice.discount_applied|floatformat:0 }}</div>
+                <div>Final Paid Amount: Rs {{ invoice.total_amount_paid|floatformat:0 }}</div>
             </div>
 
             <div class="invoice-actions">

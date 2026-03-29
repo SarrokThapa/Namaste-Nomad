@@ -129,6 +129,57 @@ class Wishlist(models.Model):
         return f"{self.traveler.username} saved {self.package.title}"
 
 
+class Discount(models.Model):
+    SOURCE_ACHIEVEMENT = 'achievement'
+    SOURCE_CHOICES = (
+        (SOURCE_ACHIEVEMENT, 'Achievement'),
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='discounts',
+    )
+    percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    fixed_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    max_discount_cap = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    is_used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField()
+    source = models.CharField(max_length=40, choices=SOURCE_CHOICES, default=SOURCE_ACHIEVEMENT)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-created_at',)
+
+    def is_valid(self, now=None):
+        check_at = now or timezone.now()
+        return (not self.is_used) and self.expires_at > check_at
+
+    def calculate_discount_amount(self, amount):
+        amount_decimal = Decimal(str(amount or '0')).quantize(Decimal('0.01'))
+        discount_amount = Decimal('0.00')
+
+        if self.fixed_amount is not None:
+            discount_amount = Decimal(str(self.fixed_amount)).quantize(Decimal('0.01'))
+        elif self.percentage is not None:
+            percent = Decimal(str(self.percentage))
+            discount_amount = (amount_decimal * percent / Decimal('100')).quantize(Decimal('0.01'))
+
+        if self.max_discount_cap is not None:
+            cap = Decimal(str(self.max_discount_cap)).quantize(Decimal('0.01'))
+            discount_amount = min(discount_amount, cap)
+
+        return max(Decimal('0.00'), min(discount_amount, amount_decimal))
+
+    def __str__(self):
+        if self.fixed_amount is not None:
+            value = f"Rs {self.fixed_amount}"
+        else:
+            value = f"{self.percentage}%"
+        return f"{self.user.username} - {value} ({self.source})"
+
+
 class Booking(models.Model):
     COMMISSION_VENDOR_RATE = Decimal('0.75')
     COMMISSION_PLATFORM_RATE = Decimal('0.25')
@@ -216,6 +267,25 @@ class Booking(models.Model):
     )
     paid_at = models.DateTimeField(null=True, blank=True)
     payment_expires_at = models.DateTimeField(null=True, blank=True)
+    discount = models.ForeignKey(
+        Discount,
+        on_delete=models.SET_NULL,
+        related_name='bookings',
+        null=True,
+        blank=True,
+    )
+    original_total_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        default=Decimal('0.00'),
+    )
+    discount_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        default=Decimal('0.00'),
+    )
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='direct')
     total_price = models.DecimalField(
         max_digits=10,
@@ -244,9 +314,31 @@ class Booking(models.Model):
             package_price = self.package.price or Decimal('0')
             if not isinstance(package_price, Decimal):
                 package_price = Decimal(str(package_price))
-            new_total = package_price * self.number_of_people
-            if self.total_price != new_total:
-                self.total_price = new_total
+            original_total = (package_price * self.number_of_people).quantize(Decimal('0.01'))
+            applied_discount_amount = Decimal('0.00')
+
+            if self.discount_id and self.traveler_id:
+                now = timezone.now()
+                if (
+                    self.discount.user_id == self.traveler_id
+                    and not self.discount.is_used
+                    and self.discount.expires_at > now
+                ):
+                    applied_discount_amount = self.discount.calculate_discount_amount(original_total)
+                else:
+                    self.discount = None
+                    computed_fields.add('discount')
+
+            final_total = (original_total - applied_discount_amount).quantize(Decimal('0.01'))
+
+            if self.original_total_price != original_total:
+                self.original_total_price = original_total
+                computed_fields.add('original_total_price')
+            if self.discount_amount != applied_discount_amount:
+                self.discount_amount = applied_discount_amount
+                computed_fields.add('discount_amount')
+            if self.total_price != final_total:
+                self.total_price = final_total
                 computed_fields.add('total_price')
             if not self.vendor_id:
                 self.vendor = self.package.vendor

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Booking, Comment, ContactMessage, Package, Post, PostMedia, Review, Transaction
+from .models import Booking, Comment, ContactMessage, Discount, Package, Post, PostMedia, Review, Transaction
 
 
 @admin.register(Package)
@@ -91,3 +91,10 @@ class ContactMessageAdmin(admin.ModelAdmin):
     list_display = ('full_name', 'email', 'subject', 'is_resolved', 'created_at')
     list_filter = ('is_resolved', 'created_at')
     search_fields = ('full_name', 'email', 'subject', 'message')
+
+
+@admin.register(Discount)
+class DiscountAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'percentage', 'fixed_amount', 'max_discount_cap', 'is_used', 'expires_at', 'source')
+    list_filter = ('is_used', 'source', 'expires_at', 'created_at')
+    search_fields = ('user__email', 'user__username')

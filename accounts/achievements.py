@@ -1,7 +1,11 @@
-from django.db.models import Count, Sum
+from datetime import timedelta
 
-from core.models import Booking, Post, Review, Wishlist
-from .models import Badge, RewardPoint, UserBadge
+from django.db.models import Count, Sum
+from django.utils import timezone
+
+from core.models import Booking, Discount, Post, Review, Wishlist
+from .models import Badge, Notification, RewardPoint, UserBadge
+from .notifications import create_notification
 
 
 def add_points(user, action_type, points):
@@ -70,6 +74,23 @@ def sync_badges_for_user(user):
         if current_value >= badge.condition_value:
             UserBadge.objects.create(user=user, badge=badge)
             newly_awarded.append(badge)
+
+    if newly_awarded:
+        expires_at = timezone.now() + timedelta(days=7)
+        for _badge in newly_awarded:
+            Discount.objects.create(
+                user=user,
+                percentage=10,
+                fixed_amount=None,
+                max_discount_cap=2000,
+                expires_at=expires_at,
+                source=Discount.SOURCE_ACHIEVEMENT,
+            )
+        create_notification(
+            user,
+            'You unlocked a discount!',
+            Notification.TYPE_BOOKING,
+        )
     return newly_awarded
 
 

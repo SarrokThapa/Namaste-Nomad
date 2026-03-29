@@ -30,7 +30,7 @@ from accounts.achievements import (
 from accounts.notifications import create_notification, notify_admins
 from .forms import BookingForm, CommentForm, ContactMessageForm, PostEditForm, PostForm, ReviewForm
 from .invoices import generate_invoice_pdf, invoice_data_for_booking
-from .models import Booking, Comment, Package, Post, PostMedia, Review, Transaction, Wishlist
+from .models import Booking, Comment, Discount, Package, Post, PostMedia, Review, Transaction, Wishlist
 from .payments import (
     EsewaError,
     StripeError,
@@ -482,6 +482,21 @@ def _complete_paid_booking(
     if not booking.paid_at:
         booking.paid_at = timezone.now()
     booking.payment_expires_at = None
+    discount_used = None
+    discount_used_amount = Decimal('0.00')
+    if booking.discount_id:
+        discount = (
+            Discount.objects.select_for_update()
+            .filter(id=booking.discount_id, user_id=booking.traveler_id)
+            .first()
+        )
+        if discount and discount.is_valid():
+            discount.is_used = True
+            discount.used_at = timezone.now()
+            discount.save(update_fields=['is_used', 'used_at'])
+            discount_used = discount
+            discount_used_amount = booking.discount_amount or Decimal('0.00')
+
     booking.save(
         update_fields=[
             'status',
@@ -507,6 +522,21 @@ def _complete_paid_booking(
         },
     )
 
+    if discount_used and booking.traveler:
+        create_notification(
+            booking.traveler,
+            f'Your discount of Rs {discount_used_amount:.0f} was applied to booking #{booking.id}.',
+            Notification.TYPE_BOOKING,
+            related_object_id=booking.id,
+        )
+    if discount_used and booking.vendor:
+        create_notification(
+            booking.vendor,
+            'A booking used discount on your package.',
+            Notification.TYPE_BOOKING,
+            related_object_id=booking.id,
+        )
+
 
 def _mark_payment_failed(booking):
     if booking.payment_status == Booking.PAYMENT_STATUS_COMPLETED:
@@ -520,6 +550,28 @@ def _as_money_decimal(value):
         return Decimal(str(value)).quantize(Decimal('0.01'))
     except (InvalidOperation, TypeError, ValueError):
         return None
+
+
+def _best_available_discount_for_user(user, original_total):
+    if not user.is_authenticated or getattr(user, 'user_type', '') != 'traveler':
+        return None, Decimal('0.00')
+
+    now = timezone.now()
+    candidates = Discount.objects.filter(
+        user=user,
+        source=Discount.SOURCE_ACHIEVEMENT,
+        is_used=False,
+        expires_at__gt=now,
+    )
+
+    best_discount = None
+    best_amount = Decimal('0.00')
+    for candidate in candidates:
+        amount = candidate.calculate_discount_amount(original_total)
+        if amount > best_amount:
+            best_discount = candidate
+            best_amount = amount
+    return best_discount, best_amount
 
 
 def _can_access_booking_invoice(user, booking):
@@ -1111,6 +1163,11 @@ def package_book(request, package_id):
                 number_of_people = form.cleaned_data['number_of_people']
                 travel_date = form.cleaned_data['travel_date']
                 special_notes = form.cleaned_data.get('special_notes', '')
+                original_total = (locked_package.price * number_of_people).quantize(Decimal('0.01'))
+                best_discount, _best_amount = _best_available_discount_for_user(
+                    request.user,
+                    original_total,
+                )
                 existing_pending_booking = (
                     Booking.objects.select_for_update()
                     .filter(
@@ -1157,6 +1214,7 @@ def package_book(request, package_id):
                     booking.payment_method = selected_payment_method
                     booking.payment_status = Booking.PAYMENT_STATUS_PENDING
                     booking.source = 'direct'
+                    booking.discount = best_discount
                     booking.payment_expires_at = _booking_payment_expires_at()
                     booking.save()
 
@@ -1235,11 +1293,27 @@ def package_book(request, package_id):
 
     reward_points = total_points_for_user(request.user)
     discount_percent, next_discount_points = discount_for_points(reward_points)
+    preview_people = 1
+    posted_people = request.POST.get('number_of_people')
+    if posted_people:
+        try:
+            preview_people = max(1, int(posted_people))
+        except (TypeError, ValueError):
+            preview_people = 1
+    preview_original_total = (package.price * preview_people).quantize(Decimal('0.01'))
+    available_discount, available_discount_amount = _best_available_discount_for_user(
+        request.user,
+        preview_original_total,
+    )
+    preview_final_total = (preview_original_total - available_discount_amount).quantize(Decimal('0.01'))
 
     return render(request, 'core/booking_form.html', {
         'package': package,
         'form': form,
-        'estimated_total': package.price,
+        'estimated_total': preview_final_total,
+        'original_total': preview_original_total,
+        'discount_amount': available_discount_amount,
+        'available_discount': available_discount,
         'reward_points': reward_points,
         'discount_percent': discount_percent,
         'next_discount_points': next_discount_points,

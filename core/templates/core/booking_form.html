@@ -145,8 +145,31 @@
                     {% endif %}
                 </div>
 
-                <div class="booking-total">
-                    <span>Estimated Total</span>
+                {% if available_discount %}
+                    <div class="booking-rewards" style="margin-top: 10px; border-color: #86efac; background: #f0fdf4;">
+                        <span>&#127881; You have a discount available!</span>
+                        {% if available_discount.fixed_amount %}
+                            <p>Auto-applied discount: Rs {{ available_discount.fixed_amount|floatformat:0 }}</p>
+                        {% else %}
+                            <p>Auto-applied discount: {{ available_discount.percentage|floatformat:0 }}%</p>
+                            {% if available_discount.max_discount_cap %}
+                                <small>Maximum discount cap: Rs {{ available_discount.max_discount_cap|floatformat:0 }}</small>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                <div
+                    class="booking-total"
+                    data-discount-percentage="{% if available_discount and available_discount.percentage %}{{ available_discount.percentage }}{% endif %}"
+                    data-discount-fixed="{% if available_discount and available_discount.fixed_amount %}{{ available_discount.fixed_amount }}{% endif %}"
+                    data-discount-cap="{% if available_discount and available_discount.max_discount_cap %}{{ available_discount.max_discount_cap }}{% endif %}"
+                >
+                    <span>Original Price</span>
+                    <strong id="originalTotal">Rs {{ original_total|floatformat:0 }}</strong>
+                    <span>Discount</span>
+                    <strong id="discountAmount">- Rs {{ discount_amount|floatformat:0 }}</strong>
+                    <span>Final Price</span>
                     <strong id="estimatedTotal">Rs {{ estimated_total|floatformat:0 }}</strong>
                 </div>
 
@@ -162,16 +185,43 @@
         (() => {
             const peopleInput = document.getElementById('{{ form.number_of_people.id_for_label }}');
             const totalNode = document.getElementById('estimatedTotal');
+            const originalTotalNode = document.getElementById('originalTotal');
+            const discountAmountNode = document.getElementById('discountAmount');
             const paymentMethodNodes = document.querySelectorAll('input[name="payment_method"]');
             const paymentSubmitBtn = document.getElementById('paymentSubmitBtn');
+            const discountDataNode = document.querySelector('.booking-total');
             const price = Number('{{ package.price|floatformat:2 }}');
+            const discountPercent = Number((discountDataNode && discountDataNode.dataset.discountPercentage) || 0);
+            const discountFixed = Number((discountDataNode && discountDataNode.dataset.discountFixed) || 0);
+            const discountCap = Number((discountDataNode && discountDataNode.dataset.discountCap) || 0);
 
             if (!peopleInput || !totalNode || Number.isNaN(price)) return;
 
             const updateTotal = () => {
                 const people = Math.max(parseInt(peopleInput.value || '1', 10), 1);
-                const total = price * people;
-                totalNode.textContent = `Rs ${Math.round(total).toLocaleString()}`;
+                const original = price * people;
+                let discount = 0;
+
+                if (discountFixed > 0) {
+                    discount = discountFixed;
+                } else if (discountPercent > 0) {
+                    discount = (original * discountPercent) / 100;
+                }
+
+                if (discountCap > 0) {
+                    discount = Math.min(discount, discountCap);
+                }
+
+                discount = Math.min(discount, original);
+                const finalTotal = Math.max(original - discount, 0);
+
+                if (originalTotalNode) {
+                    originalTotalNode.textContent = `Rs ${Math.round(original).toLocaleString()}`;
+                }
+                if (discountAmountNode) {
+                    discountAmountNode.textContent = `- Rs ${Math.round(discount).toLocaleString()}`;
+                }
+                totalNode.textContent = `Rs ${Math.round(finalTotal).toLocaleString()}`;
             };
 
             peopleInput.addEventListener('input', updateTotal);
