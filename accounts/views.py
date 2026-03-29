@@ -571,10 +571,22 @@ def support_chat(request):
 
 
 def _serialize_support_message(message):
+    sender = message.sender
+    sender_label = 'You'
+    if message.is_system_generated:
+        sender_label = 'Auto Message'
+    elif message.is_admin_reply:
+        sender_label = 'Admin'
+    elif sender and sender.user_type == 'vendor':
+        sender_label = sender.get_full_name().strip() or sender.username or sender.email
+
     return {
         'id': message.id,
         'message': message.message,
         'is_admin_reply': message.is_admin_reply,
+        'is_system_generated': message.is_system_generated,
+        'sender_label': sender_label,
+        'related_booking_id': message.related_booking_id,
         'created_at': timezone.localtime(message.created_at).strftime('%b %d, %Y %H:%M'),
     }
 
@@ -588,7 +600,7 @@ def support_widget_data(request):
     conversation = _get_or_create_support_conversation(request.user)
     support_messages = SupportMessage.objects.filter(
         conversation=conversation,
-    ).order_by('created_at')
+    ).select_related('sender').order_by('created_at')
 
     return JsonResponse({
         'conversation_id': conversation.id,
@@ -788,7 +800,7 @@ def admin_support_chat(request, conversation_id):
     conversation.user_role = role_labels.get(user.user_type, user.user_type.title())
     support_messages = (
         SupportMessage.objects.filter(conversation=conversation)
-        .select_related('sender')
+        .select_related('sender', 'related_booking')
         .order_by('created_at')
     )
 

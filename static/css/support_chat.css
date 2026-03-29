@@ -105,6 +105,17 @@
     color: #fff;
 }
 
+.support-chat__message--system .support-chat__bubble {
+    background: linear-gradient(135deg, #fff7ed, #ffedd5);
+    color: #7c2d12;
+    border: 1px solid #fdba74;
+}
+
+.support-chat__message--system .support-chat__meta span:first-child {
+    color: #b45309;
+    font-weight: 700;
+}
+
 .support-chat__meta {
     display: flex;
     gap: 0.6rem;

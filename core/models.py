@@ -602,9 +602,17 @@ class SupportMessage(models.Model):
         on_delete=models.CASCADE,
         related_name='support_messages',
     )
+    related_booking = models.ForeignKey(
+        Booking,
+        on_delete=models.SET_NULL,
+        related_name='support_messages',
+        null=True,
+        blank=True,
+    )
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     is_admin_reply = models.BooleanField(default=False)
+    is_system_generated = models.BooleanField(default=False)
 
     class Meta:
         ordering = ('created_at', 'id')

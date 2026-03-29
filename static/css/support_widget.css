@@ -161,6 +161,17 @@
     border-bottom-left-radius: 0.4rem;
 }
 
+.support-widget__message--system .support-widget__bubble {
+    background: linear-gradient(135deg, #fff7ed, #ffedd5);
+    color: #7c2d12;
+    border: 1px solid #fdba74;
+}
+
+.support-widget__message--system .support-widget__meta span:first-child {
+    color: #b45309;
+    font-weight: 700;
+}
+
 .support-widget__meta {
     font-size: 0.7rem;
     color: #6b7280;

@@ -91,6 +91,9 @@
                     wrapper.className = `support-widget__message ${
                         item.is_admin_reply ? 'support-widget__message--admin' : 'support-widget__message--user'
                     }`;
+                    if (item.is_system_generated) {
+                        wrapper.classList.add('support-widget__message--system');
+                    }
 
                     const bubble = document.createElement('div');
                     bubble.className = 'support-widget__bubble';
@@ -100,7 +103,7 @@
                     meta.className = 'support-widget__meta';
 
                     const label = document.createElement('span');
-                    label.textContent = item.is_admin_reply ? 'Admin' : 'You';
+                    label.textContent = item.sender_label || (item.is_admin_reply ? 'Admin' : 'You');
 
                     const time = document.createElement('span');
                     time.textContent = item.created_at;

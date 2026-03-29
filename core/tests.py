@@ -8,8 +8,8 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import User, VendorProfile
-from .models import Booking, ContactMessage, Discount, Package, PackageImage, Post
+from accounts.models import Notification, User, VendorProfile
+from .models import Booking, ContactMessage, Discount, Package, PackageImage, Post, SupportConversation, SupportMessage
 from .payments import StripeError
 from .views import _complete_paid_booking
 
@@ -842,3 +842,90 @@ class AchievementDiscountFlowTests(TestCase):
         self.assertTrue(discount.is_used)
         self.assertIsNotNone(discount.used_at)
         self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_COMPLETED)
+
+
+class PostBookingAutoMessageTests(TestCase):
+    def setUp(self):
+        self.vendor = User.objects.create_user(
+            username='autochat_vendor',
+            password='vendor-pass-123',
+            email='autochat-vendor@example.com',
+            user_type='vendor',
+            phone='9800000001',
+        )
+        self.traveler = User.objects.create_user(
+            username='autochat_traveler',
+            password='traveler-pass-123',
+            email='autochat-traveler@example.com',
+            user_type='traveler',
+        )
+        self.package = Package.objects.create(
+            vendor=self.vendor,
+            title='Auto Chat Package',
+            location='Pokhara',
+            description='Package for auto-message tests.',
+            price='15000.00',
+            available_slots=8,
+            available_from=timezone.localdate() - timedelta(days=1),
+            available_until=timezone.localdate() + timedelta(days=20),
+            is_active=True,
+        )
+
+    def test_complete_paid_booking_creates_vendor_system_message(self):
+        booking = Booking.objects.create(
+            package=self.package,
+            traveler=self.traveler,
+            vendor=self.vendor,
+            number_of_people=2,
+            travel_date=timezone.localdate() + timedelta(days=7),
+            special_notes='auto-message test',
+            status=Booking.STATUS_PENDING,
+            payment_method=Booking.PAYMENT_METHOD_ESEWA,
+            payment_status=Booking.PAYMENT_STATUS_PENDING,
+            total_price='0',
+        )
+
+        _complete_paid_booking(booking, paid_amount=booking.total_price)
+
+        conversation = SupportConversation.objects.filter(user=self.traveler).first()
+        self.assertIsNotNone(conversation)
+        support_message = SupportMessage.objects.filter(related_booking=booking).first()
+        self.assertIsNotNone(support_message)
+        self.assertTrue(support_message.is_system_generated)
+        self.assertTrue(support_message.is_admin_reply)
+        self.assertEqual(support_message.sender_id, self.vendor.id)
+        self.assertIn('Thank you for booking with us!', support_message.message)
+        self.assertIn('Auto Chat Package', support_message.message)
+
+    def test_complete_paid_booking_creates_required_notifications(self):
+        booking = Booking.objects.create(
+            package=self.package,
+            traveler=self.traveler,
+            vendor=self.vendor,
+            number_of_people=1,
+            travel_date=timezone.localdate() + timedelta(days=5),
+            special_notes='notification test',
+            status=Booking.STATUS_PENDING,
+            payment_method=Booking.PAYMENT_METHOD_ESEWA,
+            payment_status=Booking.PAYMENT_STATUS_PENDING,
+            total_price='0',
+        )
+
+        _complete_paid_booking(booking, paid_amount=booking.total_price)
+
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.traveler,
+                message='You received a message from vendor',
+                type=Notification.TYPE_BOOKING,
+                related_object_id=booking.id,
+            ).exists()
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.vendor,
+                message='Booking confirmed successfully',
+                type=Notification.TYPE_BOOKING,
+                related_object_id=booking.id,
+            ).exists()
+        )

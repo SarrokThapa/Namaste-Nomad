@@ -110,13 +110,15 @@
                 <div class="support-chat__messages" id="supportChatWindow">
                     {% if support_messages %}
                         {% for message in support_messages %}
-                            <div class="support-chat__message {% if message.is_admin_reply %}support-chat__message--admin{% else %}support-chat__message--user{% endif %}">
+                            <div class="support-chat__message {% if message.is_admin_reply %}support-chat__message--admin{% else %}support-chat__message--user{% endif %} {% if message.is_system_generated %}support-chat__message--system{% endif %}">
                                 <div class="support-chat__bubble">
                                     {{ message.message|linebreaksbr }}
                                 </div>
                                 <div class="support-chat__meta">
                                     <span>
-                                        {% if message.is_admin_reply %}
+                                        {% if message.is_system_generated %}
+                                            Auto Message
+                                        {% elif message.is_admin_reply %}
                                             Admin
                                         {% else %}
                                             {{ conversation.user_display }}
