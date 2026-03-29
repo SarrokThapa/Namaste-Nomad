@@ -1,0 +1,215 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@{{ traveler.username }} - Traveler Profile</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/public_traveler_profile.css' %}?v=20260329a">
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="landing-nav">
+        <div class="nav-container">
+            <a class="nav-brand" href="{% url 'home' %}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+                <span>Namaste Nomad</span>
+            </a>
+            <div class="nav-menu">
+                <a href="{% url 'home' %}">Home</a>
+                <a href="{% url 'package_list' %}">Packages</a>
+                <a href="{% url 'community_feed' %}">Explore</a>
+                <a href="{% url 'review_list' %}">Reviews</a>
+                <a href="{% url 'about' %}">About</a>
+            </div>
+            {% include "core/includes/public_nav_actions.html" %}
+        </div>
+    </nav>
+
+    <main class="traveler-profile-page">
+        <section class="profile-header-card">
+            <div class="profile-avatar-wrap">
+                {% if traveler_profile and traveler_profile.avatar %}
+                    <img src="{{ traveler_profile.avatar.url }}" alt="{{ traveler.username }} avatar" class="profile-avatar">
+                {% else %}
+                    <img src="{% static 'images/default-avatar.svg' %}" alt="Default traveler avatar" class="profile-avatar">
+                {% endif %}
+            </div>
+            <div class="profile-header-main">
+                <div class="profile-name-row">
+                    <h1>@{{ traveler.username }}</h1>
+                    <span class="profile-level">{{ traveler_level }}</span>
+                </div>
+                <p class="profile-bio">{{ traveler_profile.bio|default:"This traveler has not added a bio yet." }}</p>
+                <p class="profile-joined">Joined {{ traveler.date_joined|date:"F Y" }}</p>
+            </div>
+            {% if not is_own_profile %}
+                <div class="profile-cta-wrap">
+                    <button type="button" class="btn-follow" disabled title="Follow feature is coming soon">Follow</button>
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="stats-row">
+            <article class="stat-card">
+                <h2>{{ total_trips_completed }}</h2>
+                <p>Total Trips Completed</p>
+            </article>
+            <article class="stat-card">
+                <h2>{{ total_posts }}</h2>
+                <p>Total Posts</p>
+            </article>
+            <article class="stat-card">
+                <h2>{{ total_achievements }}</h2>
+                <p>Total Achievements</p>
+            </article>
+            <article class="stat-card">
+                <h2>{{ total_points }}</h2>
+                <p>Points Earned</p>
+            </article>
+        </section>
+
+        <section class="profile-grid">
+            <article class="card achievements-card">
+                <div class="card-head">
+                    <h3>Achievements</h3>
+                    <span class="pill">{{ total_achievements }} badges</span>
+                </div>
+                {% if earned_badges %}
+                    <ul class="badge-list">
+                        {% for item in earned_badges %}
+                            <li>
+                                <span class="badge-icon">{{ item.badge.icon }}</span>
+                                <div>
+                                    <strong>{{ item.badge.name }}</strong>
+                                    <p>{{ item.badge.description }}</p>
+                                    <small>Earned {{ item.earned_at|date:"M d, Y" }}</small>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="empty-message">No achievements earned yet.</p>
+                {% endif %}
+
+                <div class="achievement-events">
+                    <h4>Recent Achievement Activity</h4>
+                    {% if reward_events %}
+                        <ul>
+                            {% for event in reward_events %}
+                                <li>
+                                    <span>+{{ event.points }} pts</span>
+                                    <span>{{ event.get_action_type_display }}</span>
+                                    <small>{{ event.created_at|date:"M d, Y" }}</small>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="empty-message">No achievement activity available.</p>
+                    {% endif %}
+                </div>
+            </article>
+
+            <article class="card highlighted-card">
+                <div class="card-head">
+                    <h3>Highlighted Posts</h3>
+                    <span class="pill">Top liked</span>
+                </div>
+                {% if highlighted_posts %}
+                    <div class="highlighted-list">
+                        {% for post in highlighted_posts %}
+                            <a href="{% url 'community_feed' %}#post-{{ post.id }}" class="highlight-item">
+                                {% if post.primary_media %}
+                                    {% if post.primary_media.media_type == 'video' %}
+                                        <video preload="metadata" muted>
+                                            <source src="{{ post.primary_media.media_file.url }}">
+                                        </video>
+                                    {% else %}
+                                        <img src="{{ post.primary_media.media_file.url }}" alt="Highlighted post media">
+                                    {% endif %}
+                                {% else %}
+                                    <div class="highlight-fallback">Post #{{ post.id }}</div>
+                                {% endif %}
+                                <div class="highlight-meta">
+                                    <span>{{ post.like_count }} likes</span>
+                                    <span>{{ post.comment_count }} comments</span>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="empty-message">No highlighted posts yet.</p>
+                {% endif %}
+            </article>
+        </section>
+
+        <section class="card posts-card">
+            <div class="card-head">
+                <h3>Community Posts</h3>
+                <span class="pill">{{ total_posts }} total</span>
+            </div>
+            {% if posts %}
+                <div class="post-grid">
+                    {% for post in posts %}
+                        <a href="{% url 'community_feed' %}#post-{{ post.id }}" class="post-grid-item" aria-label="View post {{ post.id }}">
+                            {% if post.primary_media %}
+                                {% if post.primary_media.media_type == 'video' %}
+                                    <video preload="metadata" muted>
+                                        <source src="{{ post.primary_media.media_file.url }}">
+                                    </video>
+                                {% else %}
+                                    <img src="{{ post.primary_media.media_file.url }}" alt="Post media">
+                                {% endif %}
+                            {% else %}
+                                <div class="post-fallback">{{ post.caption|truncatewords:12 }}</div>
+                            {% endif %}
+                            <div class="post-overlay">
+                                <span>{{ post.like_count }} like{{ post.like_count|pluralize }}</span>
+                                <span>{{ post.comment_count }} comment{{ post.comment_count|pluralize }}</span>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-message">No posts available.</p>
+            {% endif %}
+        </section>
+
+        <section class="card reviews-card">
+            <div class="card-head">
+                <h3>Reviews by This Traveler</h3>
+                <span class="pill">{{ reviews|length }} reviews</span>
+            </div>
+            {% if reviews %}
+                <div class="profile-reviews-list">
+                    {% for review in reviews %}
+                        <article class="profile-review-item">
+                            <div>
+                                <a href="{% url 'package_detail' review.package.id %}" class="review-package-link">{{ review.package.title }}</a>
+                                <p class="review-date">{{ review.created_at|date:"F d, Y" }}</p>
+                            </div>
+                            <div class="review-rating" aria-label="{{ review.rating }} out of 5 stars">
+                                {% for star in "12345" %}
+                                    <span class="{% if forloop.counter <= review.rating %}filled{% endif %}">&#9733;</span>
+                                {% endfor %}
+                            </div>
+                            <p class="review-comment">{{ review.comment|default:"No comment provided." }}</p>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-message">No reviews posted yet.</p>
+            {% endif %}
+        </section>
+    </main>
+
+    <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
+</body>
+</html>

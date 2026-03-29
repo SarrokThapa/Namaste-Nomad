@@ -516,6 +516,15 @@ body.packages-body {
     font-size: 0.95rem;
 }
 
+.reviewer-name a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.reviewer-name a:hover {
+    text-decoration: underline;
+}
+
 .reviewer-meta {
     color: #6b7280;
     font-size: 0.8rem;

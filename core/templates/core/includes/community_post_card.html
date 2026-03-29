@@ -3,15 +3,21 @@
     <div class="post-head">
         <div class="post-author">
             <div class="author-avatar">
-                {% if post.author_avatar_url %}
-                    <img src="{{ post.author_avatar_url }}" alt="{{ post.author_name }} avatar">
-                {% else %}
-                    <img src="{% static 'images/default-avatar.svg' %}" alt="Default avatar">
-                {% endif %}
+                {% if post.author_profile_url %}<a href="{{ post.author_profile_url }}">{% endif %}
+                    {% if post.author_avatar_url %}
+                        <img src="{{ post.author_avatar_url }}" alt="{{ post.author_name }} avatar">
+                    {% else %}
+                        <img src="{% static 'images/default-avatar.svg' %}" alt="Default avatar">
+                    {% endif %}
+                {% if post.author_profile_url %}</a>{% endif %}
             </div>
             <div>
                 <div class="author-name">
-                    <span>{{ post.author_name }}</span>
+                    {% if post.author_profile_url %}
+                        <a href="{{ post.author_profile_url }}">{{ post.author_name }}</a>
+                    {% else %}
+                        <span>{{ post.author_name }}</span>
+                    {% endif %}
                     {% if post.author_is_verified_vendor %}
                         <span class="verified-badge verified-badge--tiny">
                             <span class="verified-badge-icon">✔</span>
@@ -114,15 +120,21 @@
                 {% for comment in post.prepared_comments %}
                     <div class="comment-item">
                         <div class="comment-avatar">
-                            {% if comment.author_avatar_url %}
-                                <img src="{{ comment.author_avatar_url }}" alt="{{ comment.author_name }} avatar">
-                            {% else %}
-                                <img src="{% static 'images/default-avatar.svg' %}" alt="Default avatar">
-                            {% endif %}
+                            {% if comment.author_profile_url %}<a href="{{ comment.author_profile_url }}">{% endif %}
+                                {% if comment.author_avatar_url %}
+                                    <img src="{{ comment.author_avatar_url }}" alt="{{ comment.author_name }} avatar">
+                                {% else %}
+                                    <img src="{% static 'images/default-avatar.svg' %}" alt="Default avatar">
+                                {% endif %}
+                            {% if comment.author_profile_url %}</a>{% endif %}
                         </div>
                         <div class="comment-content">
                             <div class="comment-meta">
-                                <strong>{{ comment.author_name }}</strong>
+                                {% if comment.author_profile_url %}
+                                    <strong><a href="{{ comment.author_profile_url }}">{{ comment.author_name }}</a></strong>
+                                {% else %}
+                                    <strong>{{ comment.author_name }}</strong>
+                                {% endif %}
                                 <span>{{ comment.created_at|date:"M d, Y · h:i A" }}</span>
                             </div>
                             <p>{{ comment.body }}</p>
@@ -132,15 +144,21 @@
                                     {% for reply in comment.prepared_replies %}
                                         <div class="reply-item">
                                             <div class="comment-avatar">
-                                                {% if reply.author_avatar_url %}
-                                                    <img src="{{ reply.author_avatar_url }}" alt="{{ reply.author_name }} avatar">
-                                                {% else %}
-                                                    <img src="{% static 'images/default-avatar.svg' %}" alt="Default avatar">
-                                                {% endif %}
+                                                {% if reply.author_profile_url %}<a href="{{ reply.author_profile_url }}">{% endif %}
+                                                    {% if reply.author_avatar_url %}
+                                                        <img src="{{ reply.author_avatar_url }}" alt="{{ reply.author_name }} avatar">
+                                                    {% else %}
+                                                        <img src="{% static 'images/default-avatar.svg' %}" alt="Default avatar">
+                                                    {% endif %}
+                                                {% if reply.author_profile_url %}</a>{% endif %}
                                             </div>
                                             <div class="comment-content">
                                                 <div class="comment-meta">
-                                                    <strong>{{ reply.author_name }}</strong>
+                                                    {% if reply.author_profile_url %}
+                                                        <strong><a href="{{ reply.author_profile_url }}">{{ reply.author_name }}</a></strong>
+                                                    {% else %}
+                                                        <strong>{{ reply.author_name }}</strong>
+                                                    {% endif %}
                                                     <span class="owner-reply-badge">Post Owner</span>
                                                     <span>{{ reply.created_at|date:"M d, Y · h:i A" }}</span>
                                                 </div>

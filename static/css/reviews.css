@@ -179,6 +179,15 @@
     text-decoration: none;
 }
 
+.reviewer-name a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.reviewer-name a:hover {
+    text-decoration: underline;
+}
+
 .reviews-pagination {
     margin-top: 1.15rem;
     display: flex;

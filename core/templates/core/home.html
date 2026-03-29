@@ -464,14 +464,22 @@
                             <div class="review-card-header">
                                 <div class="reviewer">
                                     <div class="reviewer-avatar">
-                                        {% if review.traveler_avatar_url %}
-                                            <img src="{{ review.traveler_avatar_url }}" alt="{{ review.traveler_name }} avatar">
-                                        {% else %}
-                                            <img src="{% static 'images/default-avatar.svg' %}" alt="Reviewer avatar">
-                                        {% endif %}
+                                        {% if review.traveler_profile_url %}<a href="{{ review.traveler_profile_url }}">{% endif %}
+                                            {% if review.traveler_avatar_url %}
+                                                <img src="{{ review.traveler_avatar_url }}" alt="{{ review.traveler_name }} avatar">
+                                            {% else %}
+                                                <img src="{% static 'images/default-avatar.svg' %}" alt="Reviewer avatar">
+                                            {% endif %}
+                                        {% if review.traveler_profile_url %}</a>{% endif %}
                                     </div>
                                     <div>
-                                        <div class="reviewer-name">{{ review.traveler_name }}</div>
+                                        <div class="reviewer-name">
+                                            {% if review.traveler_profile_url %}
+                                                <a href="{{ review.traveler_profile_url }}">{{ review.traveler_name }}</a>
+                                            {% else %}
+                                                {{ review.traveler_name }}
+                                            {% endif %}
+                                        </div>
                                         <div class="review-date">{{ review.created_at|date:"M d, Y" }}</div>
                                     </div>
                                 </div>

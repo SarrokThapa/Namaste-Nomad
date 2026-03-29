@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
     path('', views.home, name='home'),
     path('home/', views.home, name='home_page'),
+    path('profile/<int:user_id>/', views.public_traveler_profile, name='public_traveler_profile'),
     path('community/', views.community_feed, name='community_feed'),
     path('dashboard/community/', views.community_dashboard, name='community_dashboard'),
     path('community/posts/new/', views.community_post_create, name='community_post_create'),

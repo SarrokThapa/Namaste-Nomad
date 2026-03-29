@@ -20,7 +20,15 @@ from django.utils.dateparse import parse_date
 from django.utils import timezone
 from django.utils.html import escape, mark_safe
 
-from accounts.models import FeatureSlot, Notification, TravelerProfile, VendorFeature, VendorSubscription
+from accounts.models import (
+    FeatureSlot,
+    Notification,
+    RewardPoint,
+    TravelerProfile,
+    UserBadge,
+    VendorFeature,
+    VendorSubscription,
+)
 from accounts.achievements import (
     add_points,
     sync_badges_for_user,
@@ -229,6 +237,18 @@ def _user_avatar_url(user):
     return ""
 
 
+def _public_profile_url_for_user(user):
+    if not user:
+        return ''
+
+    user_type = getattr(user, 'user_type', '')
+    if user_type == 'traveler':
+        return reverse('public_traveler_profile', kwargs={'user_id': user.id})
+    if user_type == 'vendor':
+        return reverse('vendor_public_profile', kwargs={'vendor_id': user.id})
+    return ''
+
+
 def _vendor_display_name(vendor):
     if not vendor:
         return "Vendor"
@@ -328,6 +348,7 @@ def _prepare_review_cards(review_queryset):
         traveler = review.traveler
         review.traveler_name = _user_display_name(traveler)
         review.traveler_avatar_url = _user_avatar_url(traveler)
+        review.traveler_profile_url = _public_profile_url_for_user(traveler)
 
     return reviews
 
@@ -342,6 +363,7 @@ def _prepare_feed_posts(post_queryset, viewer=None):
         else:
             post.author_name = _user_display_name(post.user)
         post.author_avatar_url = _user_avatar_url(post.user)
+        post.author_profile_url = _public_profile_url_for_user(post.user)
         post.author_is_verified_vendor = (
             getattr(post.user, 'user_type', '') == 'vendor'
             and _vendor_is_verified(post.user)
@@ -366,6 +388,7 @@ def _prepare_feed_posts(post_queryset, viewer=None):
         for comment in all_comments:
             comment.author_name = _user_display_name(comment.user)
             comment.author_avatar_url = _user_avatar_url(comment.user)
+            comment.author_profile_url = _public_profile_url_for_user(comment.user)
             comment.prepared_replies = []
             comment_lookup[comment.id] = comment
 
@@ -380,6 +403,10 @@ def _prepare_feed_posts(post_queryset, viewer=None):
         post.prepared_comments = top_level_comments
 
     return posts
+
+
+def _traveler_level_label(total_points):
+    return 'Pro Traveler' if total_points >= 200 else 'Beginner Traveler'
 
 
 def _community_posts(viewer=None):
@@ -1200,7 +1227,7 @@ def package_detail(request, package_id):
     package.views_count += 1
 
     wishlist_ids = _wishlist_ids_for_user(request.user)
-    reviews_base = Review.objects.filter(package=package).select_related('traveler')
+    reviews_base = Review.objects.filter(package=package).select_related('traveler', 'traveler__traveler_profile')
     sort = (request.GET.get('sort') or 'recent').lower()
     if sort == 'highest':
         reviews = reviews_base.order_by('-rating', '-created_at')
@@ -1209,6 +1236,7 @@ def package_detail(request, package_id):
     else:
         sort = 'recent'
         reviews = reviews_base.order_by('-created_at')
+    reviews = _prepare_review_cards(reviews)
 
     rating = reviews_base.aggregate(avg=Avg('rating'), count=Count('id'))
     rating_counts = {entry['rating']: entry['count'] for entry in reviews_base.values('rating').annotate(count=Count('id'))}
@@ -2042,6 +2070,84 @@ def review_list(request):
         'can_review': can_review,
         'is_logged_in': is_logged_in,
         'review_packages': review_packages,
+    })
+
+
+def public_traveler_profile(request, user_id):
+    User = get_user_model()
+    traveler = get_object_or_404(
+        User.objects.select_related('traveler_profile'),
+        id=user_id,
+        user_type='traveler',
+    )
+    traveler_profile = _safe_related(traveler, 'traveler_profile')
+
+    comment_queryset = Comment.objects.select_related(
+        'user',
+        'user__traveler_profile',
+        'user__vendor_profile',
+        'user__admin_profile',
+    ).order_by('created_at')
+    posts = _prepare_feed_posts(
+        Post.objects.filter(user=traveler)
+        .select_related(
+            'user',
+            'user__traveler_profile',
+            'user__vendor_profile',
+            'user__admin_profile',
+        )
+        .prefetch_related(
+            Prefetch('comments', queryset=comment_queryset),
+            Prefetch('likes', queryset=User.objects.only('id')),
+            Prefetch('media', queryset=PostMedia.objects.all()),
+        )
+        .order_by('-created_at'),
+        viewer=request.user,
+    )
+
+    for post in posts:
+        if post.media_items:
+            post.primary_media = post.media_items[0]
+        else:
+            post.primary_media = None
+
+    reviews = _prepare_review_cards(
+        Review.objects.filter(traveler=traveler)
+        .select_related('traveler', 'traveler__traveler_profile', 'package')
+        .order_by('-created_at')
+    )
+
+    earned_badges = list(
+        UserBadge.objects.filter(user=traveler)
+        .select_related('badge')
+        .order_by('-earned_at')
+    )
+    total_points = total_points_for_user(traveler)
+    total_trips_completed = Booking.objects.filter(
+        traveler=traveler,
+        status=Booking.STATUS_CONFIRMED,
+    ).count()
+
+    highlighted_posts = sorted(
+        [post for post in posts if post.like_count > 0],
+        key=lambda post: (post.like_count, post.comment_count, post.created_at),
+        reverse=True,
+    )[:3]
+
+    return render(request, 'core/public_traveler_profile.html', {
+        'traveler': traveler,
+        'traveler_profile': traveler_profile,
+        'posts': posts,
+        'reviews': reviews,
+        'earned_badges': earned_badges,
+        'reward_events': RewardPoint.objects.filter(user=traveler).order_by('-created_at')[:6],
+        'total_points': total_points,
+        'total_trips_completed': total_trips_completed,
+        'total_posts': len(posts),
+        'total_achievements': len(earned_badges),
+        'traveler_level': _traveler_level_label(total_points),
+        'highlighted_posts': highlighted_posts,
+        'is_own_profile': request.user.is_authenticated and request.user.id == traveler.id,
     })
 
 

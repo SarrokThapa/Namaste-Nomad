@@ -208,7 +208,13 @@
                                                 <div class="reviewer">
                                                     <div class="reviewer-avatar">{{ reviewer|slice:":1" }}</div>
                                                     <div>
-                                                        <div class="reviewer-name">{{ reviewer }}</div>
+                                                        <div class="reviewer-name">
+                                                            {% if review.traveler_profile_url %}
+                                                                <a href="{{ review.traveler_profile_url }}">{{ reviewer }}</a>
+                                                            {% else %}
+                                                                {{ reviewer }}
+                                                            {% endif %}
+                                                        </div>
                                                         <div class="reviewer-meta">{{ review.created_at|date:"F d, Y" }} &middot; Verified Traveler</div>
                                                     </div>
                                                 </div>

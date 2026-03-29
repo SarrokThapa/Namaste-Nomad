@@ -8,8 +8,8 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import Notification, User, VendorProfile
-from .models import Booking, ContactMessage, Discount, Package, PackageImage, Post, SupportConversation, SupportMessage
+from accounts.models import Badge, Notification, RewardPoint, TravelerProfile, User, UserBadge, VendorProfile
+from .models import Booking, ContactMessage, Discount, Package, PackageImage, Post, Review, SupportConversation, SupportMessage
 from .payments import StripeError
 from .views import _complete_paid_booking
 
@@ -998,3 +998,97 @@ class HomePromotionsPersonalizationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'travel tips and special offers')
+
+
+class PublicTravelerProfileTests(TestCase):
+    def setUp(self):
+        self.traveler = User.objects.create_user(
+            username='public_traveler',
+            password='traveler-pass-123',
+            email='public-traveler@example.com',
+            phone='9800001111',
+            user_type='traveler',
+        )
+        TravelerProfile.objects.create(
+            user=self.traveler,
+            bio='Mountain wanderer and sunrise chaser.',
+        )
+        self.vendor = User.objects.create_user(
+            username='public_profile_vendor',
+            password='vendor-pass-123',
+            email='public-profile-vendor@example.com',
+            user_type='vendor',
+        )
+        self.package = Package.objects.create(
+            vendor=self.vendor,
+            title='Public Profile Trek',
+            location='Langtang',
+            price='8000.00',
+            available_slots=10,
+            available_from=timezone.localdate() - timedelta(days=3),
+            available_until=timezone.localdate() + timedelta(days=20),
+            is_active=True,
+        )
+        Booking.objects.create(
+            package=self.package,
+            traveler=self.traveler,
+            vendor=self.vendor,
+            number_of_people=1,
+            travel_date=timezone.localdate() + timedelta(days=4),
+            status=Booking.STATUS_CONFIRMED,
+            payment_method=Booking.PAYMENT_METHOD_ESEWA,
+            payment_status=Booking.PAYMENT_STATUS_COMPLETED,
+            total_price='0',
+        )
+        self.post = Post.objects.create(
+            user=self.traveler,
+            caption='A perfect day on the trail.',
+        )
+        Review.objects.create(
+            package=self.package,
+            traveler=self.traveler,
+            rating=5,
+            comment='Amazing route and great guide support.',
+        )
+        badge = Badge.objects.create(
+            name='Public Explorer Badge',
+            description='Awarded for profile visibility tests.',
+            icon='trophy',
+            condition_type=Badge.CONDITION_FIRST_POST,
+            condition_value=1,
+        )
+        UserBadge.objects.create(user=self.traveler, badge=badge)
+        RewardPoint.objects.create(
+            user=self.traveler,
+            points=25,
+            action_type=RewardPoint.ACTION_POST,
+        )
+
+    def test_public_profile_shows_social_sections_without_sensitive_data(self):
+        response = self.client.get(reverse('public_traveler_profile', args=[self.traveler.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '@public_traveler')
+        self.assertContains(response, 'Mountain wanderer and sunrise chaser.')
+        self.assertContains(response, 'Total Trips Completed')
+        self.assertContains(response, 'Total Posts')
+        self.assertContains(response, 'Total Achievements')
+        self.assertContains(response, 'Community Posts')
+        self.assertContains(response, 'Reviews by This Traveler')
+        self.assertNotContains(response, 'public-traveler@example.com')
+        self.assertNotContains(response, '9800001111')
+
+    def test_reviews_and_posts_link_to_public_profile(self):
+        profile_url = reverse('public_traveler_profile', args=[self.traveler.id])
+
+        reviews_response = self.client.get(reverse('review_list'))
+        self.assertEqual(reviews_response.status_code, 200)
+        self.assertContains(reviews_response, profile_url)
+
+        community_response = self.client.get(reverse('community_feed'))
+        self.assertEqual(community_response.status_code, 200)
+        self.assertContains(community_response, profile_url)
+
+        package_response = self.client.get(reverse('package_detail', args=[self.package.id]))
+        self.assertEqual(package_response.status_code, 200)
+        self.assertContains(package_response, profile_url)
