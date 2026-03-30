@@ -339,17 +339,6 @@ section {
     font-size: 0.68rem;
 }
 
-/* Hero */
-.hero {
-    background-image:
-        linear-gradient(135deg, rgba(207, 227, 244, 0.88) 0%, rgba(233, 242, 251, 0.88) 45%, rgba(244, 239, 230, 0.9) 100%),
-        url("../images/hero-himalaya.jpg");
-    background-size: cover, cover;
-    background-position: center, center;
-    background-repeat: no-repeat;
-    padding: 3.8rem 2rem 4.6rem;
-}
-
 .hero-content {
     max-width: 900px;
     margin: 0 auto;
@@ -987,10 +976,6 @@ section {
     .nav-user-dropdown {
         left: 0;
         right: auto;
-    }
-
-    .hero {
-        padding: 3rem 1.5rem 4rem;
     }
 
     .hero-title {

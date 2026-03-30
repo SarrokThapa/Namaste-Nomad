@@ -8,6 +8,7 @@
     <title>Namaste Nomad - Nepal Treks & Tours</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/home.css' %}">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     <link rel="stylesheet" href="{% static 'css/wishlist.css' %}?v=20260315a">
     <link rel="stylesheet" href="{% static 'css/destination_autocomplete.css' %}?v=20260314a">
@@ -28,7 +29,6 @@
                 <span>Namaste Nomad</span>
             </a>
             <div class="nav-menu">
-                <a href="#">Destinations</a>
                 <a href="{% url 'package_treks' %}">Treks</a>
                 <a href="{% url 'package_tours' %}">Tours</a>
                 <a href="{% url 'package_list' %}">Packages</a>
@@ -51,45 +51,47 @@
 
     <!-- Hero Section -->
     <section class="hero">
-        <div class="hero-content">
-            <h1 class="hero-title">Find Your Perfect Nepal Trek</h1>
-            <p class="hero-subtitle">
-                Compare trusted local operators for Nepal's Himalayas and heritage tours.
-            </p>
-            <form class="search-card" action="#">
-                <div class="search-field">
-                    <label for="destination">Destination</label>
-                    <input
-                        id="destination"
-                        name="destination"
-                        type="text"
-                        placeholder="Where in Nepal?"
-                        autocomplete="off"
-                        data-destination-input
-                        data-destination-endpoint="{% url 'destinations_api' %}"
-                    >
-                    <div class="destination-suggestions" data-destination-list></div>
-                </div>
-                <div class="search-field">
-                    <label for="date">Date</label>
-                    <input id="date" type="date" name="date">
-                </div>
-                <div class="search-field">
-                    <label for="difficulty">Difficulty</label>
-                    <select id="difficulty" name="difficulty">
-                        <option>Difficulty Level</option>
-                        <option>Easy (Tours)</option>
-                        <option>Moderate</option>
-                        <option>Challenging</option>
-                        <option>Expedition</option>
-                    </select>
-                </div>
-                <div class="search-field">
-                    <label for="people">People</label>
-                    <input id="people" type="number" name="people" min="1" value="2">
-                </div>
-                <button class="btn-search" type="submit">Search</button>
-            </form>
+        <div class="hero-overlay">
+            <div class="hero-content">
+                <h1 class="hero-title">Find Your Perfect Nepal Trek</h1>
+                <p class="hero-subtitle">
+                    Compare trusted local operators for Nepal's Himalayas and heritage tours.
+                </p>
+                <form class="search-card" action="#">
+                    <div class="search-field">
+                        <label for="destination">Destination</label>
+                        <input
+                            id="destination"
+                            name="destination"
+                            type="text"
+                            placeholder="Where in Nepal?"
+                            autocomplete="off"
+                            data-destination-input
+                            data-destination-endpoint="{% url 'destinations_api' %}"
+                        >
+                        <div class="destination-suggestions" data-destination-list></div>
+                    </div>
+                    <div class="search-field">
+                        <label for="date">Date</label>
+                        <input id="date" type="date" name="date">
+                    </div>
+                    <div class="search-field">
+                        <label for="difficulty">Difficulty</label>
+                        <select id="difficulty" name="difficulty">
+                            <option>Difficulty Level</option>
+                            <option>Easy (Tours)</option>
+                            <option>Moderate</option>
+                            <option>Challenging</option>
+                            <option>Expedition</option>
+                        </select>
+                    </div>
+                    <div class="search-field">
+                        <label for="people">People</label>
+                        <input id="people" type="number" name="people" min="1" value="2">
+                    </div>
+                    <button class="btn-search" type="submit">Search</button>
+                </form>
+            </div>
         </div>
     </section>
 
@@ -554,6 +556,7 @@
     </footer>
 
     <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static 'js/slideshow.js' %}?v=20260330a"></script>
     <script src="{% static 'js/destination_autocomplete.js' %}?v=20260314a"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="{% static 'js/package_maps.js' %}?v=20260313a"></script>

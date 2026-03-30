@@ -214,7 +214,7 @@ class PackageMapApiTests(TestCase):
 
 
 class ContactPageTests(TestCase):
-    @patch('core.views.send_mail')
+    @patch('core.views.package_views.send_mail')
     def test_contact_submit_saves_message_and_sends_admin_email(self, mock_send_mail):
         response = self.client.post(
             reverse('contact'),
@@ -235,7 +235,7 @@ class ContactPageTests(TestCase):
         self.assertEqual(saved_message.email, 'contact.tester@example.com')
         mock_send_mail.assert_called_once()
 
-    @patch('core.views.send_mail')
+    @patch('core.views.package_views.send_mail')
     def test_contact_submit_skips_email_when_no_recipient_configured(self, mock_send_mail):
         with self.settings(CONTACT_RECEIVER_EMAIL='', CONTACT_RECEIVER_EMAILS=[], EMAIL_HOST_USER=''):
             response = self.client.post(
@@ -350,7 +350,7 @@ class BookingStripeFlowTests(TestCase):
         self.package.save(update_fields=['available_slots'])
         return booking
 
-    @patch('core.views.create_checkout_session')
+    @patch('core.views.booking_views.create_checkout_session')
     def test_package_book_redirects_to_stripe_checkout(self, mock_create_checkout_session):
         mock_create_checkout_session.return_value = {
             'id': 'cs_test_123',
@@ -382,7 +382,7 @@ class BookingStripeFlowTests(TestCase):
         self.assertEqual(booking.stripe_checkout_session_id, 'cs_test_123')
         self.assertEqual(self.package.available_slots, 3)
 
-    @patch('core.views.create_checkout_session', side_effect=StripeError('Stripe unavailable.'))
+    @patch('core.views.booking_views.create_checkout_session', side_effect=StripeError('Stripe unavailable.'))
     def test_package_book_restores_slots_when_checkout_creation_fails(self, _mock_create_checkout_session):
         self.client.force_login(self.traveler)
 
@@ -405,7 +405,7 @@ class BookingStripeFlowTests(TestCase):
         self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_FAILED)
         self.assertEqual(self.package.available_slots, 5)
 
-    @patch('core.views.retrieve_checkout_session')
+    @patch('core.views.booking_views.retrieve_checkout_session')
     def test_booking_confirmation_marks_booking_paid_after_verification(self, mock_retrieve_checkout_session):
         booking = self._create_pending_booking()
         mock_retrieve_checkout_session.return_value = {
@@ -430,7 +430,7 @@ class BookingStripeFlowTests(TestCase):
         self.assertEqual(booking.payment_reference, 'pi_test_123')
         self.assertIsNotNone(booking.paid_at)
 
-    @patch('core.views.expire_checkout_session')
+    @patch('core.views.booking_views.expire_checkout_session')
     def test_booking_checkout_cancel_releases_slots(self, mock_expire_checkout_session):
         booking = self._create_pending_booking()
         self.client.force_login(self.traveler)
@@ -544,7 +544,7 @@ class BookingStripeFlowTests(TestCase):
         self.assertContains(response, 'Pay via Stripe')
         self.assertContains(response, 'Pay via eSewa')
 
-    @patch('core.views.create_checkout_session')
+    @patch('core.views.payment_views.create_checkout_session')
     def test_booking_stripe_checkout_redirects_to_gateway(self, mock_create_checkout_session):
         booking = self._create_pending_booking()
         booking.payment_status = Booking.PAYMENT_STATUS_FAILED
@@ -570,7 +570,7 @@ class BookingStripeFlowTests(TestCase):
         self.assertEqual(booking.stripe_checkout_session_id, 'cs_test_retry_456')
         self.assertEqual(booking.payment_reference, 'pi_test_retry_456')
 
-    @patch('core.views.create_checkout_session')
+    @patch('core.views.payment_views.create_checkout_session')
     def test_booking_stripe_checkout_refreshes_expired_payment_window(self, mock_create_checkout_session):
         booking = self._create_pending_booking()
         booking.payment_expires_at = timezone.now() - timedelta(minutes=5)
@@ -598,7 +598,7 @@ class BookingStripeFlowTests(TestCase):
         self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_PENDING)
         self.assertGreater(booking.payment_expires_at, timezone.now())
 
-    @patch('core.views.create_checkout_session')
+    @patch('core.views.payment_views.create_checkout_session')
     def test_booking_stripe_checkout_switches_method_from_esewa(self, mock_create_checkout_session):
         booking = self._create_pending_esewa_booking()
         mock_create_checkout_session.return_value = {
@@ -655,7 +655,7 @@ class BookingStripeFlowTests(TestCase):
         self.assertEqual(booking.id, failed_booking.id)
         self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_PENDING)
 
-    @patch('core.views.verify_esewa_payment', return_value=True)
+    @patch('core.views.payment_views.verify_esewa_payment', return_value=True)
     def test_esewa_success_marks_booking_completed_after_verification(self, _mock_verify):
         booking = self._create_pending_esewa_booking()
         self.client.force_login(self.traveler)
