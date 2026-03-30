@@ -36,6 +36,7 @@
         </div>
     </nav>
 
+    {% if messages %}
         <div class="alert-stack container-landing">
             {% for message in messages %}
                 <div class="alert alert-{{ message.tags }}">{{ message }}</div>

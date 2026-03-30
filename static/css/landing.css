@@ -1,5 +1,7 @@
 /* FILE: static/css/landing.css */
 
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
+
 :root {
     --ink: #0c1b2a;
     --muted: #55606d;
@@ -403,6 +405,16 @@ section {
     font-weight: 600;
     cursor: pointer;
     height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.btn-search-clear {
+    background: transparent;
+    border: 1px solid #d5dbe3;
+    color: var(--ink);
 }
 
 /* Section header */
@@ -930,6 +942,31 @@ section {
     color: #c9cdd3;
     text-decoration: none;
     font-size: 0.9rem;
+}
+
+.footer-social {
+    margin-top: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.social-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.social-icon.instagram {
+    color: #e1306c;
+    font-size: 20px;
+    transition: 0.3s;
+}
+
+.social-icon.instagram:hover {
+    color: #c13584;
+    transform: scale(1.2);
 }
 
 .footer-bottom {

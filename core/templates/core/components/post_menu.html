@@ -1,0 +1,16 @@
+<div class="post-menu" data-post-menu>
+    <button type="button" class="post-menu-trigger" aria-label="Post menu">⋮</button>
+    <div class="post-menu-panel">
+        {% if request.user.is_authenticated and request.user == post.user %}
+            <a href="{% url 'edit_post' post.id %}?next={{ request.path }}#post-{{ post.id }}">Edit Post</a>
+            <a href="{% url 'tag_vendor' post.id %}?next={{ request.path }}">Tag Vendor</a>
+            <form method="POST" action="{% url 'delete_post' post.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <button type="submit" class="post-menu-delete">Delete Post</button>
+            </form>
+        {% else %}
+            <a href="{% url 'view_profile' post.user.id %}">View Profile</a>
+        {% endif %}
+    </div>
+</div>

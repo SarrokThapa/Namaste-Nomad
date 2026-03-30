@@ -200,6 +200,14 @@ def community_post_delete(request, post_id):
 
 
 @login_required(login_url='account_login_choice')
+def community_post_tag_vendor(request, post_id):
+    post = get_object_or_404(Post, id=post_id, user=request.user)
+    next_url = request.GET.get('next') or reverse('community_feed')
+    edit_url = reverse('community_post_edit', kwargs={'post_id': post.id})
+    return redirect(f'{edit_url}?next={next_url}#tag-vendors')
+
+
+@login_required(login_url='account_login_choice')
 def community_comment_create(request, post_id):
     next_url = request.POST.get('next') or f"{reverse('community_feed')}#post-{post_id}"
     if request.method != 'POST':

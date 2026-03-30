@@ -18,6 +18,8 @@ from .views.auth_views import (
     account_register_choice,
     admin_login,
     logout_view,
+    oauth_post_login_redirect,
+    oauth_role_selection,
     resend_otp,
     traveler_login,
     traveler_register,
@@ -137,6 +139,8 @@ urlpatterns = [
 
     path('verify-otp/', verify_otp_view, name='verify_otp'),
     path('resend-otp/', resend_otp, name='resend_otp'),
+    path('oauth/post-login/', oauth_post_login_redirect, name='oauth_post_login_redirect'),
+    path('oauth/role-selection/', oauth_role_selection, name='oauth_role_selection'),
     
     path('logout/', logout_view, name='logout'),
 ]

@@ -2,6 +2,7 @@
 
 from ..utils.helpers import *
 from ..utils.validators import *
+from ..services.search_service import filter_packages
 from .payment_views import *
 
 
@@ -190,10 +191,10 @@ def package_details_api(request, package_id):
 def packages_search_api(request):
     packages = _public_package_queryset()
     wishlist_ids = _wishlist_ids_for_user(request.user)
-    filtered_packages, filters = _apply_package_filters(
-        request,
+    filtered_packages, filters = filter_packages(
         packages,
-        budget_threshold=_budget_threshold(packages),
+        request.GET,
+        budget_cutoff=_budget_threshold(packages),
     )
     packages_list = list(filtered_packages)
     html = render_to_string(

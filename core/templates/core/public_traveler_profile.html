@@ -50,11 +50,6 @@
                 <p class="profile-bio">{{ traveler_profile.bio|default:"This traveler has not added a bio yet." }}</p>
                 <p class="profile-joined">Joined {{ traveler.date_joined|date:"F Y" }}</p>
             </div>
-            {% if not is_own_profile %}
-                <div class="profile-cta-wrap">
-                    <button type="button" class="btn-follow" disabled title="Follow feature is coming soon">Follow</button>
-                </div>
-            {% endif %}
         </section>
 
         <section class="stats-row">

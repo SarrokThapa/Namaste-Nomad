@@ -6,6 +6,15 @@
     align-items: end;
 }
 
+.packages-search-bar .btn-search {
+    width: 100%;
+}
+
+.packages-search-bar .btn-search-clear {
+    grid-column: -2 / -1;
+    grid-row: 2;
+}
+
 .packages-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -142,6 +151,10 @@
 @media (max-width: 1100px) {
     .packages-search-bar {
         grid-template-columns: repeat(2, minmax(150px, 1fr));
+    }
+
+    .packages-search-bar .btn-search-clear {
+        grid-column: 2;
     }
 
     .packages-layout {

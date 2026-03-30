@@ -211,6 +211,26 @@
     color: #475569;
 }
 
+.contact-social h4 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.instagram-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: #334155;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.instagram-link:hover {
+    color: #e1306c;
+}
+
 .map-section,
 .faq-section {
     margin-top: 1.4rem;

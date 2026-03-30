@@ -1,6 +1,7 @@
 """Authentication and account entry views."""
 
 from .common import *
+from ..services import oauth_service
 
 @never_cache
 @csrf_protect
@@ -300,6 +301,7 @@ def landing(request):
 def account_register_choice(request):
     if request.user.is_authenticated:
         return redirect(_dashboard_route_name(request.user))
+    oauth_service.tag_google_oauth_start(request, intent='register')
     return render(request, 'accounts/register_choice.html')
 
 
@@ -307,4 +309,58 @@ def account_register_choice(request):
 def account_login_choice(request):
     if request.user.is_authenticated:
         return redirect(_dashboard_route_name(request.user))
+    oauth_service.tag_google_oauth_start(request, intent='login')
     return render(request, 'accounts/login_choice.html')
+
+
+@never_cache
+def oauth_post_login_redirect(request):
+    if not request.user.is_authenticated:
+        return redirect('account_login_choice')
+
+    if getattr(request.user, 'user_type', '') == 'admin':
+        oauth_service.clear_oauth_session_markers(request)
+        logout(request)
+        messages.error(request, 'Google OAuth is available only for traveler and vendor accounts.')
+        return redirect('account_login_choice')
+
+    is_new_user = oauth_service.pop_oauth_new_user_flag(request)
+    if is_new_user or oauth_service.user_needs_role_selection(request.user):
+        return redirect('oauth_role_selection')
+
+    oauth_service.clear_oauth_session_markers(request)
+    return redirect(oauth_service.dashboard_route_name_for_user(request.user))
+
+
+@never_cache
+@login_required(login_url='account_login_choice')
+@csrf_protect
+def oauth_role_selection(request):
+    if getattr(request.user, 'user_type', '') == 'admin':
+        messages.error(request, 'Admin accounts are not supported in Google OAuth flow.')
+        return redirect('account_login_choice')
+
+    if request.method == 'POST':
+        role = request.POST.get('role')
+        try:
+            oauth_service.assign_user_role(request.user, role)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return render(
+                request,
+                'accounts/oauth_role_selection.html',
+                oauth_service.role_selection_page_context(request),
+            )
+
+        oauth_service.clear_oauth_session_markers(request)
+        messages.success(request, 'Account setup complete.')
+        return redirect(oauth_service.dashboard_route_name_for_user(request.user))
+
+    if not oauth_service.user_needs_role_selection(request.user):
+        return redirect(oauth_service.dashboard_route_name_for_user(request.user))
+
+    return render(
+        request,
+        'accounts/oauth_role_selection.html',
+        oauth_service.role_selection_page_context(request),
+    )
