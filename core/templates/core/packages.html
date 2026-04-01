@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="{% static 'css/wishlist.css' %}?v=20260315a">
     <link rel="stylesheet" href="{% static 'css/destination_autocomplete.css' %}?v=20260314a">
     <link rel="stylesheet" href="{% static 'css/package_filters.css' %}?v=20260314a">
+    <link rel="stylesheet" href="{% static 'css/layout.css' %}?v=20260401a">
 </head>
 <body class="packages-body">
     <nav class="landing-nav">
@@ -41,7 +42,7 @@
         <div class="packages-hero-content">
             <h1>{{ page_title|default:"Nepal Treks & Tours" }}</h1>
             <p>{{ page_subtitle|default:"Explore the Himalayas with trusted local operators." }}</p>
-            <form id="packageSearchForm" class="packages-search-bar" method="get" action="{{ request.path }}">
+            <form id="packageSearchForm" class="packages-search-bar search-bar" method="get" action="{{ request.path }}">
                 {% if package_type_slug %}
                     <input type="hidden" name="package_type" value="{{ package_type_slug }}">
                 {% endif %}

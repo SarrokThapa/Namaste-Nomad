@@ -8,12 +8,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/layout.css' %}?v=20260401c">
     <link rel="stylesheet" href="{% static 'css/vendor_dashboard.css' %}?v=20260226b">
     <link rel="stylesheet" href="{% static 'css/support_widget.css' %}?v=20260312a">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="vendor-dashboard">
     <header class="topbar">
         <a class="brand" href="{% url 'home' %}">
             <span class="brand-mark"></span>
@@ -150,7 +151,7 @@
             </nav>
         </aside>
 
-        <main class="dashboard-main">
+        <main class="dashboard-main main-content">
             {% if messages %}
                 <div class="alert-stack">
                     {% for message in messages %}

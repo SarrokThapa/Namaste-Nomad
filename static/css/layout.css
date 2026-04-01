@@ -1,0 +1,77 @@
+:root {
+    --sidebar-width: 250px;
+    --layout-top-offset: 78px;
+}
+
+.dashboard-shell,
+.traveler-shell,
+.admin-shell {
+    display: block !important;
+    padding-top: var(--layout-top-offset);
+}
+
+.vendor-dashboard .topbar,
+.admin-dashboard .topbar,
+.traveler-dashboard .traveler-topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1200;
+}
+
+.dashboard-shell > .sidebar,
+.traveler-shell > .sidebar,
+.admin-shell > .sidebar {
+    position: fixed;
+    top: var(--layout-top-offset);
+    left: 0;
+    height: calc(100vh - var(--layout-top-offset));
+    width: var(--sidebar-width);
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.dashboard-shell > .main-content,
+.traveler-shell > .main-content,
+.admin-shell > .main-content {
+    margin-left: var(--sidebar-width);
+    padding: 20px;
+}
+
+.main-content .search-bar,
+.search-bar {
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    background: #fff;
+}
+
+@media (max-width: 768px) {
+    .dashboard-shell,
+    .traveler-shell,
+    .admin-shell {
+        padding-top: 0;
+    }
+
+    .vendor-dashboard .topbar,
+    .admin-dashboard .topbar,
+    .traveler-dashboard .traveler-topbar {
+        position: relative;
+    }
+
+    .dashboard-shell > .sidebar,
+    .traveler-shell > .sidebar,
+    .admin-shell > .sidebar {
+        position: relative;
+        width: 100%;
+        height: auto;
+        top: 0;
+    }
+
+    .dashboard-shell > .main-content,
+    .traveler-shell > .main-content,
+    .admin-shell > .main-content {
+        margin-left: 0;
+    }
+}

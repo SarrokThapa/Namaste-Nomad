@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/vendor_dashboard.css' %}?v=20260226b">
     <link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}?v=20260226b">
+    <link rel="stylesheet" href="{% static 'css/layout.css' %}?v=20260401c">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     <link rel="stylesheet" href="{% static 'css/notifications_page.css' %}?v=20260313a">
 </head>
@@ -79,7 +80,7 @@
             </nav>
         </aside>
 
-        <main class="dashboard-main admin-main">
+        <main class="dashboard-main admin-main main-content">
             {% include "accounts/includes/notifications_list.html" %}
         </main>
     </div>

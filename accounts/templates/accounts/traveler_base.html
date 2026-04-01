@@ -8,13 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/layout.css' %}?v=20260401c">
     <link rel="stylesheet" href="{% static 'css/traveler_profile.css' %}?v=20260227a">
     <link rel="stylesheet" href="{% static 'css/support_widget.css' %}?v=20260312a">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     <link rel="stylesheet" href="{% static 'css/wishlist.css' %}?v=20260315a">
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="traveler-dashboard">
     <header class="traveler-topbar">
         <a class="brand" href="{% url 'home' %}">
             <span class="brand-mark"></span>
@@ -55,7 +56,7 @@
     </header>
 
     <div class="traveler-shell">
-        <aside class="traveler-sidebar">
+        <aside class="traveler-sidebar sidebar">
             <nav class="sidebar-nav">
                 <a class="nav-item {% if active_page == 'explore' %}active{% endif %}" href="{% url 'traveler_home' %}">
                     <span class="nav-icon">
@@ -142,7 +143,7 @@
             </nav>
         </aside>
 
-        <main class="traveler-main">
+        <main class="traveler-main main-content">
             {% if messages %}
                 <div class="alert-stack">
                     {% for message in messages %}
