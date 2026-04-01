@@ -8,7 +8,7 @@
     <title>Namaste Nomad - Nepal Treks & Tours</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="{% static 'css/landing.css' %}">
-    <link rel="stylesheet" href="{% static 'css/home.css' %}">
+    <link rel="stylesheet" href="{% static 'css/home.css' %}?v=20260401b">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     <link rel="stylesheet" href="{% static 'css/wishlist.css' %}?v=20260315a">
     <link rel="stylesheet" href="{% static 'css/destination_autocomplete.css' %}?v=20260314a">
@@ -100,48 +100,60 @@
          ====================================================== -->
     <section class="travel-moments">
         <div class="container-landing">
-            <div class="section-header">
+            <div class="moments-header">
                 <div>
                     <h2 class="section-title">Travel Moments from Our Community</h2>
                     <p class="section-subtitle">Real stories from real adventurers exploring Nepal</p>
                 </div>
-                <a class="link-arrow" href="{% url 'community_feed' %}">View All</a>
+                <div class="moments-nav">
+                    <button class="moments-nav-btn" id="momentsPrev" aria-label="Previous"><i class="fas fa-chevron-left"></i></button>
+                    <button class="moments-nav-btn" id="momentsNext" aria-label="Next"><i class="fas fa-chevron-right"></i></button>
+                    <a class="moments-see-more" href="{% url 'community_feed' %}">See More</a>
+                </div>
             </div>
 
             {% if travel_moments %}
-                <div class="moments-scroll">
+                <div class="moments-scroll" id="momentsScroll">
                     {% for post in travel_moments %}
                         <a class="moment-card" href="{% url 'community_feed' %}">
-                            <div class="moment-image">
-                                {% if post.image %}
-                                    <img src="{{ post.image.url }}" alt="Travel moment by {{ post.user.username }}">
-                                {% else %}
-                                    {% with first_media=post.media.all|first %}
-                                        {% if first_media %}
-                                            <img src="{{ first_media.media_file.url }}" alt="Travel moment by {{ post.user.username }}">
+                            {# ---- media (image or video, natural aspect ratio) ---- #}
+                            {% if post.image %}
+                                <img class="moment-media-img" src="{{ post.image.url }}" alt="Travel moment by {{ post.user.username }}">
+                            {% else %}
+                                {% with first_media=post.media.all|first %}
+                                    {% if first_media %}
+                                        {% if first_media.media_type == 'video' %}
+                                            <video class="moment-media-img" src="{{ first_media.media_file.url }}"
+                                                   preload="metadata" muted playsinline></video>
+                                            <div class="moment-play-btn"><i class="fas fa-play"></i></div>
                                         {% else %}
-                                            <div class="moment-no-image">
-                                                <i class="fas fa-mountain"></i>
-                                            </div>
+                                            <img class="moment-media-img" src="{{ first_media.media_file.url }}" alt="Travel moment by {{ post.user.username }}">
                                         {% endif %}
-                                    {% endwith %}
-                                {% endif %}
-                            </div>
-                            <div class="moment-info">
-                                <div class="moment-user">
-                                    {% if post.user.traveler_profile.avatar %}
-                                        <img src="{{ post.user.traveler_profile.avatar.url }}" alt="{{ post.user.username }}">
-                                    {% elif post.user.vendor_profile.logo %}
-                                        <img src="{{ post.user.vendor_profile.logo.url }}" alt="{{ post.user.username }}">
                                     {% else %}
-                                        <img src="{% static 'images/default-avatar.svg' %}" alt="{{ post.user.username }}">
+                                        <div class="moment-media-placeholder">
+                                            <i class="fas fa-mountain"></i>
+                                        </div>
                                     {% endif %}
-                                    <span>{{ post.user.get_full_name|default:post.user.username }}</span>
+                                {% endwith %}
+                            {% endif %}
+
+                            {# ---- gradient overlay ---- #}
+                            <div class="moment-overlay">
+                                <div class="moment-overlay-top">
+                                    <div class="moment-user">
+                                        {% if post.user.traveler_profile.avatar %}
+                                            <img src="{{ post.user.traveler_profile.avatar.url }}" alt="{{ post.user.username }}">
+                                        {% elif post.user.vendor_profile.logo %}
+                                            <img src="{{ post.user.vendor_profile.logo.url }}" alt="{{ post.user.username }}">
+                                        {% else %}
+                                            <div class="moment-avatar-init">{{ post.user.username|first|upper }}</div>
+                                        {% endif %}
+                                        <span>{{ post.user.get_full_name|default:post.user.username }}</span>
+                                    </div>
                                 </div>
-                                <p class="moment-caption">{{ post.caption|truncatewords:12 }}</p>
-                                <div class="moment-stats">
-                                    <span><i class="fas fa-heart"></i> {{ post.likes_count }}</span>
-                                    <span><i class="fas fa-comment"></i> {{ post.comments_count }}</span>
+                                <div class="moment-overlay-bottom">
+                                    <p class="moment-caption">{{ post.caption|truncatewords:10 }}</p>
+                                    <span class="moment-arrow"><i class="fas fa-arrow-right"></i></span>
                                 </div>
                             </div>
                         </a>
@@ -155,6 +167,19 @@
             {% endif %}
         </div>
     </section>
+
+    <script>
+    (function () {
+        var scroll = document.getElementById('momentsScroll');
+        if (!scroll) return;
+        document.getElementById('momentsPrev').addEventListener('click', function () {
+            scroll.scrollBy({ left: -440, behavior: 'smooth' });
+        });
+        document.getElementById('momentsNext').addEventListener('click', function () {
+            scroll.scrollBy({ left: 440, behavior: 'smooth' });
+        });
+    })();
+    </script>
 
     <!-- ======================================================
          SECTION 2: BOOK THE BEST TREKS & TOURS
