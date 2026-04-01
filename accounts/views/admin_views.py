@@ -1,6 +1,7 @@
 """Admin views and analytics endpoints."""
 
 from .common import *
+from ..services import email_service
 
 @admin_required
 def admin_support_inbox(request):
@@ -437,6 +438,7 @@ def admin_vendor_action(request, vendor_id):
             Notification.TYPE_VENDOR_APPROVAL,
             related_object_id=vendor.id,
         )
+        email_service.send_vendor_approved(vendor)
         messages.success(request, f'{vendor.email} approved.')
     elif action == 'reject':
         profile.is_approved = False
@@ -447,6 +449,7 @@ def admin_vendor_action(request, vendor_id):
             Notification.TYPE_VENDOR_APPROVAL,
             related_object_id=vendor.id,
         )
+        email_service.send_vendor_rejected(vendor)
         messages.success(request, f'{vendor.email} rejected.')
     elif action == 'suspend':
         vendor.is_active = False

@@ -1,0 +1,49 @@
+{% extends 'emails/base_email.html' %}
+
+{% block title %}Account Approved - Namaste Nomad{% endblock %}
+
+{% block content %}
+<div style="text-align: center; margin-bottom: 24px;">
+    <div style="display: inline-block; background-color: #D1FAE5; border-radius: 50%; width: 64px; height: 64px; line-height: 64px;">
+        <span style="font-size: 32px; color: #10B981;">&#10003;</span>
+    </div>
+</div>
+
+<h2 style="margin: 0 0 16px; color: #1F2937; font-size: 22px; text-align: center;">Congratulations! Your Account is Approved!</h2>
+
+<p style="margin: 0 0 20px; color: #4B5563; font-size: 15px; line-height: 1.6;">
+    Dear {{ user.get_full_name|default:user.username }},
+</p>
+
+<p style="margin: 0 0 20px; color: #4B5563; font-size: 15px; line-height: 1.6;">
+    Great news! Your vendor account on <strong>Namaste Nomad</strong> has been reviewed and <strong style="color: #10B981;">approved</strong>. You can now log in and start listing your travel packages.
+</p>
+
+<h3 style="margin: 0 0 12px; color: #1F2937; font-size: 17px;">Get started:</h3>
+
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 24px; width: 100%;">
+    <tr>
+        <td style="padding: 10px 0; color: #4B5563; font-size: 14px; border-bottom: 1px solid #F3F4F6;">
+            <strong style="color: #F97316;">Complete Your Profile</strong> &mdash; Add your business logo, description, and contact information.
+        </td>
+    </tr>
+    <tr>
+        <td style="padding: 10px 0; color: #4B5563; font-size: 14px; border-bottom: 1px solid #F3F4F6;">
+            <strong style="color: #F97316;">Create Packages</strong> &mdash; List your treks, tours, and experiences for travelers to discover.
+        </td>
+    </tr>
+    <tr>
+        <td style="padding: 10px 0; color: #4B5563; font-size: 14px;">
+            <strong style="color: #F97316;">Manage Bookings</strong> &mdash; Track and manage traveler bookings from your vendor dashboard.
+        </td>
+    </tr>
+</table>
+
+<div style="text-align: center; margin: 30px 0 10px;">
+    <a href="{{ site_url }}/accounts/vendor/login/" style="display: inline-block; background-color: #F97316; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 15px; font-weight: 600;">Login to Dashboard</a>
+</div>
+
+<p style="margin: 20px 0 0; color: #9CA3AF; font-size: 13px; text-align: center;">
+    Welcome aboard! We look forward to growing together.
+</p>
+{% endblock %}

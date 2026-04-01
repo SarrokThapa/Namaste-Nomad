@@ -1,0 +1,37 @@
+{% extends 'emails/base_email.html' %}
+
+{% block title %}Vendor Application Update - Namaste Nomad{% endblock %}
+
+{% block content %}
+<h2 style="margin: 0 0 16px; color: #1F2937; font-size: 22px;">Vendor Application Update</h2>
+
+<p style="margin: 0 0 20px; color: #4B5563; font-size: 15px; line-height: 1.6;">
+    Dear {{ user.get_full_name|default:user.username }},
+</p>
+
+<p style="margin: 0 0 20px; color: #4B5563; font-size: 15px; line-height: 1.6;">
+    Thank you for your interest in becoming a vendor on <strong>Namaste Nomad</strong>. After reviewing your application, we regret to inform you that we are unable to approve your vendor account at this time.
+</p>
+
+<div style="background-color: #FEF2F2; border-left: 4px solid #EF4444; padding: 16px 20px; border-radius: 0 8px 8px 0; margin: 0 0 24px;">
+    <p style="margin: 0; color: #991B1B; font-size: 14px; line-height: 1.6;">
+        This may be due to incomplete documentation, unverifiable business information, or other factors identified during our review process.
+    </p>
+</div>
+
+<h3 style="margin: 0 0 12px; color: #1F2937; font-size: 17px;">What can you do?</h3>
+
+<ul style="margin: 0 0 24px; padding: 0 0 0 20px; color: #4B5563; font-size: 14px; line-height: 1.8;">
+    <li>Review and ensure your business documents are valid and up-to-date.</li>
+    <li>Contact our support team for more details about the decision.</li>
+    <li>You are welcome to re-apply once the issues are addressed.</li>
+</ul>
+
+<p style="margin: 0 0 20px; color: #4B5563; font-size: 15px; line-height: 1.6;">
+    We appreciate your understanding and hope to work with you in the future.
+</p>
+
+<p style="margin: 0; color: #9CA3AF; font-size: 13px;">
+    Contact us at <a href="mailto:support@namastenomad.com" style="color: #F97316;">support@namastenomad.com</a> for any questions.
+</p>
+{% endblock %}

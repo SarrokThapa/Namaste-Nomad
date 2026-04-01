@@ -34,12 +34,6 @@
                 {% endfor %}
             {% endif %}
 
-            <div class="social-buttons">
-                {% include 'accounts/includes/google_oauth_button.html' %}
-            </div>
-
-            <div class="divider">OR</div>
-
             <form method="POST" action="{% url 'vendor_login' %}">
                 {% csrf_token %}
                 {% if request.GET.next or request.POST.next %}

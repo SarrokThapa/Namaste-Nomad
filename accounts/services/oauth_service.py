@@ -1,6 +1,7 @@
 from django.urls import reverse
 
 from accounts.models import TravelerProfile, VendorProfile
+from accounts.services import email_service
 
 GOOGLE_BACKEND_NAME = 'google-oauth2'
 SESSION_OAUTH_IS_NEW = 'oauth_is_new_user'
@@ -43,11 +44,16 @@ def social_auth_user_setup(strategy, details, backend, user=None, is_new=False, 
 
     # New social accounts start without a role and pick one in the next step.
     if is_new and user.user_type not in {'traveler', 'vendor', 'admin'}:
-        user.user_type = ''
+        user.user_type = 'traveler'
         changed_fields.append('user_type')
 
     if changed_fields:
         user.save(update_fields=list(dict.fromkeys(changed_fields)))
+
+    # Auto-create traveler profile and send welcome email for new Google users
+    if is_new and user.user_type == 'traveler':
+        TravelerProfile.objects.get_or_create(user=user)
+        email_service.send_traveler_welcome(user)
 
     strategy.session_set(SESSION_OAUTH_IS_NEW, bool(is_new))
     strategy.session_set(SESSION_OAUTH_BACKEND, backend.name)
@@ -73,8 +79,8 @@ def user_needs_role_selection(user):
 
 def assign_user_role(user, role):
     role = (role or '').strip().lower()
-    if role not in {'traveler', 'vendor'}:
-        raise ValueError('Invalid role selected.')
+    if role != 'traveler':
+        raise ValueError('Google OAuth is only available for traveler accounts.')
 
     if getattr(user, 'user_type', '') == 'admin':
         raise ValueError('Admin accounts cannot use Google OAuth role selection.')
@@ -95,15 +101,7 @@ def assign_user_role(user, role):
     if updates:
         user.save(update_fields=updates)
 
-    if role == 'traveler':
-        TravelerProfile.objects.get_or_create(user=user)
-    elif role == 'vendor':
-        defaults = {
-            'business_name': (user.get_full_name() or user.username or 'Vendor').strip(),
-            'owner_name': (user.get_full_name() or user.username or 'Vendor').strip(),
-            'is_approved': False,
-        }
-        VendorProfile.objects.get_or_create(user=user, defaults=defaults)
+    TravelerProfile.objects.get_or_create(user=user)
 
 
 def dashboard_route_name_for_user(user):

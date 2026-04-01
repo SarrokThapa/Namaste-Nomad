@@ -1,0 +1,17 @@
+{% extends 'emails/base_email.html' %}
+
+{% block title %}Verification Code - Namaste Nomad{% endblock %}
+
+{% block content %}
+<div style="text-align: center;">
+    <h2 style="margin: 0 0 8px; color: #1F2937; font-size: 22px;">Verify Your Email</h2>
+    <p style="margin: 0 0 30px; color: #6B7280; font-size: 15px;">Use the code below to complete your registration.</p>
+
+    <div style="background-color: #FFF7ED; border: 2px dashed #F97316; border-radius: 8px; padding: 20px; margin: 0 auto 30px; max-width: 280px;">
+        <span style="font-size: 36px; font-weight: 700; color: #F97316; letter-spacing: 8px;">{{ otp_code }}</span>
+    </div>
+
+    <p style="margin: 0 0 8px; color: #6B7280; font-size: 14px;">This code expires in <strong>{{ expiry_minutes }} minutes</strong>.</p>
+    <p style="margin: 0; color: #9CA3AF; font-size: 13px;">If you didn't request this code, please ignore this email.</p>
+</div>
+{% endblock %}
