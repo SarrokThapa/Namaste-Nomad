@@ -53,3 +53,724 @@
         padding: 3rem 1.5rem 4rem;
     }
 }
+
+/* =====================================================
+   SECTION 1: TRAVEL MOMENTS
+   ===================================================== */
+
+.travel-moments {
+    background: var(--light);
+}
+
+.moments-scroll {
+    display: flex;
+    gap: 1.2rem;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+
+.moments-scroll::-webkit-scrollbar {
+    height: 4px;
+}
+
+.moments-scroll::-webkit-scrollbar-track {
+    background: #e5e7eb;
+    border-radius: 2px;
+}
+
+.moments-scroll::-webkit-scrollbar-thumb {
+    background: var(--accent-2);
+    border-radius: 2px;
+}
+
+.moment-card {
+    flex: 0 0 220px;
+    background: var(--panel);
+    border: 1px solid #d5d5d5;
+    border-radius: 0.6rem;
+    overflow: hidden;
+    text-decoration: none;
+    color: var(--ink);
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.moment-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 28px rgba(12, 27, 42, 0.1);
+}
+
+.moment-image {
+    height: 160px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #dbe6f3 0%, #cfd8e3 100%);
+    flex-shrink: 0;
+}
+
+.moment-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.moment-no-image {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    font-size: 2rem;
+}
+
+.moment-info {
+    padding: 0.75rem 0.85rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    flex: 1;
+}
+
+.moment-user {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.moment-user img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid #dbe3ed;
+    flex-shrink: 0;
+}
+
+.moment-user span {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.moment-caption {
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.4;
+}
+
+.moment-stats {
+    display: flex;
+    gap: 0.8rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: auto;
+}
+
+.moment-stats i {
+    color: var(--accent);
+    margin-right: 0.2rem;
+}
+
+.moment-stats i.fa-comment {
+    color: var(--accent-2);
+}
+
+.moments-empty {
+    font-size: 0.95rem;
+    color: var(--muted);
+    padding: 2rem 0;
+}
+
+.moments-empty a {
+    color: var(--accent-2);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.moments-empty a:hover {
+    text-decoration: underline;
+}
+
+/* =====================================================
+   SECTION 2: BOOK THE BEST TREKS & TOURS
+   ===================================================== */
+
+.book-categories {
+    background: #f7f4ef;
+}
+
+.book-cats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.book-cat-card {
+    position: relative;
+    border-radius: 0.6rem;
+    overflow: hidden;
+    min-height: 280px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    text-decoration: none;
+    color: #fff;
+    background-size: cover;
+    background-position: center;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.book-cat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(12, 27, 42, 0.22);
+}
+
+.book-cat-treks {
+    background-image: url("../images/featured/everest-base-camp.jpg");
+}
+
+.book-cat-tours {
+    background-image: url("../images/featured/swayambhu-valley.jpg");
+}
+
+.book-cat-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(11, 19, 32, 0.82) 0%, rgba(11, 19, 32, 0.18) 60%, transparent 100%);
+    z-index: 1;
+}
+
+.book-cat-body {
+    position: relative;
+    z-index: 2;
+    padding: 1.4rem 1.5rem 1.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.book-cat-tag {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.2rem;
+    align-self: flex-start;
+}
+
+.book-cat-body h3 {
+    font-size: 1.45rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.book-cat-body p {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.5;
+    max-width: 320px;
+}
+
+.btn-book-cat {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.4rem;
+    background: var(--accent-2);
+    color: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    align-self: flex-start;
+    transition: background 0.2s;
+}
+
+.book-cat-card:hover .btn-book-cat {
+    background: #229e93;
+}
+
+/* =====================================================
+   SECTION 3: POPULAR DESTINATIONS
+   ===================================================== */
+
+.popular-destinations {
+    background: var(--light);
+}
+
+.dest-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.2rem;
+}
+
+.dest-card {
+    background: var(--panel);
+    border: 1px solid #d5d5d5;
+    border-radius: 0.6rem;
+    overflow: hidden;
+    text-decoration: none;
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dest-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 32px rgba(12, 27, 42, 0.12);
+}
+
+.dest-image {
+    height: 120px;
+    background-size: cover;
+    background-position: center;
+    background-color: #dbe6f3;
+}
+
+/* Destination background images */
+.dest-everest   { background-image: url("../images/featured/everest-base-camp.jpg"); }
+.dest-annapurna { background-image: url("../images/featured/annapurna-circuit.jpg"); }
+.dest-langtang  { background-image: url("../images/hero/slide03.jpg"); }
+.dest-kathmandu { background-image: url("../images/featured/swayambhu-valley.jpg"); }
+.dest-pokhara   { background-image: url("../images/hero/slide05.jpg"); }
+.dest-chitwan   { background-image: url("../images/hero/slide07.jpg"); }
+.dest-mustang   { background-image: url("../images/hero/slide09.jpg"); }
+.dest-manaslu   { background-image: url("../images/featured/manaslu-circuit.jpg"); }
+
+.dest-body {
+    padding: 0.75rem 0.85rem 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.dest-body h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.dest-count {
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+
+.dest-count i {
+    margin-right: 0.2rem;
+    color: var(--accent-2);
+}
+
+.dest-price {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+/* =====================================================
+   SECTION 4: SPECIAL OFFERS
+   ===================================================== */
+
+.home-offers {
+    background: #f7f4ef;
+}
+
+.offers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.4rem;
+}
+
+.offer-card {
+    background: var(--panel);
+    border: 1px solid #d5d5d5;
+    border-radius: 0.6rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 1px 0 rgba(16, 24, 40, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.offer-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 28px rgba(12, 27, 42, 0.1);
+}
+
+.offer-badge {
+    padding: 0.55rem 1rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #fff;
+}
+
+.offer-badge--green  { background: #16a34a; }
+.offer-badge--orange { background: var(--accent); }
+.offer-badge--teal   { background: var(--accent-2); }
+.offer-badge--blue   { background: #1d4ed8; }
+.offer-badge--purple { background: var(--accent-4); }
+
+.offer-body {
+    padding: 1rem 1.05rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.offer-body h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.offer-summary {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.offer-detail {
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.offer-footer {
+    margin-top: auto;
+    padding-top: 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    border-top: 1px solid #f0f0f0;
+}
+
+.offer-validity {
+    font-size: 0.75rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.btn-offer {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 0.25rem;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+
+.btn-offer:hover {
+    background: #e5573e;
+}
+
+/* =====================================================
+   SECTION 5: TRAVEL TIPS
+   ===================================================== */
+
+.home-tips {
+    background: #f8fafc;
+}
+
+.tips-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.4rem;
+}
+
+.tip-card {
+    background: var(--panel);
+    border: 1px solid #d6e0ea;
+    border-radius: 0.6rem;
+    padding: 1.2rem 1.1rem;
+    display: flex;
+    gap: 0.9rem;
+    align-items: flex-start;
+    box-shadow: 0 1px 0 rgba(16, 24, 40, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tip-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 28px rgba(12, 27, 42, 0.1);
+}
+
+.tip-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-2);
+    color: #fff;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.tip-icon--yellow { background: var(--accent-3); }
+.tip-icon--green  { background: #16a34a; }
+.tip-icon--red    { background: #dc2626; }
+.tip-icon--blue   { background: #1d4ed8; }
+.tip-icon--teal   { background: var(--accent-2); }
+.tip-icon--orange { background: var(--accent); }
+
+.tip-body h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+    line-height: 1.2;
+}
+
+.tip-body p {
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.tip-detail {
+    margin-top: 0.3rem;
+    font-size: 0.78rem !important;
+    color: #8a95a0 !important;
+}
+
+/* =====================================================
+   SECTION 6: TRUST BANNER
+   ===================================================== */
+
+.trust-banner {
+    background: linear-gradient(135deg, #13283b 0%, #0f2133 100%);
+    padding: 2.5rem 0;
+}
+
+.trust-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    text-align: center;
+}
+
+.trust-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.trust-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    color: var(--accent-2);
+}
+
+.trust-item h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.trust-item p {
+    font-size: 0.8rem;
+    color: #a0aab5;
+    line-height: 1.4;
+}
+
+/* =====================================================
+   SECTION 7: SEASONAL GUIDE
+   ===================================================== */
+
+.seasonal-guide {
+    background: var(--light);
+}
+
+.season-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.2rem;
+}
+
+.season-card {
+    background: var(--panel);
+    border: 1px solid #d5d5d5;
+    border-radius: 0.6rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 1px 0 rgba(16, 24, 40, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.season-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 32px rgba(12, 27, 42, 0.12);
+}
+
+.season-image {
+    height: 110px;
+    background-size: cover;
+    background-position: center;
+}
+
+.season-spring .season-image  { background-image: url("../images/featured/annapurna-circuit.jpg"); }
+.season-summer .season-image  { background-image: url("../images/hero/slide09.jpg"); }
+.season-autumn .season-image  { background-image: url("../images/featured/everest-base-camp.jpg"); }
+.season-winter .season-image  { background-image: url("../images/hero/slide07.jpg"); }
+
+.season-body {
+    padding: 0.9rem 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.season-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.2rem;
+    align-self: flex-start;
+    color: #fff;
+}
+
+.season-spring .season-badge  { background: #16a34a; }
+.season-summer .season-badge  { background: #2563eb; }
+.season-autumn .season-badge  { background: var(--accent); }
+.season-winter .season-badge  { background: #0ea5e9; }
+
+.season-body h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.season-desc {
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.season-dests {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.3rem;
+}
+
+.season-dest-tag {
+    background: #f0f4f8;
+    border: 1px solid #d6dbe1;
+    border-radius: 999px;
+    padding: 0.18rem 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.season-dest-tag a {
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.season-dest-tag a:hover {
+    color: var(--accent-2);
+}
+
+/* =====================================================
+   RESPONSIVE — NEW SECTIONS
+   ===================================================== */
+
+@media (max-width: 980px) {
+    .dest-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .season-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .trust-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .tips-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .book-cats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .book-cat-card {
+        min-height: 220px;
+    }
+
+    .dest-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dest-image {
+        height: 90px;
+    }
+
+    .season-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .trust-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.2rem;
+    }
+
+    .tips-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .offers-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .moment-card {
+        flex: 0 0 185px;
+    }
+
+    .moment-image {
+        height: 130px;
+    }
+}

@@ -8,6 +8,40 @@ from .payment_views import *
 
 
 
+_DESTINATIONS = [
+    {'name': 'Everest Region',    'key': 'everest',   'css': 'dest-everest',   'image': 'images/featured/everest-base-camp.jpg'},
+    {'name': 'Annapurna Region',  'key': 'annapurna', 'css': 'dest-annapurna', 'image': 'images/featured/annapurna-circuit.jpg'},
+    {'name': 'Langtang',          'key': 'langtang',  'css': 'dest-langtang',  'image': 'images/hero/slide03.jpg'},
+    {'name': 'Kathmandu Valley',  'key': 'kathmandu', 'css': 'dest-kathmandu', 'image': 'images/featured/swayambhu-valley.jpg'},
+    {'name': 'Pokhara',           'key': 'pokhara',   'css': 'dest-pokhara',   'image': 'images/hero/slide05.jpg'},
+    {'name': 'Chitwan',           'key': 'chitwan',   'css': 'dest-chitwan',   'image': 'images/hero/slide07.jpg'},
+    {'name': 'Upper Mustang',     'key': 'mustang',   'css': 'dest-mustang',   'image': 'images/hero/slide09.jpg'},
+    {'name': 'Manaslu',           'key': 'manaslu',   'css': 'dest-manaslu',   'image': 'images/featured/manaslu-circuit.jpg'},
+]
+
+
+def _build_destination_stats():
+    """Return destination cards with live package counts and min prices."""
+    packages = list(
+        Package.objects.filter(is_active=True).values('location', 'location_name', 'price')
+    )
+    stats = []
+    for dest in _DESTINATIONS:
+        key = dest['key']
+        matches = [
+            p for p in packages
+            if key in (p['location'] + ' ' + p['location_name']).lower()
+        ]
+        stats.append({
+            'name': dest['name'],
+            'css': dest['css'],
+            'image': dest['image'],
+            'count': len(matches),
+            'min_price': min((p['price'] for p in matches), default=None),
+        })
+    return stats
+
+
 def home(request):
     """Landing page"""
     VendorSubscription.expire_overdue()
@@ -44,28 +78,27 @@ def home(request):
         .order_by('-priority_subscription_end', '-priority_subscription_price', '-created_at', '-views_count', '-avg_rating')[:homepage_slot_capacity or 0]
     )
     featured_ids = list(featured_packages.values_list('id', flat=True))
-    popular_packages = (
-        Package.objects.filter(
-            is_active=True,
-            category=Package.CATEGORY_TREK,
-        )
-        .exclude(id__in=featured_ids)
-        .select_related('vendor', 'vendor__vendor_profile')
-        .prefetch_related('images')
+
+    travel_moments = (
+        Post.objects.select_related('user', 'user__traveler_profile', 'user__vendor_profile')
+        .prefetch_related('media')
         .annotate(
-            review_count=Count('reviews', distinct=True),
-            avg_rating=Avg('reviews__rating'),
+            likes_count=Count('likes', distinct=True),
+            comments_count=Count('comments', distinct=True),
         )
-        .order_by('-views_count', '-avg_rating', '-created_at')[:8]
+        .order_by('-created_at')[:8]
     )
+
+    destination_stats = _build_destination_stats()
+
     reviews = _prepare_review_cards(
         Review.objects.select_related('traveler', 'traveler__traveler_profile', 'package').order_by('-created_at')[:5]
     )
 
-    travel_tips = TravelTip.objects.filter(is_active=True).order_by('-created_at')[:3]
+    travel_tips = TravelTip.objects.filter(is_active=True).order_by('-created_at')[:6]
     special_offers = SpecialOffer.objects.filter(is_active=True).filter(
         Q(valid_until__isnull=True) | Q(valid_until__gte=today)
-    ).order_by('-created_at')[:3]
+    ).order_by('-created_at')[:4]
 
     recommended_packages = Package.objects.none()
     show_promotions = bool(
@@ -98,7 +131,8 @@ def home(request):
     return render(request, 'core/home.html', {
         'reviews': reviews,
         'featured_packages': featured_packages,
-        'popular_packages': popular_packages,
+        'destination_stats': destination_stats,
+        'travel_moments': travel_moments,
         'travel_tips': travel_tips,
         'special_offers': special_offers,
         'recommended_packages': recommended_packages,

@@ -95,7 +95,102 @@
         </div>
     </section>
 
-    <!-- Featured Treks -->
+    <!-- ======================================================
+         SECTION 1: TRAVEL MOMENTS
+         ====================================================== -->
+    <section class="travel-moments">
+        <div class="container-landing">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">Travel Moments from Our Community</h2>
+                    <p class="section-subtitle">Real stories from real adventurers exploring Nepal</p>
+                </div>
+                <a class="link-arrow" href="{% url 'community_feed' %}">View All</a>
+            </div>
+
+            {% if travel_moments %}
+                <div class="moments-scroll">
+                    {% for post in travel_moments %}
+                        <a class="moment-card" href="{% url 'community_feed' %}">
+                            <div class="moment-image">
+                                {% if post.image %}
+                                    <img src="{{ post.image.url }}" alt="Travel moment by {{ post.user.username }}">
+                                {% else %}
+                                    {% with first_media=post.media.all|first %}
+                                        {% if first_media %}
+                                            <img src="{{ first_media.media_file.url }}" alt="Travel moment by {{ post.user.username }}">
+                                        {% else %}
+                                            <div class="moment-no-image">
+                                                <i class="fas fa-mountain"></i>
+                                            </div>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endif %}
+                            </div>
+                            <div class="moment-info">
+                                <div class="moment-user">
+                                    {% if post.user.traveler_profile.avatar %}
+                                        <img src="{{ post.user.traveler_profile.avatar.url }}" alt="{{ post.user.username }}">
+                                    {% elif post.user.vendor_profile.logo %}
+                                        <img src="{{ post.user.vendor_profile.logo.url }}" alt="{{ post.user.username }}">
+                                    {% else %}
+                                        <img src="{% static 'images/default-avatar.svg' %}" alt="{{ post.user.username }}">
+                                    {% endif %}
+                                    <span>{{ post.user.get_full_name|default:post.user.username }}</span>
+                                </div>
+                                <p class="moment-caption">{{ post.caption|truncatewords:12 }}</p>
+                                <div class="moment-stats">
+                                    <span><i class="fas fa-heart"></i> {{ post.likes_count }}</span>
+                                    <span><i class="fas fa-comment"></i> {{ post.comments_count }}</span>
+                                </div>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="moments-empty">
+                    Share your first travel moment!
+                    <a href="{% url 'community_feed' %}">Join our community of adventurers.</a>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- ======================================================
+         SECTION 2: BOOK THE BEST TREKS & TOURS
+         ====================================================== -->
+    <section class="book-categories">
+        <div class="container-landing">
+            <div class="section-header center">
+                <div>
+                    <h2 class="section-title">Book the Best Treks &amp; Tours</h2>
+                    <p class="section-subtitle">Choose your adventure across Nepal's most iconic landscapes</p>
+                </div>
+            </div>
+            <div class="book-cats-grid">
+                <a class="book-cat-card book-cat-treks" href="{% url 'package_treks' %}">
+                    <div class="book-cat-overlay"></div>
+                    <div class="book-cat-body">
+                        <span class="book-cat-tag">Trekking</span>
+                        <h3>Trekking Adventures</h3>
+                        <p>Multi-day Himalayan treks with local guides. From beginner trails to Everest Base Camp expeditions.</p>
+                        <span class="btn-book-cat">Explore Treks <i class="fas fa-arrow-right"></i></span>
+                    </div>
+                </a>
+                <a class="book-cat-card book-cat-tours" href="{% url 'package_tours' %}">
+                    <div class="book-cat-overlay"></div>
+                    <div class="book-cat-body">
+                        <span class="book-cat-tag">Tours</span>
+                        <h3>Tour Packages</h3>
+                        <p>Cultural heritage tours, wildlife safaris, and city explorations crafted by trusted local operators.</p>
+                        <span class="btn-book-cat">Explore Tours <i class="fas fa-arrow-right"></i></span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Treks (unchanged) -->
     <section class="featured">
         <div class="container-landing">
             <div class="section-header">
@@ -147,59 +242,40 @@
         </div>
     </section>
 
-    <!-- Popular Treks -->
-    <section class="popular">
+    <!-- ======================================================
+         SECTION 3: POPULAR DESTINATIONS
+         ====================================================== -->
+    <section class="popular-destinations">
         <div class="container-landing">
             <div class="section-header">
                 <div>
-                    <h2 class="section-title">Popular Trekking Packages</h2>
-                    <p class="section-subtitle">Top trekking itineraries chosen by travelers this season</p>
+                    <h2 class="section-title">Popular Destinations</h2>
+                    <p class="section-subtitle">Explore Nepal's most iconic trekking and touring regions</p>
                 </div>
-                <a class="link-arrow" href="{% url 'package_treks' %}">Explore trekking packages</a>
+                <a class="link-arrow" href="{% url 'package_list' %}">View all packages</a>
             </div>
-
-            <div class="trek-grid">
-                {% if popular_packages %}
-                    {% for package in popular_packages %}
-                        <article class="trek-card">
-                            {% with cover=package.images.all|first %}
-                                <div class="trek-image" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
-                                    {% include "core/includes/wishlist_button.html" with package=package %}
-                                    <span class="tag">Popular</span>
-                                </div>
-                            {% endwith %}
-                            <div class="trek-body">
-                                <h3>{{ package.title }}</h3>
-                                <p class="trek-meta">
-                                    {{ package.location|default:"Nepal" }} |
-                                    {{ package.vendor.vendor_profile.business_name|default:package.vendor.get_full_name|default:package.vendor.username }}
-                                    {% if package.vendor.vendor_profile and package.vendor.vendor_profile.is_verified %}
-                                        <span class="verified-badge verified-badge--inline">
-                                            <span class="verified-badge-icon">✔</span>
-                                            <span>Verified</span>
-                                        </span>
-                                    {% endif %}
-                                    {% if package.duration_days %} | {{ package.duration_days }} days{% endif %}
-                                </p>
-                                <p class="trek-meta">{{ package.description|default:"A curated Himalayan trekking package with local guide support."|truncatewords:16 }}</p>
-                                <div class="trek-rating">
-                                    <span class="stars">★★★★★</span>
-                                    <span>{{ package.avg_rating|default:0|floatformat:1 }} ({{ package.review_count|default:0 }} reviews)</span>
-                                </div>
-                                <div class="trek-footer">
-                                    <span class="trek-price">Rs {{ package.price|floatformat:0 }}</span>
-                                    <a class="btn-outline-dark" href="{% url 'package_detail' package.id %}">View Details</a>
-                                </div>
-                            </div>
-                        </article>
-                    {% endfor %}
-                {% else %}
-                    <div class="review-empty">No packages available yet</div>
-                {% endif %}
+            <div class="dest-grid">
+                {% for dest in destination_stats %}
+                    <a class="dest-card" href="{% url 'packages' %}?destination={{ dest.name|urlencode }}">
+                        <div class="dest-image {{ dest.css }}"></div>
+                        <div class="dest-body">
+                            <h3>{{ dest.name }}</h3>
+                            {% if dest.count > 0 %}
+                                <p class="dest-count"><i class="fas fa-suitcase"></i> {{ dest.count }} package{{ dest.count|pluralize }}</p>
+                                {% if dest.min_price %}
+                                    <p class="dest-price">from Rs {{ dest.min_price|floatformat:0 }}</p>
+                                {% endif %}
+                            {% else %}
+                                <p class="dest-count"><i class="fas fa-map-marker-alt"></i> Coming soon</p>
+                            {% endif %}
+                        </div>
+                    </a>
+                {% endfor %}
             </div>
         </div>
     </section>
 
+    <!-- Recommended for You (unchanged logic) -->
     {% if show_promotions %}
         <section class="popular">
             <div class="container-landing">
@@ -240,72 +316,6 @@
                 </div>
             </div>
         </section>
-    {% endif %}
-
-    {% if show_promotions %}
-        <section class="popular">
-            <div class="container-landing">
-                <div class="section-header">
-                    <div>
-                        <h2 class="section-title">Special Offers</h2>
-                        <p class="section-subtitle">Limited-time promotions from trusted operators.</p>
-                    </div>
-                </div>
-
-                <div class="trek-grid">
-                    {% if special_offers %}
-                        {% for offer in special_offers %}
-                            <article class="trek-card">
-                                <div class="trek-body">
-                                    <h3>{{ offer.title }}</h3>
-                                    <p class="trek-meta">{{ offer.summary }}</p>
-                                    <p class="trek-meta">{{ offer.content|truncatewords:24 }}</p>
-                                    <div class="trek-footer">
-                                        {% if offer.valid_until %}
-                                            <span class="trek-price">Valid until {{ offer.valid_until|date:"M d, Y" }}</span>
-                                        {% else %}
-                                            <span class="trek-price">Limited offer</span>
-                                        {% endif %}
-                                        {% if offer.cta_url %}
-                                            <a class="btn-outline-dark" href="{{ offer.cta_url }}" target="_blank" rel="noopener">View Offer</a>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </article>
-                        {% endfor %}
-                    {% else %}
-                        <div class="review-empty">No active special offers right now.</div>
-                    {% endif %}
-                </div>
-            </div>
-        </section>
-
-        <section class="popular">
-            <div class="container-landing">
-                <div class="section-header">
-                    <div>
-                        <h2 class="section-title">Travel Tips</h2>
-                        <p class="section-subtitle">Quick insights to help you plan smarter trips.</p>
-                    </div>
-                </div>
-
-                <div class="trek-grid">
-                    {% if travel_tips %}
-                        {% for tip in travel_tips %}
-                            <article class="trek-card">
-                                <div class="trek-body">
-                                    <h3>{{ tip.title }}</h3>
-                                    <p class="trek-meta">{{ tip.summary }}</p>
-                                    <p class="trek-meta">{{ tip.content|truncatewords:26 }}</p>
-                                </div>
-                            </article>
-                        {% endfor %}
-                    {% else %}
-                        <div class="review-empty">No travel tips published yet.</div>
-                    {% endif %}
-                </div>
-            </div>
-        </section>
     {% elif request.user.is_authenticated and request.user.user_type == 'traveler' %}
         <section class="popular">
             <div class="container-landing">
@@ -314,7 +324,307 @@
         </section>
     {% endif %}
 
-    <!-- Rewards Promo -->
+    <!-- ======================================================
+         SECTION 4: SPECIAL OFFERS
+         ====================================================== -->
+    <section class="home-offers">
+        <div class="container-landing">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">Special Offers</h2>
+                    <p class="section-subtitle">Limited-time deals from trusted Nepal operators</p>
+                </div>
+            </div>
+            <div class="offers-grid">
+                {% if special_offers %}
+                    {% for offer in special_offers %}
+                        <article class="offer-card">
+                            <div class="offer-badge offer-badge--green">
+                                <i class="fas fa-tag"></i> Limited Offer
+                            </div>
+                            <div class="offer-body">
+                                <h3>{{ offer.title }}</h3>
+                                <p class="offer-summary">{{ offer.summary }}</p>
+                                <p class="offer-detail">{{ offer.content|truncatewords:20 }}</p>
+                                <div class="offer-footer">
+                                    {% if offer.valid_until %}
+                                        <span class="offer-validity"><i class="fas fa-clock"></i> Valid until {{ offer.valid_until|date:"M d, Y" }}</span>
+                                    {% else %}
+                                        <span class="offer-validity"><i class="fas fa-infinity"></i> Ongoing offer</span>
+                                    {% endif %}
+                                    {% if offer.cta_url %}
+                                        <a class="btn-offer" href="{{ offer.cta_url }}" target="_blank" rel="noopener">Book Now</a>
+                                    {% else %}
+                                        <a class="btn-offer" href="{% url 'package_list' %}">Book Now</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </article>
+                    {% endfor %}
+                {% else %}
+                    <article class="offer-card">
+                        <div class="offer-badge offer-badge--orange">
+                            <i class="fas fa-percent"></i> 15% OFF
+                        </div>
+                        <div class="offer-body">
+                            <h3>Early Bird Discount</h3>
+                            <p class="offer-summary">Book 30 days in advance and save big</p>
+                            <p class="offer-detail">Plan ahead and enjoy 15% off on any trek or tour when you book at least 30 days before your departure date.</p>
+                            <div class="offer-footer">
+                                <span class="offer-validity"><i class="fas fa-clock"></i> Ongoing</span>
+                                <a class="btn-offer" href="{% url 'package_list' %}">Book Now</a>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="offer-card">
+                        <div class="offer-badge offer-badge--teal">
+                            <i class="fas fa-percent"></i> 20% OFF
+                        </div>
+                        <div class="offer-body">
+                            <h3>Group Special</h3>
+                            <p class="offer-summary">Book for 4+ people and save together</p>
+                            <p class="offer-detail">Travelling with a group? Get 20% off on Annapurna Circuit and other popular treks when you book for 4 or more travellers.</p>
+                            <div class="offer-footer">
+                                <span class="offer-validity"><i class="fas fa-users"></i> Groups of 4+</span>
+                                <a class="btn-offer" href="{% url 'package_treks' %}">Book Now</a>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="offer-card">
+                        <div class="offer-badge offer-badge--blue">
+                            <i class="fas fa-percent"></i> 25% OFF
+                        </div>
+                        <div class="offer-body">
+                            <h3>Monsoon Deal</h3>
+                            <p class="offer-summary">Lush valleys at unbeatable prices</p>
+                            <p class="offer-detail">25% off on all Chitwan wildlife tours and rain-shadow treks during July–August. Experience Nepal's green season at its finest.</p>
+                            <div class="offer-footer">
+                                <span class="offer-validity"><i class="fas fa-calendar"></i> Jul – Aug</span>
+                                <a class="btn-offer" href="{% url 'package_tours' %}">Book Now</a>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="offer-card">
+                        <div class="offer-badge offer-badge--purple">
+                            <i class="fas fa-gift"></i> NPR 500 OFF
+                        </div>
+                        <div class="offer-body">
+                            <h3>First Trip Bonus</h3>
+                            <p class="offer-summary">New travellers get an exclusive welcome discount</p>
+                            <p class="offer-detail">First time booking with Namaste Nomad? Enjoy NPR 500 off your first trek or tour as our welcome gift to you.</p>
+                            <div class="offer-footer">
+                                <span class="offer-validity"><i class="fas fa-star"></i> New users only</span>
+                                <a class="btn-offer" href="{% url 'package_list' %}">Book Now</a>
+                            </div>
+                        </div>
+                    </article>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         SECTION 5: TRAVEL TIPS
+         ====================================================== -->
+    <section class="home-tips">
+        <div class="container-landing">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">Travel Tips for Nepal</h2>
+                    <p class="section-subtitle">Quick insights to help you plan smarter, safer trips</p>
+                </div>
+            </div>
+            <div class="tips-grid">
+                {% if travel_tips %}
+                    {% for tip in travel_tips %}
+                        <article class="tip-card">
+                            <div class="tip-icon">
+                                <i class="fas fa-lightbulb"></i>
+                            </div>
+                            <div class="tip-body">
+                                <h3>{{ tip.title }}</h3>
+                                <p>{{ tip.summary }}</p>
+                                {% if tip.content %}
+                                    <p class="tip-detail">{{ tip.content|truncatewords:18 }}</p>
+                                {% endif %}
+                            </div>
+                        </article>
+                    {% endfor %}
+                {% else %}
+                    <article class="tip-card">
+                        <div class="tip-icon tip-icon--yellow">
+                            <i class="fas fa-sun"></i>
+                        </div>
+                        <div class="tip-body">
+                            <h3>Best Time to Trek</h3>
+                            <p>October–November offers crystal-clear skies and stunning Himalayan views — peak season for a reason.</p>
+                        </div>
+                    </article>
+                    <article class="tip-card">
+                        <div class="tip-icon tip-icon--green">
+                            <i class="fas fa-id-card"></i>
+                        </div>
+                        <div class="tip-body">
+                            <h3>Permits You Need</h3>
+                            <p>A TIMS card and national park entry permit are required for most major treks. Get them in Kathmandu or Pokhara.</p>
+                        </div>
+                    </article>
+                    <article class="tip-card">
+                        <div class="tip-icon tip-icon--red">
+                            <i class="fas fa-heartbeat"></i>
+                        </div>
+                        <div class="tip-body">
+                            <h3>Altitude Sickness</h3>
+                            <p>Acclimatise properly above 3,000 m — ascend no more than 500 m per day and take rest days when needed.</p>
+                        </div>
+                    </article>
+                    <article class="tip-card">
+                        <div class="tip-icon tip-icon--blue">
+                            <i class="fas fa-hiking"></i>
+                        </div>
+                        <div class="tip-body">
+                            <h3>What to Pack</h3>
+                            <p>Layer your clothing, bring a quality sleeping bag rated to −10°C for tea-house treks, and pack light rain gear.</p>
+                        </div>
+                    </article>
+                    <article class="tip-card">
+                        <div class="tip-icon tip-icon--teal">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <div class="tip-body">
+                            <h3>Currency Tips</h3>
+                            <p>Carry Nepali Rupees in smaller denominations for remote areas. ATMs are scarce beyond district headquarters.</p>
+                        </div>
+                    </article>
+                    <article class="tip-card">
+                        <div class="tip-icon tip-icon--orange">
+                            <i class="fas fa-hands-praying"></i>
+                        </div>
+                        <div class="tip-body">
+                            <h3>Respect Local Culture</h3>
+                            <p>Remove shoes before entering temples, dress modestly at religious sites, and always ask before photographing locals.</p>
+                        </div>
+                    </article>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         SECTION 6: 24/7 SUPPORT BANNER
+         ====================================================== -->
+    <section class="trust-banner">
+        <div class="container-landing">
+            <div class="trust-grid">
+                <div class="trust-item">
+                    <div class="trust-icon">
+                        <i class="fas fa-headset"></i>
+                    </div>
+                    <h4>24/7 Support</h4>
+                    <p>We're here to help anytime, anywhere</p>
+                </div>
+                <div class="trust-item">
+                    <div class="trust-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h4>Verified Operators</h4>
+                    <p>All vendors are verified and licensed</p>
+                </div>
+                <div class="trust-item">
+                    <div class="trust-icon">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <h4>Secure Payments</h4>
+                    <p>Pay safely via Stripe, eSewa, or Khalti</p>
+                </div>
+                <div class="trust-item">
+                    <div class="trust-icon">
+                        <i class="fas fa-undo-alt"></i>
+                    </div>
+                    <h4>Easy Cancellation</h4>
+                    <p>Flexible plans with straightforward cancellation</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         SECTION 7: BEST DESTINATIONS FOR EVERY SEASON
+         ====================================================== -->
+    <section class="seasonal-guide">
+        <div class="container-landing">
+            <div class="section-header center">
+                <div>
+                    <h2 class="section-title">Best Destinations for Every Season</h2>
+                    <p class="section-subtitle">Nepal has something extraordinary year-round — find your perfect window</p>
+                </div>
+            </div>
+            <div class="season-grid">
+                <div class="season-card season-spring">
+                    <div class="season-image"></div>
+                    <div class="season-body">
+                        <div class="season-badge">
+                            <i class="fas fa-seedling"></i> Spring
+                        </div>
+                        <h3>Mar – May</h3>
+                        <p class="season-desc">Rhododendron forests in full bloom, moderate temperatures and clear mornings. Ideal for mid-altitude treks.</p>
+                        <div class="season-dests">
+                            <span class="season-dest-tag"><a href="{% url 'packages' %}?destination=Annapurna">Annapurna Circuit</a></span>
+                            <span class="season-dest-tag"><a href="{% url 'packages' %}?destination=Ghorepani">Poon Hill</a></span>
+                            <span class="season-dest-tag"><a href="{% url 'packages' %}?destination=Langtang">Langtang</a></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="season-card season-summer">
+                    <div class="season-image"></div>
+                    <div class="season-body">
+                        <div class="season-badge">
+                            <i class="fas fa-cloud-rain"></i> Monsoon
+                        </div>
+                        <h3>Jun – Aug</h3>
+                        <p class="season-desc">Lush green valleys and waterfalls. Rain-shadow regions north of the Himalayas stay dry and crowd-free.</p>
+                        <div class="season-dests">
+                            <span class="season-dest-tag"><a href="{% url 'packages' %}?destination=Mustang">Upper Mustang</a></span>
+                            <span class="season-dest-tag"><a href="{% url 'packages' %}?destination=Dolpo">Dolpo</a></span>
+                            <span class="season-dest-tag"><a href="{% url 'packages' %}?destination=Chitwan">Chitwan Safari</a></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="season-card season-autumn">
+                    <div class="season-image"></div>
+                    <div class="season-body">
+                        <div class="season-badge">
+                            <i class="fas fa-mountain"></i> Autumn
+                        </div>
+                        <h3>Sep – Nov</h3>
+                        <p class="season-desc">Crystal-clear skies, stable weather and peak mountain views. The best season for high-altitude expeditions.</p>
+                        <div class="season-dests">
+                            <span class="season-dest-tag"><a href="{% url 'packages' %}?destination=Everest">Everest Base Camp</a></span>
+                            <span class="season-dest-tag"><a href="{% url 'packages' %}?destination=Langtang">Langtang</a></span>
+                            <span class="season-dest-tag"><a href="{% url 'packages' %}?destination=Manaslu">Manaslu Circuit</a></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="season-card season-winter">
+                    <div class="season-image"></div>
+                    <div class="season-body">
+                        <div class="season-badge">
+                            <i class="fas fa-snowflake"></i> Winter
+                        </div>
+                        <h3>Dec – Feb</h3>
+                        <p class="season-desc">Snow-capped peaks and fewer crowds. Lower elevations and cultural tours offer a peaceful winter escape.</p>
+                        <div class="season-dests">
+                            <span class="season-dest-tag"><a href="{% url 'packages' %}?destination=Chitwan">Chitwan Safari</a></span>
+                            <span class="season-dest-tag"><a href="{% url 'packages' %}?destination=Kathmandu">Kathmandu Valley</a></span>
+                            <span class="season-dest-tag"><a href="{% url 'packages' %}?destination=Pokhara">Pokhara</a></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Rewards Promo (unchanged) -->
     <section class="rewards-promo">
         <div class="container-landing">
             <div class="rewards-grid">
@@ -350,7 +660,7 @@
         </div>
     </section>
 
-    <!-- Map Preview -->
+    <!-- Map Preview (unchanged) -->
     <section class="map-preview">
         <div class="container-landing">
             <div class="section-header">
@@ -379,7 +689,7 @@
         </div>
     </section>
 
-    <!-- Categories -->
+    <!-- Categories (unchanged) -->
     <section class="categories">
         <div class="container-landing">
             <div class="section-header center">
@@ -428,7 +738,7 @@
         </div>
     </section>
 
-    <!-- Stats Band -->
+    <!-- Stats Band (unchanged) -->
     <section class="stats-band">
         <div class="container-landing">
             <div class="stats-grid">
@@ -448,7 +758,7 @@
         </div>
     </section>
 
-    <!-- Reviews -->
+    <!-- Reviews (unchanged) -->
     <section class="reviews" id="reviews">
         <div class="container-landing">
             <div class="section-header">
