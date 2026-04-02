@@ -218,8 +218,8 @@ STRIPE_CURRENCY = os.getenv('STRIPE_CURRENCY', 'npr').lower()
 STRIPE_CHECKOUT_TTL_MINUTES = int(os.getenv('STRIPE_CHECKOUT_TTL_MINUTES', '30'))
 
 ESEWA_MERCHANT_CODE = os.getenv('ESEWA_MERCHANT_CODE', 'EPAYTEST')
-ESEWA_PAYMENT_URL = os.getenv('ESEWA_PAYMENT_URL', 'https://uat.esewa.com.np/epay/main')
-ESEWA_VERIFY_URL = os.getenv('ESEWA_VERIFY_URL', 'https://uat.esewa.com.np/epay/transrec')
+ESEWA_SECRET_KEY = os.getenv('ESEWA_SECRET_KEY', '')
+ESEWA_TEST_MODE = os.getenv('ESEWA_TEST_MODE', 'True').strip().lower() in ('true', '1', 'yes')
 ESEWA_CURRENCY = os.getenv('ESEWA_CURRENCY', 'npr').lower()
 
 CHANNEL_LAYERS = {

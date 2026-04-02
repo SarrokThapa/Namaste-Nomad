@@ -15,19 +15,21 @@
     <main class="booking-shell">
         <section class="booking-form-card">
             <h1>Redirecting to eSewa</h1>
-            <p>Total Price: <strong>Rs {% if booking %}{{ booking.total_price|floatformat:0 }}{% else %}{{ esewa_payload.tAmt }}{% endif %}</strong></p>
+            <p>Total Price: <strong>Rs {% if booking %}{{ booking.total_price|floatformat:0 }}{% else %}{{ esewa_payload.total_amount }}{% endif %}</strong></p>
             <p>{% if booking %}Your booking is reserved. Complete payment on eSewa to confirm.{% else %}Complete payment on eSewa to activate your subscription.{% endif %}</p>
 
             <form id="esewaCheckoutForm" method="POST" action="{{ esewa_payment_url }}">
-                <input type="hidden" name="amt" value="{{ esewa_payload.amt }}">
-                <input type="hidden" name="pdc" value="{{ esewa_payload.pdc }}">
-                <input type="hidden" name="psc" value="{{ esewa_payload.psc }}">
-                <input type="hidden" name="txAmt" value="{{ esewa_payload.txAmt }}">
-                <input type="hidden" name="tAmt" value="{{ esewa_payload.tAmt }}">
-                <input type="hidden" name="pid" value="{{ esewa_payload.pid }}">
-                <input type="hidden" name="scd" value="{{ esewa_payload.scd }}">
-                <input type="hidden" name="su" value="{{ esewa_payload.su }}">
-                <input type="hidden" name="fu" value="{{ esewa_payload.fu }}">
+                <input type="hidden" name="amount" value="{{ esewa_payload.amount }}">
+                <input type="hidden" name="tax_amount" value="{{ esewa_payload.tax_amount }}">
+                <input type="hidden" name="total_amount" value="{{ esewa_payload.total_amount }}">
+                <input type="hidden" name="transaction_uuid" value="{{ esewa_payload.transaction_uuid }}">
+                <input type="hidden" name="product_code" value="{{ esewa_payload.product_code }}">
+                <input type="hidden" name="product_service_charge" value="{{ esewa_payload.product_service_charge }}">
+                <input type="hidden" name="product_delivery_charge" value="{{ esewa_payload.product_delivery_charge }}">
+                <input type="hidden" name="success_url" value="{{ esewa_payload.success_url }}">
+                <input type="hidden" name="failure_url" value="{{ esewa_payload.failure_url }}">
+                <input type="hidden" name="signed_field_names" value="{{ esewa_payload.signed_field_names }}">
+                <input type="hidden" name="signature" value="{{ esewa_payload.signature }}">
                 <div class="booking-form-actions">
                     <button type="submit" class="btn-primary">Pay with eSewa</button>
                     {% if booking %}

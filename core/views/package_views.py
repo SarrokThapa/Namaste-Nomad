@@ -48,7 +48,7 @@ def home(request):
     VendorFeature.expire_overdue()
     wishlist_ids = _wishlist_ids_for_user(request.user)
     today = timezone.localdate()
-    homepage_slot_capacity = FeatureSlot.objects.filter(is_active=True).aggregate(total=Sum('max_slots'))['total'] or 0
+    homepage_slot_capacity = FeatureSlot.active_total_capacity()
     active_vendor_ids = VendorFeature.objects.filter(
         is_active=True,
         start_date__lte=today,

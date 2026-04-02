@@ -299,6 +299,11 @@ def _render_esewa_checkout(request, booking):
         success_url=success_url,
         failure_url=failure_url,
     )
+    # Persist the generated transaction_uuid so the success handler can
+    # verify it against eSewa's callback.
+    booking.payment_reference = payload['transaction_uuid']
+    booking.save(update_fields=['payment_reference'])
+
     return render(
         request,
         'core/esewa_redirect.html',
@@ -308,6 +313,10 @@ def _render_esewa_checkout(request, booking):
             'esewa_payload': payload,
         },
     )
+
+
+import logging
+_esewa_logger = logging.getLogger('core.services.esewa_service')
 
 
 @login_required(login_url='account_login_choice')
@@ -443,75 +452,36 @@ def booking_esewa_success(request, booking_id):
         messages.success(request, 'Payment already confirmed for this booking.')
         return redirect('booking_confirmation', booking_id=booking.id)
 
-    transaction_id = (
-        (request.GET.get('refId') or '')
-        or (request.GET.get('rid') or '')
-    ).strip()
-    callback_pid = (
-        (request.GET.get('pid') or '')
-        or (request.GET.get('oid') or '')
-    ).strip()
-    callback_amount_raw = (
-        (request.GET.get('amt') or '')
-        or (request.GET.get('tAmt') or '')
-    ).strip()
-    expected_pid = str(booking.id)
+    # eSewa V2: success redirect carries a base64-encoded JSON in ?data=
+    encoded_data = (request.GET.get('data') or '').strip()
+
+    if not encoded_data:
+        _esewa_logger.warning('booking_esewa_success: no data param for booking %s', booking_id)
+        with transaction.atomic():
+            locked = get_object_or_404(Booking.objects.select_for_update(), id=booking_id, traveler=request.user)
+            _mark_payment_failed(locked)
+        messages.error(request, 'Payment verification failed. Missing eSewa response data.')
+        return redirect('booking_confirmation', booking_id=booking.id)
+
     expected_amount = _as_money_decimal(booking.total_price)
-    callback_amount = _as_money_decimal(callback_amount_raw) if callback_amount_raw else expected_amount
-
-    if not transaction_id:
-        with transaction.atomic():
-            locked_booking = get_object_or_404(
-                Booking.objects.select_for_update(),
-                id=booking_id,
-                traveler=request.user,
-            )
-            _mark_payment_failed(locked_booking)
-        messages.error(request, 'Payment verification failed. Missing eSewa transaction id.')
-        return redirect('booking_confirmation', booking_id=booking.id)
-
-    if callback_pid and callback_pid != expected_pid:
-        with transaction.atomic():
-            locked_booking = get_object_or_404(
-                Booking.objects.select_for_update(),
-                id=booking_id,
-                traveler=request.user,
-            )
-            _mark_payment_failed(locked_booking)
-        messages.error(request, 'Payment verification failed. Product ID mismatch.')
-        return redirect('booking_confirmation', booking_id=booking.id)
-
-    if expected_amount is None or callback_amount != expected_amount:
-        with transaction.atomic():
-            locked_booking = get_object_or_404(
-                Booking.objects.select_for_update(),
-                id=booking_id,
-                traveler=request.user,
-            )
-            _mark_payment_failed(locked_booking)
-        messages.error(request, 'Payment verification failed. Amount mismatch.')
-        return redirect('booking_confirmation', booking_id=booking.id)
+    expected_uuid = booking.payment_reference or str(booking.id)
 
     try:
-        is_verified = verify_esewa_payment(
-            amount=expected_amount,
-            transaction_id=transaction_id,
-            product_id=expected_pid,
+        response_data, verification = esewa_process_success_callback(
+            encoded_data,
+            expected_total_amount=expected_amount,
+            expected_transaction_uuid=expected_uuid,
         )
     except EsewaError as exc:
-        messages.warning(request, f'eSewa verification is pending: {exc}')
+        _esewa_logger.warning('booking_esewa_success verification failed for booking %s: %s', booking_id, exc)
+        with transaction.atomic():
+            locked = get_object_or_404(Booking.objects.select_for_update(), id=booking_id, traveler=request.user)
+            _mark_payment_failed(locked)
+        messages.error(request, f'Payment verification failed: {exc}')
         return redirect('booking_confirmation', booking_id=booking.id)
 
-    if not is_verified:
-        with transaction.atomic():
-            locked_booking = get_object_or_404(
-                Booking.objects.select_for_update(),
-                id=booking_id,
-                traveler=request.user,
-            )
-            _mark_payment_failed(locked_booking)
-        messages.error(request, 'Payment Failed. Try again.')
-        return redirect('booking_confirmation', booking_id=booking.id)
+    transaction_code = response_data.get('transaction_code', '')
+    ref_id = verification.get('ref_id', '') or transaction_code
 
     with transaction.atomic():
         locked_booking = get_object_or_404(
@@ -525,8 +495,8 @@ def booking_esewa_success(request, booking_id):
         ):
             _complete_paid_booking(
                 locked_booking,
-                payment_reference=transaction_id,
-                esewa_transaction_id=transaction_id,
+                payment_reference=ref_id,
+                esewa_transaction_id=transaction_code,
                 paid_amount=expected_amount,
             )
             _notify_booking_paid(locked_booking)

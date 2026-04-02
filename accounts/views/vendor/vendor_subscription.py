@@ -104,16 +104,10 @@ def vendor_subscription_esewa_success(request):
         messages.error(request, 'Invalid payment callback for this subscription session.')
         return redirect('vendor_settings')
 
-    transaction_id = ((request.GET.get('refId') or '') or (request.GET.get('rid') or '')).strip()
-    callback_pid = ((request.GET.get('pid') or '') or (request.GET.get('oid') or '')).strip()
-
-    expected_pid = payment_session.get('pid', '')
-    if callback_pid and callback_pid != expected_pid:
-        messages.error(request, 'Subscription payment verification failed: Product ID mismatch.')
-        return redirect('vendor_settings')
-
-    if not transaction_id:
-        messages.error(request, 'Subscription payment verification failed: Missing transaction id.')
+    # eSewa V2: success redirect carries base64-encoded JSON in ?data=
+    encoded_data = (request.GET.get('data') or '').strip()
+    if not encoded_data:
+        messages.error(request, 'Subscription payment verification failed: Missing eSewa response data.')
         return redirect('vendor_settings')
 
     try:
@@ -122,17 +116,15 @@ def vendor_subscription_esewa_success(request):
         messages.error(request, 'Subscription payment verification failed: Invalid amount.')
         return redirect('vendor_settings')
 
+    expected_pid = payment_session.get('pid', '')
+
     try:
-        is_verified = verify_esewa_payment(
-            amount=expected_amount,
-            transaction_id=transaction_id,
-            product_id=expected_pid,
+        response_data, verification = esewa_process_success_callback(
+            encoded_data,
+            expected_total_amount=expected_amount,
+            expected_transaction_uuid=expected_pid,
         )
     except EsewaError as exc:
-        messages.warning(request, f'eSewa verification is pending: {exc}')
-        return redirect('vendor_settings')
-
-    if not is_verified:
         _record_subscription_transaction(
             vendor=request.user,
             subscription=None,
@@ -140,7 +132,7 @@ def vendor_subscription_esewa_success(request):
             payment_status=Booking.PAYMENT_STATUS_FAILED,
             payment_method=Booking.PAYMENT_METHOD_ESEWA,
         )
-        messages.error(request, 'Subscription payment failed verification. Please retry.')
+        messages.error(request, f'Subscription payment verification failed: {exc}')
         return redirect('vendor_settings')
 
     plan = get_object_or_404(VendorSubscriptionPlan, id=payment_session.get('plan_id'))
@@ -396,14 +388,10 @@ def vendor_feature_slot_esewa_success(request):
         messages.error(request, 'Invalid payment callback for this feature slot session.')
         return redirect('vendor_settings')
 
-    transaction_id = ((request.GET.get('refId') or '') or (request.GET.get('rid') or '')).strip()
-    callback_pid = ((request.GET.get('pid') or '') or (request.GET.get('oid') or '')).strip()
-    expected_pid = payment_session.get('pid', '')
-    if callback_pid and callback_pid != expected_pid:
-        messages.error(request, 'Feature slot payment verification failed: Product ID mismatch.')
-        return redirect('vendor_settings')
-    if not transaction_id:
-        messages.error(request, 'Feature slot payment verification failed: Missing transaction id.')
+    # eSewa V2: success redirect carries base64-encoded JSON in ?data=
+    encoded_data = (request.GET.get('data') or '').strip()
+    if not encoded_data:
+        messages.error(request, 'Feature slot payment verification failed: Missing eSewa response data.')
         return redirect('vendor_settings')
 
     try:
@@ -412,17 +400,15 @@ def vendor_feature_slot_esewa_success(request):
         messages.error(request, 'Feature slot payment verification failed: Invalid amount.')
         return redirect('vendor_settings')
 
+    expected_pid = payment_session.get('pid', '')
+
     try:
-        is_verified = verify_esewa_payment(
-            amount=expected_amount,
-            transaction_id=transaction_id,
-            product_id=expected_pid,
+        response_data, verification = esewa_process_success_callback(
+            encoded_data,
+            expected_total_amount=expected_amount,
+            expected_transaction_uuid=expected_pid,
         )
     except EsewaError as exc:
-        messages.warning(request, f'eSewa verification is pending: {exc}')
-        return redirect('vendor_settings')
-
-    if not is_verified:
         _record_feature_slot_transaction(
             vendor=request.user,
             vendor_feature=None,
@@ -430,7 +416,7 @@ def vendor_feature_slot_esewa_success(request):
             payment_status=Booking.PAYMENT_STATUS_FAILED,
             payment_method=Booking.PAYMENT_METHOD_ESEWA,
         )
-        messages.error(request, 'Feature slot payment failed verification. Please retry.')
+        messages.error(request, f'Feature slot payment verification failed: {exc}')
         return redirect('vendor_settings')
 
     slot = get_object_or_404(FeatureSlot, id=payment_session.get('slot_id'), is_active=True)

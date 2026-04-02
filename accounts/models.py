@@ -195,6 +195,8 @@ class VendorSubscription(models.Model):
 
 
 class FeatureSlot(models.Model):
+    MIN_HOMEPAGE_FEATURE_CAPACITY = 6
+
     name = models.CharField(max_length=120)
     max_slots = models.PositiveIntegerField(default=1)
     price_per_slot = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
@@ -206,7 +208,8 @@ class FeatureSlot(models.Model):
 
     @classmethod
     def active_total_capacity(cls):
-        return cls.objects.filter(is_active=True).aggregate(total=models.Sum('max_slots'))['total'] or 0
+        total = cls.objects.filter(is_active=True).aggregate(total=models.Sum('max_slots'))['total'] or 0
+        return max(total, cls.MIN_HOMEPAGE_FEATURE_CAPACITY)
 
     def __str__(self):
         return f"{self.name} ({self.max_slots} slots)"

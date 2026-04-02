@@ -76,12 +76,15 @@ from core.models import (
 )
 
 from core.payments import (
-    EsewaError,
     StripeError,
     create_checkout_session_for_item,
-    get_esewa_payment_url,
     retrieve_checkout_session,
-    verify_esewa_payment,
+)
+from core.services.esewa_service import (
+    EsewaError,
+    get_esewa_payment_url,
+    build_payment_payload as build_esewa_v2_payload,
+    process_success_callback as esewa_process_success_callback,
 )
 
 from ..models import (
@@ -255,22 +258,13 @@ def _safe_next_url(request, fallback_name):
 
 
 def _subscription_esewa_payload(*, amount, pid, success_url, failure_url):
-    merchant_code = getattr(settings, 'ESEWA_MERCHANT_CODE', '')
-    if not merchant_code:
-        raise EsewaError('eSewa is not configured. Add ESEWA_MERCHANT_CODE to your .env file or environment.')
-
-    amount_str = format(Decimal(str(amount)).quantize(Decimal('0.01')), 'f')
-    return {
-        'amt': amount_str,
-        'pdc': '0',
-        'psc': '0',
-        'txAmt': '0',
-        'tAmt': amount_str,
-        'pid': pid,
-        'scd': merchant_code,
-        'su': success_url,
-        'fu': failure_url,
-    }
+    """Build eSewa V2 payment payload for subscriptions / feature slots."""
+    return build_esewa_v2_payload(
+        amount=amount,
+        transaction_uuid=pid,
+        success_url=success_url,
+        failure_url=failure_url,
+    )
 
 
 def _subscription_payment_session_key(vendor_id):
@@ -893,7 +887,8 @@ __all__ = [
     'create_checkout_session_for_item',
     'get_esewa_payment_url',
     'retrieve_checkout_session',
-    'verify_esewa_payment',
+    'build_esewa_v2_payload',
+    'esewa_process_success_callback',
     'AdminProfile',
     'FeatureSlot',
     'Notification',

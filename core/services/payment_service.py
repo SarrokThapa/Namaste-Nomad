@@ -9,7 +9,10 @@ from django.urls import reverse
 from django.utils import timezone
 
 from ..models import Booking
-from ..payments import build_esewa_payment_payload, get_esewa_payment_url
+from .esewa_service import (
+    build_booking_payment_payload,
+    get_esewa_payment_url,
+)
 
 
 def _stripe_checkout_ttl_minutes():
@@ -45,11 +48,16 @@ def _render_esewa_checkout(request, booking):
     failure_url = request.build_absolute_uri(
         reverse('booking_esewa_failure', kwargs={'booking_id': booking.id}),
     )
-    payload = build_esewa_payment_payload(
+    payload = build_booking_payment_payload(
         booking=booking,
         success_url=success_url,
         failure_url=failure_url,
     )
+    # Persist the generated transaction_uuid so the success handler can
+    # verify it against eSewa's callback.
+    booking.payment_reference = payload['transaction_uuid']
+    booking.save(update_fields=['payment_reference'])
+
     return render(
         request,
         'core/esewa_redirect.html',
@@ -69,7 +77,7 @@ __all__ = [
     'reverse',
     'timezone',
     'Booking',
-    'build_esewa_payment_payload',
+    'build_booking_payment_payload',
     'get_esewa_payment_url',
     '_stripe_checkout_ttl_minutes',
     '_booking_payment_expires_at',

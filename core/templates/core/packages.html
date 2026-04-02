@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     <link rel="stylesheet" href="{% static 'css/wishlist.css' %}?v=20260315a">
     <link rel="stylesheet" href="{% static 'css/destination_autocomplete.css' %}?v=20260314a">
-    <link rel="stylesheet" href="{% static 'css/package_filters.css' %}?v=20260314a">
+    <link rel="stylesheet" href="{% static 'css/package_filters.css' %}?v=20260401c">
     <link rel="stylesheet" href="{% static 'css/layout.css' %}?v=20260401a">
 </head>
 <body class="packages-body">
@@ -110,7 +110,7 @@
         </div>
 
         <div class="packages-layout">
-            <aside class="packages-filters">
+            <aside class="packages-filters sidebar">
                 <form id="packageFilterForm" method="get" action="{{ request.path }}">
                     {% if package_type_slug %}
                         <input type="hidden" name="package_type" value="{{ package_type_slug }}">
@@ -243,7 +243,7 @@
                 </form>
             </aside>
 
-            <div class="packages-results">
+            <div class="packages-results main-content">
                 <div class="packages-grid" id="packageGrid" data-search-endpoint="{% url 'packages_search_api' %}">
                     {% include "core/includes/package_cards.html" %}
                 </div>

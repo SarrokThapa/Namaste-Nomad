@@ -6,12 +6,20 @@ from urllib.request import Request, urlopen
 
 from django.conf import settings
 
+# eSewa V2 service — all eSewa logic lives there; re-export key names
+# so existing ``from core.payments import EsewaError`` still works.
+from .services.esewa_service import (  # noqa: F401
+    EsewaError,
+    get_esewa_payment_url,
+    build_booking_payment_payload as build_esewa_payment_payload,
+    build_payment_payload as build_esewa_generic_payload,
+    process_success_callback as esewa_process_success_callback,
+    decode_success_response as esewa_decode_success_response,
+    verify_payment as esewa_verify_payment,
+)
+
 
 class StripeError(Exception):
-    pass
-
-
-class EsewaError(Exception):
     pass
 
 
@@ -19,10 +27,6 @@ def _amount_to_minor_units(amount):
     decimal_amount = Decimal(amount)
     return int((decimal_amount * Decimal('100')).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
 
-
-def _amount_to_major_units(amount):
-    decimal_amount = Decimal(amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-    return format(decimal_amount, 'f')
 
 
 def _stripe_request(method, path, payload=None):
@@ -132,76 +136,7 @@ def expire_checkout_session(session_id):
     return _stripe_request('POST', f'/checkout/sessions/{safe_session_id}/expire', [])
 
 
-def get_esewa_payment_url():
-    payment_url = getattr(settings, 'ESEWA_PAYMENT_URL', '')
-    if not payment_url:
-        raise EsewaError('eSewa is not configured. Add ESEWA_PAYMENT_URL to your .env file or environment.')
-    return payment_url
 
-
-def build_esewa_payment_payload(*, booking, success_url, failure_url):
-    merchant_code = getattr(settings, 'ESEWA_MERCHANT_CODE', '')
-    if not merchant_code:
-        raise EsewaError('eSewa is not configured. Add ESEWA_MERCHANT_CODE to your .env file or environment.')
-
-    total_amount = _amount_to_major_units(booking.total_price)
-    return {
-        'amt': total_amount,
-        'pdc': '0',
-        'psc': '0',
-        'txAmt': '0',
-        'tAmt': total_amount,
-        'pid': str(booking.id),
-        'scd': merchant_code,
-        'su': success_url,
-        'fu': failure_url,
-    }
-
-
-def _is_esewa_verification_success(payload_text):
-    normalized = (payload_text or '').strip().lower()
-    if normalized == 'success':
-        return True
-    if '<response_code>success</response_code>' in normalized:
-        return True
-    if '<responsecode>success</responsecode>' in normalized:
-        return True
-    return False
-
-
-def verify_esewa_payment(*, amount, transaction_id, product_id):
-    verify_url = getattr(settings, 'ESEWA_VERIFY_URL', '')
-    merchant_code = getattr(settings, 'ESEWA_MERCHANT_CODE', '')
-    if not verify_url or not merchant_code:
-        raise EsewaError(
-            'eSewa verification is not configured. Add ESEWA_VERIFY_URL and ESEWA_MERCHANT_CODE to your .env file.'
-        )
-    if not transaction_id:
-        raise EsewaError('Missing eSewa transaction id for verification.')
-
-    payload = [
-        ('amt', _amount_to_major_units(amount)),
-        ('rid', str(transaction_id)),
-        ('pid', str(product_id)),
-        ('scd', merchant_code),
-    ]
-    body = urlencode(payload).encode('utf-8')
-    request = Request(
-        url=verify_url,
-        data=body,
-        headers={'Content-Type': 'application/x-www-form-urlencoded'},
-        method='POST',
-    )
-
-    try:
-        with urlopen(request, timeout=15) as response:
-            response_text = response.read().decode('utf-8', errors='replace')
-    except HTTPError as exc:
-        response_text = exc.read().decode('utf-8', errors='replace')
-        if _is_esewa_verification_success(response_text):
-            return True
-        raise EsewaError('eSewa verification request failed.') from exc
-    except URLError as exc:
-        raise EsewaError('Unable to reach eSewa right now. Please try again.') from exc
-
-    return _is_esewa_verification_success(response_text)
+# Legacy eSewa V1 functions have been removed.
+# All eSewa logic now lives in core.services.esewa_service.
+# The re-exports at the top of this file keep existing import paths working.

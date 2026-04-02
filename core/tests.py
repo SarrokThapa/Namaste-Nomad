@@ -478,8 +478,8 @@ class BookingStripeFlowTests(TestCase):
         self.package.refresh_from_db()
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'https://uat.esewa.com.np/epay/main')
-        self.assertContains(response, 'name="pid"', html=False)
+        self.assertContains(response, 'rc-epay.esewa.com.np/api/epay/main/v2/form')
+        self.assertContains(response, 'name="transaction_uuid"', html=False)
         self.assertContains(response, f'value="{booking.id}"', html=False)
         self.assertEqual(booking.status, Booking.STATUS_PENDING)
         self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_PENDING)
@@ -655,18 +655,20 @@ class BookingStripeFlowTests(TestCase):
         self.assertEqual(booking.id, failed_booking.id)
         self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_PENDING)
 
-    @patch('core.views.payment_views.verify_esewa_payment', return_value=True)
-    def test_esewa_success_marks_booking_completed_after_verification(self, _mock_verify):
+    @patch('core.views.payment_views.esewa_process_success_callback')
+    def test_esewa_success_marks_booking_completed_after_verification(self, mock_callback):
         booking = self._create_pending_esewa_booking()
+        mock_callback.return_value = (
+            {'transaction_code': 'ESEWA_TXN_123', 'status': 'COMPLETE', 'total_amount': 30000.0, 'transaction_uuid': str(booking.id)},
+            {'status': 'COMPLETE', 'ref_id': '0007G36'},
+        )
         self.client.force_login(self.traveler)
 
+        import base64, json
+        fake_data = base64.b64encode(json.dumps({'status': 'COMPLETE'}).encode()).decode()
         response = self.client.get(
             reverse('booking_esewa_success', args=[booking.id]),
-            data={
-                'refId': 'ESEWA_TXN_123',
-                'pid': str(booking.id),
-                'amt': '30000.00',
-            },
+            data={'data': fake_data},
         )
 
         booking.refresh_from_db()
@@ -674,21 +676,22 @@ class BookingStripeFlowTests(TestCase):
         self.assertRedirects(response, reverse('booking_confirmation', args=[booking.id]))
         self.assertEqual(booking.status, Booking.STATUS_CONFIRMED)
         self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_COMPLETED)
-        self.assertEqual(booking.payment_reference, 'ESEWA_TXN_123')
+        self.assertEqual(booking.payment_reference, '0007G36')
         self.assertEqual(booking.esewa_transaction_id, 'ESEWA_TXN_123')
         self.assertEqual(str(booking.paid_amount), '30000.00')
 
-    def test_esewa_success_marks_booking_failed_when_amount_mismatch(self):
+    @patch('core.views.payment_views.esewa_process_success_callback')
+    def test_esewa_success_marks_booking_failed_when_amount_mismatch(self, mock_callback):
+        from core.services.esewa_service import EsewaError
+        mock_callback.side_effect = EsewaError('Amount mismatch: expected 30000.00, got 10.00.')
         booking = self._create_pending_esewa_booking()
         self.client.force_login(self.traveler)
 
+        import base64, json
+        fake_data = base64.b64encode(json.dumps({'status': 'COMPLETE'}).encode()).decode()
         response = self.client.get(
             reverse('booking_esewa_success', args=[booking.id]),
-            data={
-                'refId': 'ESEWA_TXN_123',
-                'pid': str(booking.id),
-                'amt': '10.00',
-            },
+            data={'data': fake_data},
         )
 
         booking.refresh_from_db()

@@ -79,14 +79,17 @@ from ..models import (
 )
 
 from ..payments import (
-    EsewaError,
     StripeError,
-    build_esewa_payment_payload,
     create_checkout_session,
     expire_checkout_session,
-    get_esewa_payment_url,
     retrieve_checkout_session,
-    verify_esewa_payment,
+)
+from ..services.esewa_service import (
+    EsewaError,
+    get_esewa_payment_url,
+    build_booking_payment_payload as build_esewa_payment_payload,
+    build_payment_payload as build_esewa_generic_payload,
+    process_success_callback as esewa_process_success_callback,
 )
 
 BLOG_POSTS = [
@@ -658,11 +661,12 @@ __all__ = [
     'EsewaError',
     'StripeError',
     'build_esewa_payment_payload',
+    'build_esewa_generic_payload',
+    'esewa_process_success_callback',
     'create_checkout_session',
     'expire_checkout_session',
     'get_esewa_payment_url',
     'retrieve_checkout_session',
-    'verify_esewa_payment',
     'BLOG_POSTS',
     'TAG_PATTERN',
     '_safe_related',
