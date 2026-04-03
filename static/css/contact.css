@@ -32,6 +32,20 @@
     color: #f8fafc;
 }
 
+.contact-hero-eyebrow {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    padding: 0.3rem 0.9rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 0.75rem;
+}
+
 .contact-hero-content h1 {
     margin: 0;
     font-size: clamp(2rem, 4.8vw, 3.2rem);

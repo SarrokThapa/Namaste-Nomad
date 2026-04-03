@@ -5,15 +5,20 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Contact Us - Namaste Nomad</title>
-	<link rel="stylesheet" href="{% static 'css/landing.css' %}">
-	<link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
-	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-	<link rel="stylesheet" href="{% static 'css/contact.css' %}?v=20260328a">
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+	<link rel="stylesheet" href="{% static 'css/landing.css' %}">
+	<link rel="stylesheet" href="{% static 'css/animations.css' %}">
+	<link rel="stylesheet" href="{% static 'css/toast.css' %}">
+	<link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+	<link rel="stylesheet" href="{% static 'css/contact.css' %}?v=20260403a">
 </head>
-<body class="contact-page-body">
+<body class="contact-page-body page-fade-in">
+	{% include "core/includes/messages_toast.html" %}
+
 	<nav class="landing-nav">
 		<div class="nav-container">
 			<a class="nav-brand" href="{% url 'home' %}">
@@ -38,13 +43,14 @@
 	<main class="contact-main">
 		<section class="contact-hero">
 			<div class="contact-hero-overlay"></div>
-			<div class="container-landing contact-hero-content">
+			<div class="container-landing contact-hero-content reveal">
+				<span class="contact-hero-eyebrow">Get In Touch</span>
 				<h1>Contact Us</h1>
-				<p>Have questions? We are here to help you plan your journey.</p>
+				<p>Have questions? We're here to help you plan the perfect Nepal journey.</p>
 			</div>
 		</section>
 
-		<section class="container-landing contact-info-cards">
+		<section class="container-landing contact-info-cards reveal-group">
 			<article class="contact-card">
 				<span class="contact-card-icon">&#128205;</span>
 				<h3>Address</h3>
@@ -54,13 +60,13 @@
 			<article class="contact-card">
 				<span class="contact-card-icon">&#128222;</span>
 				<h3>Phone</h3>
-				<p>+977 1 5551234</p>
+				<p>{{ site_settings.contact_phone|default:"+977 1 5551234" }}</p>
 				<small>Support hotline</small>
 			</article>
 			<article class="contact-card">
 				<span class="contact-card-icon">&#128231;</span>
 				<h3>Email</h3>
-				<p>support@namastenomad.com</p>
+				<p>{{ site_settings.contact_email|default:"support@namastenomad.com" }}</p>
 				<small>Response within 24 hours</small>
 			</article>
 			<article class="contact-card">
@@ -71,15 +77,7 @@
 			</article>
 		</section>
 
-		{% if messages %}
-			<div class="alert-stack container-landing">
-				{% for message in messages %}
-					<div class="alert alert-{{ message.tags }}">{{ message }}</div>
-				{% endfor %}
-			</div>
-		{% endif %}
-
-		<section class="container-landing contact-grid">
+		<section class="container-landing contact-grid reveal-group">
 			<div class="contact-form-panel">
 				<div class="section-headline">
 					<h2>Send Us a Message</h2>
@@ -135,22 +133,22 @@
 				</div>
 				<div class="contact-side-card contact-social">
 					<h4>Follow Us</h4>
-					<a href="https://www.instagram.com/namastenomad2026/" target="_blank" rel="noopener noreferrer" class="instagram-link">
+					<a href="{{ site_settings.instagram_link|default:'https://www.instagram.com/namastenomad2026/' }}" target="_blank" rel="noopener noreferrer" class="instagram-link">
 						<i class="fab fa-instagram" aria-hidden="true"></i> Instagram
 					</a>
 				</div>
 			</aside>
 		</section>
 
-		<section class="container-landing map-section">
+		<section class="container-landing map-section reveal">
 			<div class="section-headline">
-				<h2>Visit Our Office</h2>
-				<p>Find us in Kathmandu and plan your next adventure with our support team.</p>
+				<h2>Find Our Office</h2>
+				<p>Located in the heart of Nepal tourism — come visit us in Pokhara.</p>
 			</div>
 			<div id="contactOfficeMap" class="contact-map" data-lat="{{ office_lat }}" data-lng="{{ office_lng }}"></div>
 		</section>
 
-		<section class="container-landing faq-section">
+		<section class="container-landing faq-section reveal">
 			<div class="section-headline">
 				<h2>Frequently Asked Questions</h2>
 			</div>
@@ -168,6 +166,8 @@
 	{% include "core/components/footer.html" %}
 
 	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+	<script src="{% static 'js/toast.js' %}"></script>
+	<script src="{% static 'js/animations.js' %}"></script>
 	<script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 	<script>
 		(function () {
