@@ -1,0 +1,1 @@
+{% if messages %}<script id="django-messages-data" type="application/json">[{% for m in messages %}{% if not forloop.first %},{% endif %}{"message":"{{ m.message|escapejs }}","level_tag":"{{ m.level_tag }}"}{% endfor %}]</script>{% endif %}
