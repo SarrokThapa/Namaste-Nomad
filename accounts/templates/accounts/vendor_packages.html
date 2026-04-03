@@ -30,21 +30,21 @@
                             {% if package.duration_days %}- {{ package.duration_days }} days{% endif %}
                             - Price Rs {{ package.price|floatformat:0 }} - Views {{ package.views_count }} - Bookings {{ package.booking_count }} -
                             {% if package.is_active %}Active{% else %}Paused{% endif %}
-                            {% if package.is_featured %}- Featured{% endif %}
+                            {% if package.id in featured_package_ids %}- Featured{% endif %}
                         </div>
                     </div>
                     <div class="package-actions">
                         <a class="btn small neutral" href="{% url 'vendor_package_edit' package.id %}">Edit</a>
                         <a class="btn small secondary" href="{% url 'package_detail' package.id %}">View</a>
-                        <form method="POST" action="{% url 'vendor_package_delete' package.id %}" onsubmit="return confirm('Delete this package? This cannot be undone.');">
+                        <form method="POST" action="{% url 'vendor_package_delete' package.id %}" class="delete-package-form">
                             {% csrf_token %}
                             <input type="hidden" name="next" value="{{ request.path }}">
-                            <button class="btn small danger" type="submit">Delete</button>
+                            <button class="btn small danger" type="button" onclick="confirmDelete(this.closest('form'), 'Delete this package? This cannot be undone.')">Delete</button>
                         </form>
                         <form method="POST" action="{% url 'vendor_feature_toggle' package.id %}">
                             {% csrf_token %}
                             <input type="hidden" name="next" value="{{ request.path }}">
-                            {% if package.is_featured %}
+                            {% if package.id in featured_package_ids %}
                                 <button class="btn small secondary" type="submit">Unfeature</button>
                             {% else %}
                                 <button class="btn small success" type="submit">Feature this Package</button>

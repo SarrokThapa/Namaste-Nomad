@@ -199,4 +199,30 @@
     }
 
     global.Toast = Toast;
+
+    /* ------------------------------------------------------------------
+       Global convenience: confirmDelete(form, message)
+       Usage: <button onclick="confirmDelete(this.closest('form'), 'Sure?')">
+       ------------------------------------------------------------------ */
+    global.confirmDelete = function (form, message) {
+        Toast.confirm({
+            title: 'Are you sure?',
+            message: message || 'This action cannot be undone.',
+            confirmLabel: "Yes, delete it",
+            cancelLabel: 'Cancel',
+        }).then(function (confirmed) {
+            if (confirmed) form.submit();
+        });
+    };
+
+    global.confirmAction = function (form, title, message) {
+        Toast.confirm({
+            title: title || 'Are you sure?',
+            message: message || 'Please confirm this action.',
+            confirmLabel: "Yes, I'm sure",
+            cancelLabel: 'Cancel',
+        }).then(function (confirmed) {
+            if (confirmed) form.submit();
+        });
+    };
 })(window);
