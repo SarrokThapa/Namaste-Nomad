@@ -5,14 +5,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ post.title }} - Namaste Nomad Blog</title>
-    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
-    <link rel="stylesheet" href="{% static 'css/about_blog.css' %}?v=20260301a">
-    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <link rel="stylesheet" href="{% static 'css/blog.css' %}?v=20260403a">
 </head>
-<body>
+<body class="page-fade-in">
+
+    {% include "core/includes/messages_toast.html" %}
+
     <nav class="landing-nav">
         <div class="nav-container">
             <a class="nav-brand" href="{% url 'home' %}">
@@ -34,37 +40,83 @@
         </div>
     </nav>
 
-    <main class="info-page">
-        <section class="info-hero">
-            <div class="container-landing">
+    <main>
+        <!-- Article Hero -->
+        <section class="blog-article-hero">
+            <div class="blog-article-hero-overlay"></div>
+            <div class="container-landing blog-article-hero-content reveal">
+                {% if post.category %}
+                    <span class="blog-category-tag">{{ post.category }}</span>
+                {% endif %}
                 <h1>{{ post.title }}</h1>
-                <p>{{ post.published_on|date:"F d, Y" }} · {{ post.read_time }}</p>
+                <div class="blog-article-meta">
+                    <div class="blog-author">
+                        <div class="blog-author-avatar">NN</div>
+                        <span>Namaste Nomad</span>
+                    </div>
+                    <span class="blog-meta-sep">·</span>
+                    <span class="blog-meta-date">
+                        <i class="far fa-calendar-alt"></i>
+                        {{ post.published_on|date:"F d, Y" }}
+                    </span>
+                    {% if post.read_time %}
+                        <span class="blog-meta-sep">·</span>
+                        <span class="blog-meta-read">
+                            <i class="far fa-clock"></i>
+                            {{ post.read_time }}
+                        </span>
+                    {% endif %}
+                </div>
             </div>
         </section>
 
-        <section class="container-landing info-section">
-            <article class="blog-article">
-                <div class="blog-article-image">
-                    <img src="{% static post.image_path %}" alt="{{ post.title }}">
+        <!-- Article Content -->
+        <section class="container-landing blog-article-section">
+            <article class="blog-article reveal">
+                <div class="blog-article-image img-zoom">
+                    <img src="{% static post.image_path %}" alt="{{ post.title }}" loading="lazy">
                 </div>
-                <p class="blog-article-intro">{{ post.intro }}</p>
 
-                {% for section in post.sections %}
-                    <section class="blog-article-section">
-                        <h2>{{ section.heading }}</h2>
-                        <p>{{ section.body }}</p>
-                    </section>
-                {% endfor %}
+                <div class="blog-article-body">
+                    <p class="blog-article-intro">{{ post.intro }}</p>
 
-                <div class="blog-article-actions">
-                    <a href="{% url 'blog_list' %}" class="btn-outline-dark">Back to Blog</a>
+                    {% for section in post.sections %}
+                        <div class="blog-article-content-section reveal">
+                            <h2>{{ section.heading }}</h2>
+                            <p>{{ section.body }}</p>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="blog-article-footer">
+                    <a href="{% url 'blog_list' %}" class="btn-outline-dark">
+                        <i class="fas fa-arrow-left"></i>
+                        Back to Blog
+                    </a>
                     <a href="{% url 'package_list' %}" class="btn-dark">Explore Packages</a>
                 </div>
             </article>
+
+            <!-- Related / CTA Sidebar -->
+            <aside class="blog-sidebar reveal-right">
+                <div class="blog-sidebar-card">
+                    <h3>Plan Your Trek</h3>
+                    <p>Ready to experience Nepal for yourself? Browse our verified packages.</p>
+                    <a href="{% url 'package_list' %}" class="btn-primary" style="width:100%;margin-top:1rem;">View Packages</a>
+                </div>
+                <div class="blog-sidebar-card">
+                    <h3>Join the Community</h3>
+                    <p>Share your stories and read adventures from fellow Nepal travelers.</p>
+                    <a href="{% url 'community_feed' %}" class="btn-secondary" style="width:100%;margin-top:1rem;">Community Feed</a>
+                </div>
+            </aside>
         </section>
     </main>
 
     {% include "core/components/footer.html" %}
+
+    <script src="{% static 'js/toast.js' %}"></script>
+    <script src="{% static 'js/animations.js' %}"></script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 </body>
 </html>

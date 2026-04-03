@@ -4,15 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Namaste Nomad Blog</title>
-    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
-    <link rel="stylesheet" href="{% static 'css/about_blog.css' %}?v=20260301a">
-    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <title>Travel Blog - Namaste Nomad</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <link rel="stylesheet" href="{% static 'css/blog.css' %}?v=20260403a">
 </head>
-<body>
+<body class="page-fade-in">
+
+    {% include "core/includes/messages_toast.html" %}
+
     <nav class="landing-nav">
         <div class="nav-container">
             <a class="nav-brand" href="{% url 'home' %}">
@@ -34,34 +40,93 @@
         </div>
     </nav>
 
-    <main class="info-page">
-        <section class="info-hero">
-            <div class="container-landing">
-                <h1>Travel Blog</h1>
-                <p>Guides, insights, and route ideas for your next Nepal journey.</p>
+    <main>
+        <!-- Hero -->
+        <section class="blog-hero">
+            <div class="blog-hero-overlay"></div>
+            <div class="blog-hero-content container-landing reveal">
+                <span class="blog-hero-eyebrow">Travel Stories</span>
+                <h1>Nepal Travel Blog</h1>
+                <p>Guides, route ideas, and stories from the trails — everything you need to plan your next adventure.</p>
             </div>
         </section>
 
-        <section class="container-landing info-section">
-            <div class="blog-grid">
-                {% for post in posts %}
-                    <a class="blog-card" href="{% url 'blog_detail' post.slug %}">
-                        <div class="blog-card-image">
-                            <img src="{% static post.image_path %}" alt="{{ post.title }}">
-                        </div>
-                        <div class="blog-card-body">
-                            <div class="blog-card-meta">{{ post.published_on|date:"F d, Y" }} · {{ post.read_time }}</div>
-                            <h2>{{ post.title }}</h2>
-                            <p>{{ post.excerpt }}</p>
-                            <span class="blog-read-link">Read article</span>
-                        </div>
-                    </a>
-                {% endfor %}
+        <!-- Blog listing -->
+        <section class="blog-listing container-landing">
+            {% if posts %}
+                <div class="blog-grid reveal-group">
+                    {% for post in posts %}
+                        <a class="blog-card card-hover" href="{% url 'blog_detail' post.slug %}">
+                            <div class="blog-card-image img-zoom">
+                                <img src="{% static post.image_path %}" alt="{{ post.title }}" loading="lazy">
+                                {% if post.category %}
+                                    <span class="blog-category-tag">{{ post.category }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="blog-card-body">
+                                <div class="blog-card-meta">
+                                    <span class="blog-meta-date">
+                                        <i class="far fa-calendar-alt"></i>
+                                        {{ post.published_on|date:"M d, Y" }}
+                                    </span>
+                                    {% if post.read_time %}
+                                        <span class="blog-meta-sep">·</span>
+                                        <span class="blog-meta-read">
+                                            <i class="far fa-clock"></i>
+                                            {{ post.read_time }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <h2 class="blog-card-title">{{ post.title }}</h2>
+                                <p class="blog-card-excerpt">{{ post.excerpt }}</p>
+                                <div class="blog-card-footer">
+                                    <div class="blog-author">
+                                        <div class="blog-author-avatar">NN</div>
+                                        <span>Namaste Nomad</span>
+                                    </div>
+                                    <span class="blog-read-more">
+                                        Read more
+                                        <i class="fas fa-arrow-right"></i>
+                                    </span>
+                                </div>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <!-- Empty state -->
+                <div class="blog-empty reveal">
+                    <div class="blog-empty-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                        </svg>
+                    </div>
+                    <h2>Stories Coming Soon</h2>
+                    <p>We're preparing amazing Nepal travel stories, route guides, and trekking tips just for you. Check back soon!</p>
+                    <div class="blog-empty-actions">
+                        <a href="{% url 'package_list' %}" class="btn-dark">Browse Packages</a>
+                        <a href="{% url 'community_feed' %}" class="btn-outline-dark">Community Stories</a>
+                    </div>
+                </div>
+            {% endif %}
+        </section>
+
+        <!-- CTA Strip -->
+        <section class="blog-cta-strip reveal">
+            <div class="container-landing blog-cta-inner">
+                <div>
+                    <h3>Ready to write your own Nepal story?</h3>
+                    <p>Find the perfect trek or tour and start planning today.</p>
+                </div>
+                <a href="{% url 'package_list' %}" class="btn-dark">Explore Packages</a>
             </div>
         </section>
     </main>
 
     {% include "core/components/footer.html" %}
+
+    <script src="{% static 'js/toast.js' %}"></script>
+    <script src="{% static 'js/animations.js' %}"></script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 </body>
 </html>
