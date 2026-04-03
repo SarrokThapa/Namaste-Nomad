@@ -1,3 +1,4 @@
+{% load static %}
 <!-- FILE: accounts/templates/accounts/verify_otp.html -->
 <!DOCTYPE html>
 <html lang="en">
@@ -6,8 +7,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verify OTP</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
 </head>
 <body>
+    {% include "core/includes/messages_toast.html" %}
     <div class="container">
         <div class="auth-card">
             <div class="otp-icon">
@@ -20,11 +24,6 @@
             <h2>Verify Your Email</h2>
             <p class="subtitle">We've sent a 6-digit code to<br><strong>{{ email }}</strong></p>
 
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
 
             <form method="POST" action="{% url 'verify_otp' %}">
                 {% csrf_token %}
@@ -65,5 +64,7 @@
     </div>
 
     <script src="/static/js/main.js"></script>
+    <script src="{% static 'js/toast.js' %}"></script>
+    <script src="{% static 'js/animations.js' %}"></script>
 </body>
 </html>

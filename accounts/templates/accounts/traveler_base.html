@@ -10,15 +10,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/layout.css' %}?v=20260401c">
     <link rel="stylesheet" href="{% static 'css/traveler_profile.css' %}?v=20260227a">
-    <link rel="stylesheet" href="{% static 'css/support_widget.css' %}?v=20260312a">
+    <link rel="stylesheet" href="{% static 'css/support_widget.css' %}?v=20260402b">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     <link rel="stylesheet" href="{% static 'css/wishlist.css' %}?v=20260315a">
+    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
-<body class="traveler-dashboard">
+<body class="traveler-dashboard page-fade-in">
+    {% include "core/includes/messages_toast.html" %}
     <header class="traveler-topbar">
         <a class="brand" href="{% url 'home' %}">
-            <span class="brand-mark"></span>
+            <svg class="brand-logo" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M4 19l8-14 8 14H4z"/>
+            </svg>
             <span class="brand-name">Namaste Nomad</span>
         </a>
         <nav class="topbar-nav" aria-label="Public navigation">
@@ -144,13 +149,6 @@
         </aside>
 
         <main class="traveler-main main-content">
-            {% if messages %}
-                <div class="alert-stack">
-                    {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
             {% block traveler_content %}{% endblock %}
         </main>
     </div>
@@ -193,6 +191,8 @@
     </script>
     {% block extra_js %}{% endblock %}
     {% include "accounts/includes/support_widget.html" %}
+    <script src="{% static 'js/toast.js' %}"></script>
+    <script src="{% static 'js/animations.js' %}"></script>
     <script src="{% static 'js/wishlist.js' %}?v=20260315a"></script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 </body>

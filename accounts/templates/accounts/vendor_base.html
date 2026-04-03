@@ -12,9 +12,12 @@
     <link rel="stylesheet" href="{% static 'css/vendor_dashboard.css' %}?v=20260226b">
     <link rel="stylesheet" href="{% static 'css/support_widget.css' %}?v=20260402b">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
-<body class="vendor-dashboard">
+<body class="vendor-dashboard page-fade-in">
+    {% include "core/includes/messages_toast.html" %}
     <header class="topbar">
         <a class="brand" href="{% url 'home' %}">
             <svg class="brand-logo" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -143,17 +146,12 @@
         </aside>
 
         <main class="dashboard-main main-content">
-            {% if messages %}
-                <div class="alert-stack">
-                    {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
             {% block content %}{% endblock %}
         </main>
     </div>
     {% include "accounts/includes/support_widget.html" %}
+    <script src="{% static 'js/toast.js' %}"></script>
+    <script src="{% static 'js/animations.js' %}"></script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 </body>
 </html>

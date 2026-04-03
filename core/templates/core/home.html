@@ -8,7 +8,7 @@
     <title>Namaste Nomad - Nepal Treks & Tours</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="{% static 'css/landing.css' %}">
-    <link rel="stylesheet" href="{% static 'css/home.css' %}?v=20260401b">
+    <link rel="stylesheet" href="{% static 'css/home.css' %}?v=20260402c">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     <link rel="stylesheet" href="{% static 'css/wishlist.css' %}?v=20260315a">
     <link rel="stylesheet" href="{% static 'css/destination_autocomplete.css' %}?v=20260314a">
@@ -17,8 +17,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
 </head>
 <body>
+    {% include "core/includes/messages_toast.html" %}
     <!-- Navigation -->
     <nav class="landing-nav">
         <div class="nav-container">
@@ -41,21 +44,14 @@
         </div>
     </nav>
 
-    {% if messages %}
-        <div class="alert-stack container-landing">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
-        </div>
-    {% endif %}
 
     <!-- Hero Section -->
     <section class="hero">
         <div class="hero-overlay">
             <div class="hero-content">
-                <h1 class="hero-title">Find Your Perfect Nepal Trek</h1>
+                <h1 class="hero-title">{{ site_settings.hero_title|default:"Find Your Perfect Nepal Trek" }}</h1>
                 <p class="hero-subtitle">
-                    Compare trusted local operators for Nepal's Himalayas and heritage tours.
+                    {{ site_settings.hero_subtitle|default:"Compare trusted local operators for Nepal's Himalayas and heritage tours." }}
                 </p>
                 <form class="search-card" method="GET" action="{% url 'packages' %}">
                     <div class="search-field">
@@ -311,29 +307,31 @@
                     </div>
                 </div>
 
-                <div class="trek-grid">
+                <div class="row recommended-row">
                     {% if recommended_packages %}
                         {% for package in recommended_packages %}
-                            <article class="trek-card">
-                                {% with cover=package.images.all|first %}
-                                    <div class="trek-image" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
-                                        {% include "core/includes/wishlist_button.html" with package=package %}
-                                        <span class="tag">Recommended</span>
+                            <div class="col-lg-3 col-md-6 col-sm-12 mb-4">
+                                <article class="trek-card package-card">
+                                    {% with cover=package.images.all|first %}
+                                        <div class="trek-image" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
+                                            {% include "core/includes/wishlist_button.html" with package=package %}
+                                            <span class="tag">Recommended</span>
+                                        </div>
+                                    {% endwith %}
+                                    <div class="trek-body">
+                                        <h3>{{ package.title }}</h3>
+                                        <p class="trek-meta">{{ package.location|default:"Nepal" }}{% if package.duration_days %} | {{ package.duration_days }} days{% endif %}</p>
+                                        <div class="trek-rating">
+                                            <span class="stars">★★★★★</span>
+                                            <span>{{ package.avg_rating|default:0|floatformat:1 }} ({{ package.review_count|default:0 }} reviews)</span>
+                                        </div>
+                                        <div class="trek-footer">
+                                            <span class="trek-price">Rs {{ package.price|floatformat:0 }}</span>
+                                            <a class="btn-outline-dark" href="{% url 'package_detail' package.id %}">View Details</a>
+                                        </div>
                                     </div>
-                                {% endwith %}
-                                <div class="trek-body">
-                                    <h3>{{ package.title }}</h3>
-                                    <p class="trek-meta">{{ package.location|default:"Nepal" }}{% if package.duration_days %} | {{ package.duration_days }} days{% endif %}</p>
-                                    <div class="trek-rating">
-                                        <span class="stars">★★★★★</span>
-                                        <span>{{ package.avg_rating|default:0|floatformat:1 }} ({{ package.review_count|default:0 }} reviews)</span>
-                                    </div>
-                                    <div class="trek-footer">
-                                        <span class="trek-price">Rs {{ package.price|floatformat:0 }}</span>
-                                        <a class="btn-outline-dark" href="{% url 'package_detail' package.id %}">View Details</a>
-                                    </div>
-                                </div>
-                            </article>
+                                </article>
+                            </div>
                         {% endfor %}
                     {% else %}
                         <div class="review-empty">Start adding packages to your wishlist to get personalized recommendations.</div>
@@ -847,5 +845,7 @@
     <script src="{% static 'js/package_maps.js' %}?v=20260313a"></script>
     <script src="{% static 'js/wishlist.js' %}?v=20260315a"></script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
+    <script src="{% static 'js/toast.js' %}"></script>
+    <script src="{% static 'js/animations.js' %}"></script>
 </body>
 </html>

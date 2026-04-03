@@ -11,8 +11,11 @@
     <link rel="stylesheet" href="{% static 'css/landing.css' %}">
     <link rel="stylesheet" href="{% static 'css/packages.css' %}?v=20260301b">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
 </head>
 <body class="packages-body">
+    {% include "core/includes/messages_toast.html" %}
     <nav class="landing-nav">
         <div class="nav-container">
             <a class="nav-brand" href="{% url 'home' %}">
@@ -34,13 +37,6 @@
         </div>
     </nav>
 
-    {% if messages %}
-        <div class="alert-stack container-landing">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
-        </div>
-    {% endif %}
 
     <main class="booking-shell">
         <section class="booking-confirm-card">
@@ -120,5 +116,7 @@
         </section>
     </main>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
+    <script src="{% static 'js/toast.js' %}"></script>
+    <script src="{% static 'js/animations.js' %}"></script>
 </body>
 </html>

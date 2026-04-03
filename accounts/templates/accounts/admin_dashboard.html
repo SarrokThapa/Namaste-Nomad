@@ -12,11 +12,16 @@
     <link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}?v=20260226b">
     <link rel="stylesheet" href="{% static 'css/layout.css' %}?v=20260401c">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
 </head>
 <body class="admin-dashboard">
+    {% include "core/includes/messages_toast.html" %}
     <header class="topbar admin-topbar">
         <a class="brand" href="{% url 'home' %}">
-            <span class="brand-mark"></span>
+            <svg class="brand-logo" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M4 19l8-14 8 14H4z"/>
+            </svg>
             <span class="brand-name">Namaste Nomad</span>
         </a>
         <div class="topbar-actions">
@@ -104,7 +109,7 @@
                     </span>
                     Bookings
                 </a>
-                <a class="nav-item" href="#recent-activity">
+                <a class="nav-item" href="#reviews">
                     <span class="nav-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 17l-5 3 1-5-4-4 5-1 3-5 3 5 5 1-4 4 1 5-5-3z"/>
@@ -122,7 +127,7 @@
                     </span>
                     Reports
                 </a>
-                <a class="nav-item" href="#quick-actions">
+                <a class="nav-item {% if active_page == 'settings' %}active{% endif %}" href="{% url 'admin_settings' %}">
                     <span class="nav-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 20c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z"/>
@@ -160,13 +165,6 @@
             data-admin-analytics-dashboard
             data-analytics-url="{% url 'admin_analytics_api' %}"
         >
-            {% if messages %}
-                <div class="alert-stack">
-                    {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
 
             <section class="admin-heading">
                 <div>
@@ -391,8 +389,8 @@
                     <strong>{{ stats.avg_rating }}</strong>
                 </div>
                 <div class="mini-card">
-                    <span>Feature Slots Used</span>
-                    <strong>{{ stats.feature_slot_used }} / {{ stats.feature_slot_capacity }}</strong>
+                    <span>Featured Packages</span>
+                    <strong>{{ stats.featured_packages_count }}</strong>
                 </div>
             </section>
 
@@ -408,6 +406,41 @@
             </section>
 
             <section class="admin-lists">
+                <div class="card list-card" id="reviews">
+                    <div class="card-header">
+                        <h3>All Traveler Reviews</h3>
+                        <span class="card-meta">{{ reviews|length }} total</span>
+                    </div>
+                    {% if reviews %}
+                        <table class="activity-table">
+                            <thead>
+                                <tr>
+                                    <th>Traveler</th>
+                                    <th>Email</th>
+                                    <th>Package</th>
+                                    <th>Rating</th>
+                                    <th>Comment</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for review in reviews %}
+                                    <tr>
+                                        <td>{% firstof review.traveler.get_full_name review.traveler.username "Traveler" %}</td>
+                                        <td>{{ review.traveler.email|default:"-" }}</td>
+                                        <td>{{ review.package.title }}</td>
+                                        <td>{{ review.rating }}/5</td>
+                                        <td>{{ review.comment|default:"-"|truncatechars:120 }}</td>
+                                        <td>{{ review.created_at|date:"M d, Y" }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <div class="empty-state">No traveler reviews yet.</div>
+                    {% endif %}
+                </div>
+
                 <div class="card list-card" id="bookings">
                     <div class="card-header">
                         <h3>All Bookings</h3>
@@ -448,17 +481,21 @@
                     <div class="empty-state">No bookings yet.</div>
                 {% endif %}
             </div>
-            <div class="card list-card" id="subscriptions">
+            <div class="card list-card" id="feature-plans">
                 <div class="card-header">
-                    <h3>Subscription Plans</h3>
-                    <span class="card-meta">{{ subscription_plans|length }} total</span>
+                    <h3>Feature Plans</h3>
+                    <span class="card-meta">{{ feature_plans|length }} total</span>
                 </div>
-                <form method="POST" action="{% url 'admin_subscription_plan_create' %}">
+                <form method="POST" action="{% url 'admin_feature_plan_create' %}">
                     {% csrf_token %}
                     <div class="detail-grid">
                         <div>
                             <label>Plan Name</label>
                             <input class="form-control" type="text" name="name" required>
+                        </div>
+                        <div>
+                            <label>Slots Included</label>
+                            <input class="form-control" type="number" name="slots_count" min="1" required>
                         </div>
                         <div>
                             <label>Price (Rs)</label>
@@ -469,161 +506,79 @@
                             <input class="form-control" type="number" name="duration_days" min="1" required>
                         </div>
                         <div>
-                            <label>Featured Limit</label>
-                            <input class="form-control" type="number" name="max_featured_packages" min="1" placeholder="Leave blank for unlimited">
+                            <label>Description</label>
+                            <input class="form-control" type="text" name="description" placeholder="Optional">
                         </div>
                     </div>
                     <div class="form-actions">
                         <button class="btn small success" type="submit">Create Plan</button>
                     </div>
                 </form>
-                {% if subscription_plans %}
+                {% if feature_plans %}
                     <table class="activity-table">
                         <thead>
                             <tr>
                                 <th>Plan</th>
+                                <th>Slots</th>
                                 <th>Price</th>
                                 <th>Duration</th>
-                                <th>Featured Limit</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for plan in subscription_plans %}
+                            {% for plan in feature_plans %}
                                 <tr>
                                     <td>{{ plan.name }}</td>
+                                    <td>{{ plan.slots_count }}</td>
                                     <td>Rs {{ plan.price|floatformat:0 }}</td>
                                     <td>{{ plan.duration_days }} days</td>
-                                    <td>{% if plan.max_featured_packages %}{{ plan.max_featured_packages }}{% else %}Unlimited{% endif %}</td>
                                     <td>{% if plan.is_active %}Active{% else %}Inactive{% endif %}</td>
                                 </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 {% else %}
-                    <div class="empty-state">No subscription plans yet.</div>
+                    <div class="empty-state">No feature plans yet.</div>
                 {% endif %}
             </div>
 
             <div class="card list-card" id="vendor-subscriptions">
                 <div class="card-header">
-                    <h3>Vendor Subscriptions</h3>
-                    <span class="card-meta">{{ vendor_subscriptions|length }} total</span>
+                    <h3>Active Vendor Subscriptions</h3>
+                    <span class="card-meta">{{ active_subscriptions|length }} active</span>
                 </div>
-                {% if vendor_subscriptions %}
+                {% if active_subscriptions %}
                     <table class="activity-table">
                         <thead>
                             <tr>
                                 <th>Vendor</th>
                                 <th>Plan</th>
+                                <th>Slots</th>
                                 <th>Price</th>
-                                <th>Start</th>
-                                <th>End</th>
-                                <th>Status</th>
+                                <th>Expires</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for subscription in vendor_subscriptions %}
+                            {% for sub in active_subscriptions %}
                                 <tr>
-                                    <td>{{ subscription.vendor.get_full_name|default:subscription.vendor.email }}</td>
-                                    <td>{{ subscription.plan_name }}</td>
-                                    <td>Rs {{ subscription.price|floatformat:0 }}</td>
-                                    <td>{{ subscription.start_date|date:"M d, Y" }}</td>
-                                    <td>{{ subscription.end_date|date:"M d, Y" }}</td>
-                                    <td>{{ subscription.get_status_display }}</td>
+                                    <td>{{ sub.vendor.get_full_name|default:sub.vendor.email }}</td>
+                                    <td>{{ sub.plan_name }}</td>
+                                    <td>{{ sub.slots_used }} / {{ sub.slots_total }}</td>
+                                    <td>Rs {{ sub.price|floatformat:0 }}</td>
+                                    <td>{{ sub.end_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <form method="POST" action="{% url 'admin_subscription_deactivate' sub.id %}" style="display:inline;">
+                                            {% csrf_token %}
+                                            <button class="btn small danger" type="submit" onclick="return confirm('Deactivate this subscription?')">Deactivate</button>
+                                        </form>
+                                    </td>
                                 </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 {% else %}
-                    <div class="empty-state">No subscriptions yet.</div>
-                {% endif %}
-            </div>
-
-            <div class="card list-card" id="feature-slots">
-                <div class="card-header">
-                    <h3>Feature Slots</h3>
-                    <span class="card-meta">{{ feature_slots|length }} total</span>
-                </div>
-                <form method="POST" action="{% url 'admin_feature_slot_create' %}">
-                    {% csrf_token %}
-                    <div class="detail-grid">
-                        <div>
-                            <label>Slot Name</label>
-                            <input class="form-control" type="text" name="name" required>
-                        </div>
-                        <div>
-                            <label>Max Slots</label>
-                            <input class="form-control" type="number" name="max_slots" min="1" required>
-                        </div>
-                        <div>
-                            <label>Price Per Slot (Rs)</label>
-                            <input class="form-control" type="number" name="price_per_slot" min="0" step="0.01" required>
-                        </div>
-                    </div>
-                    <div class="form-actions">
-                        <button class="btn small success" type="submit">Create Feature Slot</button>
-                    </div>
-                </form>
-
-                {% if feature_slots %}
-                    <table class="activity-table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Max Slots</th>
-                                <th>Price / Slot</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for slot in feature_slots %}
-                                <tr>
-                                    <td>{{ slot.name }}</td>
-                                    <td>{{ slot.max_slots }}</td>
-                                    <td>Rs {{ slot.price_per_slot|floatformat:0 }}</td>
-                                    <td>{% if slot.is_active %}Active{% else %}Inactive{% endif %}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                {% else %}
-                    <div class="empty-state">No feature slots yet.</div>
-                {% endif %}
-            </div>
-
-            <div class="card list-card" id="vendor-feature-purchases">
-                <div class="card-header">
-                    <h3>Vendor Feature Purchases</h3>
-                    <span class="card-meta">{{ vendor_features|length }} total</span>
-                </div>
-                {% if vendor_features %}
-                    <table class="activity-table">
-                        <thead>
-                            <tr>
-                                <th>Vendor</th>
-                                <th>Slot</th>
-                                <th>Purchased</th>
-                                <th>Start</th>
-                                <th>End</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for feature in vendor_features %}
-                                <tr>
-                                    <td>{{ feature.vendor.get_full_name|default:feature.vendor.email }}</td>
-                                    <td>{{ feature.slot.name }}</td>
-                                    <td>{{ feature.purchased_slots }}</td>
-                                    <td>{{ feature.start_date|date:"M d, Y" }}</td>
-                                    <td>{{ feature.end_date|date:"M d, Y" }}</td>
-                                    <td>{% if feature.is_active %}Active{% else %}Expired{% endif %}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                {% else %}
-                    <div class="empty-state">No vendor feature purchases yet.</div>
+                    <div class="empty-state">No active vendor subscriptions.</div>
                 {% endif %}
             </div>
 
@@ -723,8 +678,29 @@
                                         {{ traveler.first_name|default:"T"|slice:":1" }}{{ traveler.last_name|default:""|slice:":1" }}
                                     </div>
                                     <div class="booking-info">
-                                        <div class="booking-name">{{ traveler.get_full_name|default:traveler.email }}</div>
-                                        <div class="booking-meta">Joined {{ traveler.date_joined|date:"M d, Y" }}</div>
+                                        {% firstof traveler.get_full_name traveler.username "Traveler" as traveler_display_name %}
+                                        <div class="booking-name">{{ traveler_display_name }}</div>
+                                        <div class="booking-meta">
+                                            {{ traveler.email }} - Joined {{ traveler.date_joined|date:"M d, Y" }} -
+                                            {% if traveler.is_active %}Active{% else %}Suspended{% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="booking-actions">
+                                        {% if traveler.is_active %}
+                                            <form method="POST" action="{% url 'admin_traveler_action' traveler.id %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="next" value="{{ request.path }}#users">
+                                                <input type="hidden" name="action" value="suspend">
+                                                <button class="btn small danger" type="submit">Suspend</button>
+                                            </form>
+                                        {% else %}
+                                            <form method="POST" action="{% url 'admin_traveler_action' traveler.id %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="next" value="{{ request.path }}#users">
+                                                <input type="hidden" name="action" value="activate">
+                                                <button class="btn small success" type="submit">Activate</button>
+                                            </form>
+                                        {% endif %}
                                     </div>
                                 </div>
                             {% endfor %}
@@ -772,5 +748,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script src="{% static 'js/admin_dashboard_analytics.js' %}?v=20260325a"></script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
+    <script src="{% static 'js/toast.js' %}"></script>
+    <script src="{% static 'js/animations.js' %}"></script>
 </body>
 </html>

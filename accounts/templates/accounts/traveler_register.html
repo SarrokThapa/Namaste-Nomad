@@ -1,3 +1,4 @@
+{% load static %}
 <!-- FILE: accounts/templates/accounts/traveler_register.html -->
 <!DOCTYPE html>
 <html lang="en">
@@ -6,15 +7,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Traveler Registration</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
 </head>
 <body>
+    {% include "core/includes/messages_toast.html" %}
     <nav class="navbar navbar-blue">
         <a class="nav-brand" href="{% url 'home' %}">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M4 19l8-14 8 14H4z"/>
             </svg>
-            <span>NamasteNomad</span>
+            <span>Namaste Nomad</span>
         </a>
         <div class="nav-buttons">
             <a href="{% url 'account_login_choice' %}" class="btn-nav">Login</a>
@@ -28,11 +31,6 @@
             <h2>Join as a Traveler</h2>
             <p class="subtitle">Create your account and start exploring</p>
 
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
 
             <div class="social-buttons">
                 {% include 'accounts/includes/google_oauth_button.html' %}
@@ -122,5 +120,7 @@
                 };
             }
         </script>
+    <script src="{% static 'js/toast.js' %}"></script>
+    <script src="{% static 'js/animations.js' %}"></script>
 </body>
 </html>

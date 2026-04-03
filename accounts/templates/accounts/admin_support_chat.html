@@ -13,11 +13,16 @@
     <link rel="stylesheet" href="{% static 'css/layout.css' %}?v=20260401c">
     <link rel="stylesheet" href="{% static 'css/support_chat.css' %}?v=20260312a">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
 </head>
 <body class="admin-dashboard">
+    {% include "core/includes/messages_toast.html" %}
     <header class="topbar admin-topbar">
         <a class="brand" href="{% url 'home' %}">
-            <span class="brand-mark"></span>
+            <svg class="brand-logo" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M4 19l8-14 8 14H4z"/>
+            </svg>
             <span class="brand-name">Namaste Nomad</span>
         </a>
         <div class="topbar-actions">
@@ -57,6 +62,16 @@
                     </span>
                     Support Inbox{% if support_inbox_unread_count %} ({{ support_inbox_unread_count }} new){% endif %}
                 </a>
+                <a class="nav-item {% if active_page == 'settings' %}active{% endif %}" href="{% url 'admin_settings' %}">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 20c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z"/>
+                            <path d="M12 14v-4"/>
+                            <path d="M12 8h.01"/>
+                        </svg>
+                    </span>
+                    Settings
+                </a>
                 <a class="nav-item" href="{% url 'admin_profile' %}">
                     <span class="nav-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -80,13 +95,6 @@
         </aside>
 
         <main class="dashboard-main admin-main main-content">
-            {% if messages %}
-                <div class="alert-stack">
-                    {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
 
             <section class="support-chat">
                 <div class="support-chat__header support-chat__header--admin">
@@ -168,5 +176,7 @@
         })();
     </script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
+    <script src="{% static 'js/toast.js' %}"></script>
+    <script src="{% static 'js/animations.js' %}"></script>
 </body>
 </html>

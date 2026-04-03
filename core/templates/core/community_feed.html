@@ -7,13 +7,16 @@
     <title>Community Feed - Namaste Nomad</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="{% static 'css/landing.css' %}">
-    <link rel="stylesheet" href="{% static 'css/community.css' %}?v=20260301a">
+    <link rel="stylesheet" href="{% static 'css/community.css' %}?v=20260402d">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
 </head>
 <body>
+    {% include "core/includes/messages_toast.html" %}
     <nav class="landing-nav">
         <div class="nav-container">
             <a class="nav-brand" href="{% url 'home' %}">
@@ -36,13 +39,6 @@
         </div>
     </nav>
 
-    {% if messages %}
-        <div class="alert-stack container-landing">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
-        </div>
-    {% endif %}
 
     <main class="community-page">
         <section class="community-hero">
@@ -57,7 +53,9 @@
         </section>
     </main>
 
-    <script src="{% static 'js/community.js' %}?v=20260311a"></script>
+    <script src="{% static 'js/community.js' %}?v=20260402a"></script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
+    <script src="{% static 'js/toast.js' %}"></script>
+    <script src="{% static 'js/animations.js' %}"></script>
 </body>
 </html>

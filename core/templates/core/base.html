@@ -8,10 +8,13 @@
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="{% static 'css/landing.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'css/support_widget.css' %}?v=20260312a">
+    <link rel="stylesheet" href="{% static 'css/support_widget.css' %}?v=20260402b">
+    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="page-fade-in">
+    {% include "core/includes/messages_toast.html" %}
     {% include 'core/navbar.html' %}
     
     {% block content %}
@@ -20,6 +23,8 @@
     {% include 'core/footer.html' %}
     
     <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static 'js/toast.js' %}"></script>
+    <script src="{% static 'js/animations.js' %}"></script>
     {% block extra_js %}{% endblock %}
     {% include "accounts/includes/support_widget.html" %}
 </body>
