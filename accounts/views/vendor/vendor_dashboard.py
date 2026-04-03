@@ -1,6 +1,12 @@
 """Vendor dashboard and support/notification views."""
 
 from ..common import *
+from core.services.subscription_service import (
+    expire_overdue_subscriptions,
+    get_active_subscription as get_active_sub,
+    get_available_plans,
+    get_featured_packages_for_vendor,
+)
 
 @never_cache
 @login_required(login_url='account_login_choice')
@@ -215,14 +221,12 @@ def vendor_dashboard(request):
     completed_vendor_bookings = vendor_bookings.filter(
         payment_status=Booking.PAYMENT_STATUS_COMPLETED,
     )
-    active_subscription = _get_active_subscription(request.user)
-    VendorFeature.expire_overdue(vendor=request.user)
-    active_feature_purchases = VendorFeature.active_for_vendor(request.user).select_related('slot')
-    featured_count = vendor_packages.filter(is_featured=True).count()
-    featured_limit = _total_active_feature_slots_for_vendor(request.user)
+    subscription = get_active_sub(request.user)
+    featured_entries = get_featured_packages_for_vendor(request.user)
+    featured_count = featured_entries.count()
+    featured_limit = subscription.slots_total if subscription else 0
     featured_remaining = max(featured_limit - featured_count, 0)
-    active_feature_slots = FeatureSlot.objects.filter(is_active=True).order_by('-created_at')
-    subscription_plans = VendorSubscriptionPlan.objects.filter(is_active=True).order_by('price', 'duration_days')
+    feature_plans = get_available_plans()
 
     total_revenue = vendor_bookings.filter(status='confirmed').aggregate(
         total=Sum('vendor_amount')
@@ -252,10 +256,9 @@ def vendor_dashboard(request):
     monthly_earnings = []
     monthly_bookings = []
     for start, end, label in month_periods:
-        month_total = completed_vendor_bookings.filter(
+        vendor_share = completed_vendor_bookings.filter(
             created_at__date__range=(start, end),
-        ).aggregate(total=Sum('total_price'))['total'] or Decimal('0')
-        vendor_share = (Decimal(month_total) * Booking.COMMISSION_VENDOR_RATE).quantize(Decimal('0.01'))
+        ).aggregate(total=Sum('vendor_amount'))['total'] or Decimal('0')
         booking_count = completed_vendor_bookings.filter(created_at__date__range=(start, end)).count()
         monthly_earnings.append({
             'label': label,
@@ -334,13 +337,11 @@ def vendor_dashboard(request):
             'pending_bookings': pending_bookings,
             'average_rating': round(average_rating or 0, 1),
         },
-        'active_subscription': active_subscription,
+        'active_subscription': subscription,
         'featured_count': featured_count,
         'featured_limit': featured_limit,
         'featured_remaining': featured_remaining,
-        'active_feature_slots': active_feature_slots,
-        'active_feature_purchases': active_feature_purchases,
-        'subscription_plans': subscription_plans,
+        'feature_plans': feature_plans,
         'earnings_chart': earnings_chart,
         'bookings_chart': bookings_chart,
         'packages_chart': packages_chart,
@@ -354,163 +355,34 @@ def vendor_dashboard(request):
 @never_cache
 @login_required(login_url='vendor_login')
 
-def vendor_analytics(request):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
-
-    vendor_profile = _get_vendor_profile(request.user)
-    vendor_packages = Package.objects.filter(vendor=request.user)
-    vendor_bookings = Booking.objects.filter(package__vendor=request.user)
-    total_revenue = vendor_bookings.filter(status='confirmed').aggregate(
-        total=Sum('vendor_amount')
-    )['total'] or 0
-
-    analytics = {
-        'packages': vendor_packages.count(),
-        'bookings': vendor_bookings.count(),
-        'revenue': float(total_revenue),
-        'reviews': Review.objects.filter(package__vendor=request.user).count(),
-        'avg_rating': Review.objects.filter(package__vendor=request.user).aggregate(
-            avg=Avg('rating')
-        )['avg'] or 0,
-    }
-
-    today = timezone.localdate()
-
-    month_cursor = today.replace(day=1)
-    month_periods = []
-    for _ in range(6):
-        last_day = monthrange(month_cursor.year, month_cursor.month)[1]
-        start = month_cursor
-        end = date(month_cursor.year, month_cursor.month, last_day)
-        month_periods.append((start, end, start.strftime('%b')))
-
-        if month_cursor.month == 1:
-            month_cursor = date(month_cursor.year - 1, 12, 1)
-        else:
-            month_cursor = date(month_cursor.year, month_cursor.month - 1, 1)
-    month_periods.reverse()
-
-    monthly_revenue = []
-    max_monthly_revenue = 0
-    for start, end, label in month_periods:
-        value = vendor_bookings.filter(
-            status='confirmed',
-            created_at__date__range=(start, end),
-        ).aggregate(total=Sum('vendor_amount'))['total'] or 0
-        value = float(value)
-        max_monthly_revenue = max(max_monthly_revenue, value)
-        monthly_revenue.append({
-            'label': label,
-            'value': value,
-        })
-
-    for entry in monthly_revenue:
-        if max_monthly_revenue <= 0:
-            entry['percent'] = 0
-        else:
-            entry['percent'] = int((entry['value'] / max_monthly_revenue) * 100)
-
-    line_values = [entry['value'] for entry in monthly_revenue]
-    chart_width = 420
-    chart_height = 170
-    chart_padding_x = 12
-    chart_padding_y = 22
-    chart_step = (chart_width - chart_padding_x * 2) / max(len(line_values) - 1, 1)
-    max_line_value = max(line_values) if line_values else 0
-    min_line_value = min(line_values) if line_values else 0
-    monthly_line_points = []
-    for idx, value in enumerate(line_values):
-        x = chart_padding_x + idx * chart_step
-        if max_line_value == min_line_value:
-            y = chart_height / 2
-        else:
-            ratio = (value - min_line_value) / (max_line_value - min_line_value)
-            y = chart_height - chart_padding_y - ratio * (chart_height - chart_padding_y * 2)
-        monthly_line_points.append(f"{x:.0f},{y:.0f}")
-
-    payment_method_counts = {}
-    for method_key, _label in Booking.PAYMENT_METHOD_CHOICES:
-        payment_method_counts[method_key] = 0
-    for row in vendor_bookings.values('payment_method').annotate(count=Count('id')):
-        payment_method_counts[row['payment_method']] = row['count']
-
-    method_labels = dict(Booking.PAYMENT_METHOD_CHOICES)
-    method_colors = {
-        Booking.PAYMENT_METHOD_ESEWA: '#0f766e',
-        Booking.PAYMENT_METHOD_STRIPE: '#2563eb',
-        Booking.PAYMENT_METHOD_KHALTI: '#7c3aed',
-    }
-    method_order = [
-        Booking.PAYMENT_METHOD_ESEWA,
-        Booking.PAYMENT_METHOD_STRIPE,
-        Booking.PAYMENT_METHOD_KHALTI,
-    ]
-
-    total_method_count = sum(payment_method_counts.values())
-    payment_method_breakdown = []
-    method_segments = []
-    current_percent = 0
-    for method in method_order:
-        count = payment_method_counts.get(method, 0)
-        percent = (count / total_method_count * 100) if total_method_count else 0
-        payment_method_breakdown.append({
-            'key': method,
-            'label': method_labels.get(method, method.title()),
-            'count': count,
-            'percent': round(percent),
-            'color': method_colors[method],
-        })
-        if percent > 0:
-            next_percent = current_percent + percent
-            method_segments.append(
-                f"{method_colors[method]} {current_percent:.1f}% {next_percent:.1f}%"
-            )
-            current_percent = next_percent
-
-    if not method_segments:
-        payment_method_gradient = "conic-gradient(#e5e7eb 0 100%)"
-    else:
-        if current_percent < 100:
-            method_segments.append(f"#e5e7eb {current_percent:.1f}% 100%")
-        payment_method_gradient = f"conic-gradient({', '.join(method_segments)})"
-
-    return render(request, 'accounts/vendor_analytics.html', {
-        'vendor_profile': vendor_profile,
-        'active_page': 'analytics',
-        'analytics': analytics,
-        'monthly_revenue': monthly_revenue,
-        'monthly_line_points': " ".join(monthly_line_points),
-        'payment_method_breakdown': payment_method_breakdown,
-        'payment_method_gradient': payment_method_gradient,
-    })
-
-
-@never_cache
-@login_required(login_url='vendor_login')
-
 def vendor_settings(request):
     if not _ensure_vendor(request):
         return redirect('vendor_login')
 
     vendor_profile = _get_vendor_profile(request.user)
-    active_subscription = _get_active_subscription(request.user)
-    subscription_plans = VendorSubscriptionPlan.objects.filter(is_active=True).order_by('price', 'duration_days')
-    VendorFeature.expire_overdue(vendor=request.user)
-    active_feature_slots = FeatureSlot.objects.filter(is_active=True).order_by('-created_at')
-    active_feature_purchases = VendorFeature.active_for_vendor(request.user).select_related('slot').order_by('-created_at')
-    used_slots = _total_featured_packages_for_vendor(request.user)
-    purchased_slots = _total_active_feature_slots_for_vendor(request.user)
+    subscription = get_active_sub(request.user)
+    feature_plans = get_available_plans()
+    featured_entries = get_featured_packages_for_vendor(request.user)
+    featured_count = featured_entries.count()
+    slots_total = subscription.slots_total if subscription else 0
+
+    # Get vendor's packages for the "assign to slot" UI
+    vendor_packages = Package.objects.filter(
+        vendor=request.user, is_active=True,
+    ).order_by('-created_at')
+    featured_package_ids = set(featured_entries.values_list('package_id', flat=True))
+
     return render(request, 'accounts/vendor_settings.html', {
         'vendor_profile': vendor_profile,
         'active_page': 'settings',
-        'active_subscription': active_subscription,
-        'subscription_plans': subscription_plans,
-        'active_feature_slots': active_feature_slots,
-        'active_feature_purchases': active_feature_purchases,
-        'feature_slots_purchased': purchased_slots,
-        'feature_slots_used': used_slots,
-        'feature_slots_remaining': max(purchased_slots - used_slots, 0),
+        'active_subscription': subscription,
+        'feature_plans': feature_plans,
+        'featured_entries': featured_entries,
+        'featured_count': featured_count,
+        'slots_total': slots_total,
+        'slots_remaining': max(slots_total - featured_count, 0),
+        'vendor_packages': vendor_packages,
+        'featured_package_ids': featured_package_ids,
     })
 
 

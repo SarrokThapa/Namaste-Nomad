@@ -10,14 +10,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/layout.css' %}?v=20260401c">
     <link rel="stylesheet" href="{% static 'css/vendor_dashboard.css' %}?v=20260226b">
-    <link rel="stylesheet" href="{% static 'css/support_widget.css' %}?v=20260312a">
+    <link rel="stylesheet" href="{% static 'css/support_widget.css' %}?v=20260402b">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     {% block extra_css %}{% endblock %}
 </head>
 <body class="vendor-dashboard">
     <header class="topbar">
         <a class="brand" href="{% url 'home' %}">
-            <span class="brand-mark"></span>
+            <svg class="brand-logo" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M4 19l8-14 8 14H4z"/>
+            </svg>
             <span class="brand-name">Namaste Nomad</span>
         </a>
         <nav class="topbar-nav" aria-label="Public navigation">
@@ -108,17 +110,6 @@
                         </svg>
                     </span>
                     Reviews
-                </a>
-                <a class="nav-item {% if active_page == 'analytics' %}active{% endif %}" href="{% url 'vendor_analytics' %}">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M4 19h16"/>
-                            <path d="M7 15v-5"/>
-                            <path d="M12 15V7"/>
-                            <path d="M17 15v-8"/>
-                        </svg>
-                    </span>
-                    Analytics
                 </a>
                 <a class="nav-item {% if active_page == 'profile' %}active{% endif %}" href="{% url 'vendor_profile' %}">
                     <span class="nav-icon">
