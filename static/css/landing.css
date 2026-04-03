@@ -110,9 +110,34 @@ section {
     color: var(--ink);
     text-decoration: none;
     font-weight: 600;
+    position: relative;
+    padding-bottom: 0.25rem;
 }
 
 .nav-menu a:hover {
+    color: var(--accent-2);
+}
+
+.nav-menu a::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -0.32rem;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--accent-2);
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform 0.2s ease;
+}
+
+.nav-menu a:hover::after,
+.nav-menu a.nav-active::after {
+    transform: scaleX(1);
+}
+
+.nav-menu a.nav-active {
     color: var(--accent-2);
 }
 
@@ -127,13 +152,15 @@ section {
 .btn-dark {
     text-decoration: none;
     font-weight: 600;
-    border-radius: 0.25rem;
-    padding: 0.35rem 1.1rem;
+    border-radius: var(--border-radius-sm, 8px);
+    padding: 0.55rem 1.25rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--ink);
-    font-size: 0.85rem;
+    border: 2px solid var(--ink);
+    font-size: 0.88rem;
+    transition: var(--transition, all 0.3s ease);
+    cursor: pointer;
 }
 
 .btn-ghost {
@@ -141,10 +168,26 @@ section {
     background: transparent;
 }
 
+.btn-ghost:hover {
+    background: rgba(0,0,0,0.06);
+    transform: translateY(-1px);
+    text-decoration: none;
+    color: var(--ink);
+}
+
 .btn-dark {
     color: #fff;
     background: var(--accent-2);
     border-color: var(--accent-2);
+}
+
+.btn-dark:hover {
+    background: #23978b;
+    border-color: #23978b;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(43,179,166,0.35);
+    color: #fff;
+    text-decoration: none;
 }
 
 .wishlist-link {
@@ -399,22 +442,51 @@ section {
 .btn-search {
     background: var(--accent);
     color: #fff;
-    border: none;
-    border-radius: 0.35rem;
-    padding: 0.6rem 1rem;
-    font-weight: 600;
+    border: 2px solid var(--accent);
+    border-radius: var(--border-radius-sm, 8px);
+    padding: 0.6rem 1.2rem;
+    font-weight: 700;
     cursor: pointer;
     height: 40px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     text-decoration: none;
+    transition: var(--transition, all 0.3s ease);
+    font-size: 0.88rem;
 }
+
+.btn-search:hover {
+    background: #e85843;
+    border-color: #e85843;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(255, 107, 87, 0.35);
+    color: #fff;
+    text-decoration: none;
+}
+
+.btn-search:active { transform: scale(0.97); }
 
 .btn-search-clear {
     background: transparent;
-    border: 1px solid #d5dbe3;
+    border: 2px solid #d5dbe3;
     color: var(--ink);
+    border-radius: var(--border-radius-sm, 8px);
+    padding: 0.6rem 1rem;
+    height: 40px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition, all 0.3s ease);
+    font-size: 0.88rem;
+}
+
+.btn-search-clear:hover {
+    background: #f0f4f8;
+    border-color: #b0bac6;
+    transform: translateY(-1px);
 }
 
 /* Section header */
@@ -958,6 +1030,12 @@ section {
     text-decoration: none;
 }
 
+.social-icon svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+}
+
 .social-icon.instagram {
     color: #e1306c;
     font-size: 20px;
@@ -967,6 +1045,74 @@ section {
 .social-icon.instagram:hover {
     color: #c13584;
     transform: scale(1.2);
+}
+
+.social-icon.facebook {
+    color: #1877f2;
+    font-size: 20px;
+    transition: 0.3s;
+}
+
+.social-icon.facebook:hover {
+    color: #2f89ff;
+    transform: scale(1.2);
+}
+
+.social-icon.x {
+    color: #e5e7eb;
+    font-size: 18px;
+    transition: 0.3s;
+}
+
+.social-icon.x:hover {
+    color: #ffffff;
+    transform: scale(1.2);
+}
+
+.footer-payment {
+    margin-top: 1rem;
+}
+
+.footer-payment-label {
+    margin: 0 0 0.6rem;
+    color: #94a3b8;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.payment-partners {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.payment-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 92px;
+    height: 34px;
+    padding: 0 0.5rem;
+    border-radius: 10px;
+}
+
+.payment-logo svg {
+    display: block;
+    width: 72px;
+    height: 18px;
+}
+
+.stripe-logo {
+    background: #635bff;
+    border: 1px solid #635bff;
+}
+
+.esewa-logo {
+    background: #f3fff7;
+    border: 1px solid #a6dfb5;
 }
 
 .footer-bottom {

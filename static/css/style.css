@@ -662,3 +662,104 @@ button.btn-primary:hover {
 /* Landing Page Styles           */
 /* ============================= */
 
+
+/* ============================= */
+/* Mobile Responsiveness (Task 9)*/
+/* ============================= */
+
+/* Touch target minimum size */
+button,
+a,
+input[type="submit"],
+input[type="button"],
+.nav-item,
+.btn,
+.btn-primary,
+.btn-dark,
+.btn-ghost {
+    min-height: 44px;
+}
+
+/* Responsive tables */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent images from overflowing */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Improve form inputs on mobile */
+@media (max-width: 640px) {
+    input, select, textarea {
+        font-size: 16px !important; /* Prevent iOS zoom */
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .auth-card {
+        padding: 1.5rem 1.25rem;
+    }
+}
+
+/* Hamburger menu helper (mobile nav) */
+.nav-toggle {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    color: inherit;
+}
+
+@media (max-width: 768px) {
+    .nav-toggle { display: flex; }
+    
+    .nav-menu {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #e9edf3;
+        border-bottom: 1px solid #d8dde4;
+        padding: 1rem;
+        z-index: 999;
+    }
+    
+    .nav-menu.nav-open { display: flex; }
+}
+
+/* Responsive landing nav */
+@media (max-width: 768px) {
+    .landing-nav .nav-menu {
+        display: none;
+    }
+    
+    .nav-container {
+        padding: 0.85rem 1.25rem;
+    }
+}
+
+/* Prevent overflow on small screens */
+body {
+    overflow-x: hidden;
+}
+
+/* Responsive section padding */
+@media (max-width: 640px) {
+    section {
+        padding: 2.5rem 0;
+    }
+    
+    .container-landing {
+        padding: 0 1.25rem;
+    }
+}
