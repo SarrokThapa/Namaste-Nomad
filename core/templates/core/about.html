@@ -4,15 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About Namaste Nomad</title>
-    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
-    <link rel="stylesheet" href="{% static 'css/about_blog.css' %}?v=20260301a">
-    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <title>About Namaste Nomad - Your Nepal Travel Partner</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <link rel="stylesheet" href="{% static 'css/about.css' %}?v=20260403a">
 </head>
-<body>
+<body class="page-fade-in">
+
+    {% include "core/includes/messages_toast.html" %}
+
     <nav class="landing-nav">
         <div class="nav-container">
             <a class="nav-brand" href="{% url 'home' %}">
@@ -34,101 +40,228 @@
         </div>
     </nav>
 
-    <main class="info-page">
-        <section class="info-hero">
-            <div class="container-landing">
+    <main>
+
+        <!-- ══════════════════════════════════════════════
+             HERO
+        ═══════════════════════════════════════════════ -->
+        <section class="about-hero">
+            <div class="about-hero-overlay"></div>
+            <div class="about-hero-content container-landing reveal">
+                <span class="about-hero-eyebrow">Our Story</span>
                 <h1>About Namaste Nomad</h1>
-                <p>
-                    Namaste Nomad is a travel platform built to help travelers discover authentic Nepal
-                    experiences through trusted local vendors.
-                </p>
+                <p>Connecting curious travelers with the authentic soul of Nepal — one trek, one story, one adventure at a time.</p>
+                <a href="{% url 'package_list' %}" class="btn-dark about-hero-cta">Explore Packages</a>
             </div>
         </section>
 
-        <section class="container-landing info-section intro-block">
-            <p>
-                We bring together travelers, trekking operators, and tour providers in one place.
-                From high-altitude treks to cultural day tours, Namaste Nomad makes it easier to find,
-                compare, and book journeys that match your travel style.
-            </p>
+        <!-- ══════════════════════════════════════════════
+             OUR STORY
+        ═══════════════════════════════════════════════ -->
+        <section class="about-section container-landing">
+            <div class="about-story reveal-left">
+                <div class="about-story-badge">Why We Exist</div>
+                <h2>Born from a Love for Nepal</h2>
+                <p>Nepal is extraordinary — from the ice-capped peaks of the Himalayas to the ancient temples of the Kathmandu Valley. Yet for many travelers, finding a trustworthy local guide or vetted trekking operator was unnecessarily difficult.</p>
+                <p>Namaste Nomad was built to change that. We created a platform where travelers can discover, compare, and book authentic Nepal experiences through verified local operators — removing the guesswork and putting quality first.</p>
+                <p>Whether you're chasing the Everest Base Camp sunrise or exploring the lakes of Pokhara, we want every journey to be seamless, safe, and unforgettable.</p>
+            </div>
+            <div class="about-story-visual reveal-right">
+                <div class="about-story-img-wrap img-zoom">
+                    <img src="{% static 'images/featured/everest-base-camp.jpg' %}" alt="Everest Base Camp trek">
+                </div>
+                <div class="about-story-float-card">
+                    <span class="about-float-icon">🏔️</span>
+                    <div>
+                        <strong>Est. 2026</strong>
+                        <span>Kathmandu, Nepal</span>
+                    </div>
+                </div>
+            </div>
         </section>
 
-        <section class="container-landing info-section mission-vision-grid">
-            <article class="info-card">
-                <h2>Our Mission</h2>
-                <p>
-                    To help travelers discover Nepal through local vendors by making quality trek and tour
-                    options transparent, accessible, and easy to book.
-                </p>
-            </article>
-            <article class="info-card">
-                <h2>Our Vision</h2>
-                <p>
-                    To become the most trusted bridge between travelers and local tour operators, creating
-                    meaningful travel while supporting local tourism communities.
-                </p>
-            </article>
+        <!-- ══════════════════════════════════════════════
+             MISSION & VISION
+        ═══════════════════════════════════════════════ -->
+        <section class="about-mv-section">
+            <div class="container-landing">
+                <div class="about-mv-grid reveal-group">
+                    <article class="about-mv-card mission-card">
+                        <div class="about-mv-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+                        </div>
+                        <h3>Our Mission</h3>
+                        <p>To help travelers discover Nepal through trusted local vendors — making quality trek and tour options transparent, accessible, and easy to book for everyone, everywhere.</p>
+                    </article>
+                    <article class="about-mv-card vision-card">
+                        <div class="about-mv-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </div>
+                        <h3>Our Vision</h3>
+                        <p>To become the most trusted bridge between travelers and local tour operators — creating meaningful journeys while supporting the communities that make Nepal so special.</p>
+                    </article>
+                </div>
+            </div>
         </section>
 
-        <section class="container-landing info-section">
-            <div class="section-headline">
+        <!-- ══════════════════════════════════════════════
+             STATS COUNTER
+        ═══════════════════════════════════════════════ -->
+        <section class="about-stats-section">
+            <div class="container-landing">
+                <div class="about-stats-grid reveal-group">
+                    <div class="about-stat">
+                        <div class="about-stat-number">
+                            <span class="count-up" data-target="500" data-suffix="+">0+</span>
+                        </div>
+                        <div class="about-stat-label">Treks Completed</div>
+                    </div>
+                    <div class="about-stat">
+                        <div class="about-stat-number">
+                            <span class="count-up" data-target="100" data-suffix="+">0+</span>
+                        </div>
+                        <div class="about-stat-label">Verified Vendors</div>
+                    </div>
+                    <div class="about-stat">
+                        <div class="about-stat-number">
+                            <span class="count-up" data-target="10000" data-suffix="+">0+</span>
+                        </div>
+                        <div class="about-stat-label">Happy Travelers</div>
+                    </div>
+                    <div class="about-stat">
+                        <div class="about-stat-number">
+                            <span class="count-up" data-target="50" data-suffix="+">0+</span>
+                        </div>
+                        <div class="about-stat-label">Destinations</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════════════
+             WHY CHOOSE US
+        ═══════════════════════════════════════════════ -->
+        <section class="about-section container-landing">
+            <div class="about-section-header reveal">
+                <span class="about-eyebrow">Why Us</span>
                 <h2>Why Choose Namaste Nomad</h2>
+                <p>Everything we do is designed to give you the best Nepal travel experience possible.</p>
             </div>
-            <div class="feature-grid">
-                <article class="feature-card">
-                    <h3>Trusted Vendors</h3>
-                    <p>Work with verified operators who know Nepal routes, logistics, and safety standards.</p>
+            <div class="about-features-grid reveal-group">
+                <article class="about-feature-card">
+                    <div class="about-feature-icon">
+                        <i class="fas fa-map-marked-alt"></i>
+                    </div>
+                    <h3>Local Expertise</h3>
+                    <p>Every vendor knows Nepal intimately — routes, seasons, safety, and hidden gems tourists rarely see.</p>
                 </article>
-                <article class="feature-card">
-                    <h3>Local Experiences</h3>
-                    <p>Access culturally rich itineraries and region-specific experiences beyond generic tours.</p>
+                <article class="about-feature-card">
+                    <div class="about-feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3>Verified Operators</h3>
+                    <p>Our team reviews and approves every operator before they can list packages. Your safety is non-negotiable.</p>
                 </article>
-                <article class="feature-card">
-                    <h3>Easy Booking</h3>
-                    <p>Compare packages quickly and move from discovery to booking with a simple flow.</p>
+                <article class="about-feature-card">
+                    <div class="about-feature-icon">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <h3>Secure Payments</h3>
+                    <p>Book with confidence via Stripe or eSewa — industry-standard encryption protects every transaction.</p>
                 </article>
-                <article class="feature-card">
-                    <h3>Community</h3>
-                    <p>Learn from real traveler reviews and community posts before selecting your trip.</p>
+                <article class="about-feature-card">
+                    <div class="about-feature-icon">
+                        <i class="fas fa-headset"></i>
+                    </div>
+                    <h3>24/7 Support</h3>
+                    <p>Our live chat support team is here whenever you need help — before, during, or after your trip.</p>
+                </article>
+                <article class="about-feature-card">
+                    <div class="about-feature-icon">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                    <h3>Best Price Guarantee</h3>
+                    <p>We work directly with local operators so you get fair pricing — no unnecessary middlemen.</p>
+                </article>
+                <article class="about-feature-card">
+                    <div class="about-feature-icon">
+                        <i class="fas fa-mountain"></i>
+                    </div>
+                    <h3>Authentic Experiences</h3>
+                    <p>From high-altitude base camps to cultural village stays — every package is built for real adventure.</p>
                 </article>
             </div>
         </section>
 
-        <section class="container-landing info-section">
-            <div class="section-headline">
-                <h2>Meet the Team</h2>
-            </div>
-            <div class="team-grid">
-                <article class="team-card">
-                    <div class="team-avatar">ST</div>
-                    <h3>Sarrok Thapa</h3>
-                    <p>Product & Operations</p>
-                </article>
-                <article class="team-card">
-                    <div class="team-avatar">BL</div>
-                    <h3>Blitzyy</h3>
-                    <p>Partnerships Lead</p>
-                </article>
-                <article class="team-card">
-                    <div class="team-avatar">KO</div>
-                    <h3>Korras</h3>
-                    <p>Traveler Success</p>
-                </article>
-                <article class="team-card">
-                    <div class="team-avatar">SM</div>
-                    <h3>Sarrok Magar</h3>
-                    <p>Engineering</p>
-                </article>
+        <!-- ══════════════════════════════════════════════
+             TEAM
+        ═══════════════════════════════════════════════ -->
+        <section class="about-team-section">
+            <div class="container-landing">
+                <div class="about-section-header reveal">
+                    <span class="about-eyebrow">The People</span>
+                    <h2>Meet the Team</h2>
+                    <p>A small but passionate crew building the future of Nepal travel.</p>
+                </div>
+                <div class="about-team-grid reveal-group">
+                    <article class="about-team-card">
+                        <div class="about-team-avatar" style="background:linear-gradient(135deg,#2563eb,#2bb3a6)">ST</div>
+                        <h3>Sarrok Thapa</h3>
+                        <p>Product &amp; Operations</p>
+                        <div class="about-team-social">
+                            <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                        </div>
+                    </article>
+                    <article class="about-team-card">
+                        <div class="about-team-avatar" style="background:linear-gradient(135deg,#ff6b57,#f97316)">BL</div>
+                        <h3>Blitzyy</h3>
+                        <p>Partnerships Lead</p>
+                        <div class="about-team-social">
+                            <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                        </div>
+                    </article>
+                    <article class="about-team-card">
+                        <div class="about-team-avatar" style="background:linear-gradient(135deg,#6c63ff,#a855f7)">KO</div>
+                        <h3>Korras</h3>
+                        <p>Traveler Success</p>
+                        <div class="about-team-social">
+                            <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                        </div>
+                    </article>
+                    <article class="about-team-card">
+                        <div class="about-team-avatar" style="background:linear-gradient(135deg,#0ea5e9,#2563eb)">SM</div>
+                        <h3>Sarrok Magar</h3>
+                        <p>Engineering</p>
+                        <div class="about-team-social">
+                            <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                        </div>
+                    </article>
+                </div>
             </div>
         </section>
 
-        <section class="container-landing cta-block">
-            <h2>Ready to Plan Your Nepal Adventure?</h2>
-            <a href="{% url 'package_list' %}" class="btn-dark">Explore Packages</a>
+        <!-- ══════════════════════════════════════════════
+             CTA BANNER
+        ═══════════════════════════════════════════════ -->
+        <section class="about-cta-section reveal">
+            <div class="container-landing about-cta-inner">
+                <div class="about-cta-text">
+                    <h2>Ready to Explore Nepal?</h2>
+                    <p>Join thousands of travelers who discovered Nepal through Namaste Nomad.</p>
+                </div>
+                <div class="about-cta-actions">
+                    <a href="{% url 'package_list' %}" class="btn-dark">Browse Packages</a>
+                    <a href="{% url 'contact' %}" class="btn-outline-dark">Contact Us</a>
+                </div>
+            </div>
         </section>
+
     </main>
 
     {% include "core/components/footer.html" %}
+
+    <script src="{% static 'js/toast.js' %}"></script>
+    <script src="{% static 'js/animations.js' %}"></script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
 </body>
 </html>
