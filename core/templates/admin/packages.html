@@ -1,0 +1,59 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Packages{% endblock %}
+
+{% block content %}
+<section class="admin-heading">
+    <div>
+        <h1>Packages</h1>
+        <p>Review listing status and moderate package visibility.</p>
+    </div>
+</section>
+
+<section class="admin-card">
+    <form method="get" class="admin-inline-filters">
+        <label for="status">Status</label>
+        <select id="status" name="status" class="year-select">
+            <option value="">All</option>
+            <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+            <option value="hidden" {% if selected_status == 'hidden' %}selected{% endif %}>Hidden</option>
+        </select>
+        <button class="btn small secondary" type="submit">Filter</button>
+    </form>
+
+    {% if packages %}
+        <div class="table-scroll-wrap">
+            <table class="activity-table">
+                <thead>
+                    <tr>
+                        <th>Package</th>
+                        <th>Vendor</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th class="action-col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for package in packages %}
+                        <tr>
+                            <td>{{ package.title }}</td>
+                            <td>{{ package.vendor.get_full_name|default:package.vendor.email }}</td>
+                            <td>Rs {{ package.price|floatformat:0 }}</td>
+                            <td>{% if package.is_active %}Active{% else %}Hidden{% endif %}</td>
+                            <td>{{ package.created_at|date:"M d, Y" }}</td>
+                            <td class="action-cell">
+                                <div class="pending-actions">
+                                    <form method="POST" action="{% url 'admin_package_toggle' package.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'admin_packages' %}"><button class="btn small secondary" type="submit">{% if package.is_active %}Hide{% else %}Activate{% endif %}</button></form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">No packages found.</div>
+    {% endif %}
+</section>
+{% endblock %}

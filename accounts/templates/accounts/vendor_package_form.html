@@ -6,6 +6,7 @@
 {% block extra_css %}
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     <link rel="stylesheet" href="{% static 'css/maps.css' %}?v=20260313a">
+    <link rel="stylesheet" href="{% static 'css/package_form.css' %}?v=20260404a">
 {% endblock %}
 
 {% block content %}
@@ -20,218 +21,316 @@
             {% endif %}
         </p>
     </div>
+    <a class="btn secondary" href="{% url 'vendor_packages' %}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        Back to Packages
+    </a>
 </section>
 
-<form method="POST" enctype="multipart/form-data" class="card form-card">
+<form method="POST" enctype="multipart/form-data" id="packageForm">
     {% csrf_token %}
 
     {% if form.errors %}
-        <div class="empty-state">
-            Please fix the highlighted form errors and submit again.
+        <div class="pf-error-banner">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Please fix the highlighted errors and try again.
         </div>
     {% endif %}
 
-    <div class="form-grid">
-        <div class="form-group">
-            <label for="{{ form.title.id_for_label }}">Title</label>
-            {{ form.title }}
+    <!-- ─── SECTION 1: Basic Info ──────────────────────────────── -->
+    <div class="pf-section">
+        <div class="pf-section-header">
+            <div class="pf-section-icon pf-icon-blue">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </div>
+            <div>
+                <h3>Basic Information</h3>
+                <p>Name your package and choose its category.</p>
+            </div>
         </div>
-        <div class="form-group">
-            <label for="{{ form.category.id_for_label }}">Category</label>
-            {{ form.category }}
+        <div class="pf-grid">
+            <div class="pf-field pf-col-2">
+                <label for="{{ form.title.id_for_label }}">Package Title</label>
+                {{ form.title }}
+                {% if form.title.errors %}<span class="pf-field-error">{{ form.title.errors|join:", " }}</span>{% endif %}
+            </div>
+            <div class="pf-field">
+                <label for="{{ form.category.id_for_label }}">Category</label>
+                {{ form.category }}
+                {% if form.category.errors %}<span class="pf-field-error">{{ form.category.errors|join:", " }}</span>{% endif %}
+            </div>
         </div>
-        <div class="form-group">
-            <label for="{{ form.location_name.id_for_label }}">Location Name</label>
-            {{ form.location_name }}
-        </div>
-        <div class="form-group">
-            <label for="{{ form.latitude.id_for_label }}">Latitude</label>
-            {{ form.latitude }}
-        </div>
-        <div class="form-group">
-            <label for="{{ form.longitude.id_for_label }}">Longitude</label>
-            {{ form.longitude }}
-        </div>
-        <div class="form-group span-2">
-            <label for="packageLocationMap">Pick Location on Map</label>
-            <div id="packageLocationMap" class="map-box" data-map-default-lat="28.3949" data-map-default-lng="84.1240"></div>
-            <span class="field-hint">Click to drop a marker. Drag to fine-tune the coordinates.</span>
-        </div>
-        <div class="form-group">
-            <label for="{{ form.price.id_for_label }}">Price (Rs)</label>
-            {{ form.price }}
-        </div>
-        <div class="form-group">
-            <label for="{{ form.duration_days.id_for_label }}">Duration (days)</label>
-            {{ form.duration_days }}
-        </div>
-        <div class="form-group">
-            <label for="{{ form.available_slots.id_for_label }}">Available Slots</label>
-            {{ form.available_slots }}
-        </div>
-        <div class="form-group">
-            <label for="{{ form.available_from.id_for_label }}">Available From</label>
-            {{ form.available_from }}
-        </div>
-        <div class="form-group">
-            <label for="{{ form.available_until.id_for_label }}">Available Until</label>
-            {{ form.available_until }}
-        </div>
-        <div class="form-group">
-            <label for="{{ form.difficulty.id_for_label }}">Difficulty</label>
-            {{ form.difficulty }}
-        </div>
-        <div class="form-group">
-            <label for="{{ form.group_size.id_for_label }}">Group Size</label>
-            {{ form.group_size }}
-        </div>
-        <div class="form-group">
-            <label for="{{ form.best_season.id_for_label }}">Best Season</label>
-            {{ form.best_season }}
-        </div>
-        <div class="form-group">
-            <label for="{{ form.image_url.id_for_label }}">Cover Image URL</label>
-            {{ form.image_url }}
-        </div>
-        <div class="form-group span-2">
-            <label for="{{ form.description.id_for_label }}">Description</label>
-            {{ form.description }}
-        </div>
-        <div class="form-group span-2">
-            <label for="{{ form.itinerary.id_for_label }}">Itinerary</label>
-            {{ form.itinerary }}
-            <span class="field-hint">Add each day on a new line.</span>
-        </div>
-        <div class="form-group span-2">
-            <label for="{{ form.inclusions.id_for_label }}">Inclusions</label>
-            {{ form.inclusions }}
-            <span class="field-hint">Use one item per line.</span>
-        </div>
-        <div class="form-group span-2">
-            <label for="{{ form.exclusions.id_for_label }}">Exclusions</label>
-            {{ form.exclusions }}
-            <span class="field-hint">Use one item per line.</span>
-        </div>
+    </div>
 
-        <div class="form-group span-2">
-            <label>Amenities Included</label>
-            <div class="checkbox-row">
-                <label class="checkbox-label">
-                    {{ form.has_guide }}
-                    <span>Guide Included</span>
-                </label>
-                <label class="checkbox-label">
-                    {{ form.includes_meals }}
-                    <span>Meals Included</span>
-                </label>
-                <label class="checkbox-label">
-                    {{ form.includes_accommodation }}
-                    <span>Accommodation Included</span>
-                </label>
-                <label class="checkbox-label">
-                    {{ form.includes_transport }}
-                    <span>Transportation Included</span>
-                </label>
-                <label class="checkbox-label">
-                    {{ form.includes_permits }}
-                    <span>Permit Included</span>
-                </label>
+    <!-- ─── SECTION 2: Location ────────────────────────────────── -->
+    <div class="pf-section">
+        <div class="pf-section-header">
+            <div class="pf-section-icon pf-icon-green">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <div>
+                <h3>Location</h3>
+                <p>Set the destination. Pin the exact spot on the map.</p>
+            </div>
+        </div>
+        <div class="pf-grid">
+            <div class="pf-field pf-col-2">
+                <label for="{{ form.location_name.id_for_label }}">Location Name</label>
+                {{ form.location_name }}
+                {% if form.location_name.errors %}<span class="pf-field-error">{{ form.location_name.errors|join:", " }}</span>{% endif %}
+            </div>
+            <div class="pf-field">
+                <label for="{{ form.latitude.id_for_label }}">Latitude</label>
+                {{ form.latitude }}
+            </div>
+            <div class="pf-field">
+                <label for="{{ form.longitude.id_for_label }}">Longitude</label>
+                {{ form.longitude }}
+            </div>
+            <div class="pf-field pf-col-full">
+                <label for="packageLocationMap">Pin Location on Map</label>
+                <div id="packageLocationMap" class="map-box" data-map-default-lat="28.3949" data-map-default-lng="84.1240"></div>
+                <span class="pf-hint">Click to drop a marker. Drag to fine-tune coordinates.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── SECTION 3: Pricing & Availability ─────────────────── -->
+    <div class="pf-section">
+        <div class="pf-section-header">
+            <div class="pf-section-icon pf-icon-amber">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div>
+                <h3>Pricing &amp; Availability</h3>
+                <p>Set your price, duration, slots, and booking window.</p>
+            </div>
+        </div>
+        <div class="pf-grid">
+            <div class="pf-field">
+                <label for="{{ form.price.id_for_label }}">Price (Rs)</label>
+                {{ form.price }}
+                {% if form.price.errors %}<span class="pf-field-error">{{ form.price.errors|join:", " }}</span>{% endif %}
+            </div>
+            <div class="pf-field">
+                <label for="{{ form.duration_days.id_for_label }}">Duration (days)</label>
+                {{ form.duration_days }}
+            </div>
+            <div class="pf-field">
+                <label for="{{ form.available_slots.id_for_label }}">Available Slots</label>
+                {{ form.available_slots }}
+            </div>
+            <div class="pf-field">
+                <label for="{{ form.available_from.id_for_label }}">Available From</label>
+                {{ form.available_from }}
+            </div>
+            <div class="pf-field">
+                <label for="{{ form.available_until.id_for_label }}">Available Until</label>
+                {{ form.available_until }}
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── SECTION 4: Package Details ────────────────────────── -->
+    <div class="pf-section">
+        <div class="pf-section-header">
+            <div class="pf-section-icon pf-icon-purple">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19l8-14 8 14H4z"/></svg>
+            </div>
+            <div>
+                <h3>Package Details</h3>
+                <p>Difficulty, best season, description and day-by-day itinerary.</p>
+            </div>
+        </div>
+        <div class="pf-grid">
+            <div class="pf-field">
+                <label for="{{ form.difficulty.id_for_label }}">Difficulty</label>
+                {{ form.difficulty }}
+            </div>
+            <div class="pf-field">
+                <label for="{{ form.best_season.id_for_label }}">Best Season</label>
+                {{ form.best_season }}
+            </div>
+            <div class="pf-field pf-col-full">
+                <label for="{{ form.description.id_for_label }}">Description</label>
+                {{ form.description }}
+                {% if form.description.errors %}<span class="pf-field-error">{{ form.description.errors|join:", " }}</span>{% endif %}
+            </div>
+            <div class="pf-field pf-col-full">
+                <label for="{{ form.itinerary.id_for_label }}">Itinerary</label>
+                {{ form.itinerary }}
+                <span class="pf-hint">Add each day on a new line, e.g. "Day 1: Arrival in Pokhara"</span>
+            </div>
+            <div class="pf-field pf-col-2">
+                <label for="{{ form.inclusions.id_for_label }}">What's Included</label>
+                {{ form.inclusions }}
+                <span class="pf-hint">One item per line.</span>
+            </div>
+            <div class="pf-field pf-col-2">
+                <label for="{{ form.exclusions.id_for_label }}">What's Excluded</label>
+                {{ form.exclusions }}
+                <span class="pf-hint">One item per line.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── SECTION 5: Amenities ───────────────────────────────── -->
+    <div class="pf-section">
+        <div class="pf-section-header">
+            <div class="pf-section-icon pf-icon-teal">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div>
+                <h3>Amenities Included</h3>
+                <p>Select what's bundled into this package.</p>
+            </div>
+        </div>
+        <div class="pf-amenities-grid">
+            <label class="pf-amenity-card">
+                {{ form.has_guide }}
+                <div class="pf-amenity-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </div>
+                <span>Guide</span>
+            </label>
+            <label class="pf-amenity-card">
+                {{ form.includes_meals }}
+                <div class="pf-amenity-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+                </div>
+                <span>Meals</span>
+            </label>
+            <label class="pf-amenity-card">
+                {{ form.includes_accommodation }}
+                <div class="pf-amenity-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                </div>
+                <span>Accommodation</span>
+            </label>
+            <label class="pf-amenity-card">
+                {{ form.includes_transport }}
+                <div class="pf-amenity-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                </div>
+                <span>Transport</span>
+            </label>
+            <label class="pf-amenity-card">
+                {{ form.includes_permits }}
+                <div class="pf-amenity-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </div>
+                <span>Permits</span>
+            </label>
+        </div>
+    </div>
+
+    <!-- ─── SECTION 6: Images ──────────────────────────────────── -->
+    <div class="pf-section">
+        <div class="pf-section-header">
+            <div class="pf-section-icon pf-icon-rose">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </div>
+            <div>
+                <h3>Package Images</h3>
+                <p>First ordered image is the cover photo shown in listings.</p>
             </div>
         </div>
 
         {% if is_edit %}
-            <div class="form-group span-2">
-                <div class="image-manager-head">
-                    <label>Existing Images</label>
-                    <span class="field-hint">Reorder with Up/Down. Check Remove to delete after saving.</span>
-                </div>
-                <div class="existing-image-grid" id="existingImageGrid">
-                    {% for image in existing_images %}
-                        <div class="existing-image-card">
-                            <div class="existing-image-thumb" style="background-image: url('{{ image.image.url }}');"></div>
-                            <div class="existing-image-tools">
-                                <label class="checkbox-label compact">
-                                    <input type="checkbox" name="delete_images" value="{{ image.id }}">
-                                    <span>Remove</span>
-                                </label>
-                                <div class="order-control">
-                                    <button type="button" class="btn secondary order-btn" data-direction="-1">Up</button>
-                                    <input
-                                        class="form-control image-order-input"
-                                        type="number"
-                                        min="1"
-                                        name="image_order_{{ image.id }}"
-                                        value="{{ image.order|default:forloop.counter }}"
-                                    >
-                                    <button type="button" class="btn secondary order-btn" data-direction="1">Down</button>
-                                </div>
+            <div class="pf-image-section-label">
+                <span>Existing Images</span>
+                <span class="pf-hint">Reorder with Up/Down. Check Remove to delete after saving.</span>
+            </div>
+            <div class="existing-image-grid" id="existingImageGrid">
+                {% for image in existing_images %}
+                    <div class="existing-image-card">
+                        <div class="existing-image-thumb" style="background-image: url('{{ image.image.url }}');"></div>
+                        <div class="existing-image-tools">
+                            <label class="checkbox-label compact">
+                                <input type="checkbox" name="delete_images" value="{{ image.id }}">
+                                <span>Remove</span>
+                            </label>
+                            <div class="order-control">
+                                <button type="button" class="btn secondary order-btn" data-direction="-1">Up</button>
+                                <input
+                                    class="form-control image-order-input"
+                                    type="number"
+                                    min="1"
+                                    name="image_order_{{ image.id }}"
+                                    value="{{ image.order|default:forloop.counter }}"
+                                >
+                                <button type="button" class="btn secondary order-btn" data-direction="1">Down</button>
                             </div>
                         </div>
-                    {% empty %}
-                        <div class="empty-state">No images uploaded yet.</div>
-                    {% endfor %}
-                </div>
+                    </div>
+                {% empty %}
+                    <div class="empty-state">No images uploaded yet.</div>
+                {% endfor %}
             </div>
         {% endif %}
 
-        <div class="form-group span-2">
-            <label for="packageImagesInput">
-                {% if is_edit %}Add More Images{% else %}Package Images{% endif %}
-            </label>
+        <div class="pf-upload-zone" id="uploadZone">
             <input
                 id="packageImagesInput"
-                class="form-control"
                 type="file"
                 name="images"
                 accept="image/*"
                 multiple
+                class="pf-upload-input"
             >
-            <span class="field-hint">
-                Upload multiple images (JPG/PNG). First ordered image is used as the cover.
-            </span>
-            <div id="newImagePreview" class="new-image-preview-grid" aria-live="polite"></div>
+            <label for="packageImagesInput" class="pf-upload-label">
+                <div class="pf-upload-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <span class="pf-upload-title">{% if is_edit %}Add More Images{% else %}Upload Images{% endif %}</span>
+                <span class="pf-upload-sub">Click to browse or drag & drop · JPG, PNG</span>
+            </label>
         </div>
+        <div id="newImagePreview" class="new-image-preview-grid" aria-live="polite"></div>
+    </div>
 
-        <div class="form-group checkbox-row">
-            <label class="checkbox-label">
-                {{ form.is_active }}
-                <span>Publish package immediately</span>
-            </label>
-        </div>
-        {% if not is_edit %}
-            <div class="form-group checkbox-row">
-                <label class="checkbox-label">
-                    {{ form.limited_time_offer }}
-                    <span>Mark as limited-time special offer (notify opted-in travelers)</span>
-                </label>
+    <!-- ─── SECTION 7: Settings ────────────────────────────────── -->
+    <div class="pf-section">
+        <div class="pf-section-header">
+            <div class="pf-section-icon pf-icon-slate">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
             </div>
-        {% endif %}
-        <div class="form-group checkbox-row">
-            <label class="checkbox-label">
-                {{ form.is_featured }}
-                <span>Feature this package</span>
+            <div>
+                <h3>Publishing Settings</h3>
+                <p>Control visibility and promotional flags.</p>
+            </div>
+        </div>
+        <div class="pf-toggle-list">
+            <label class="pf-toggle-row">
+                <div class="pf-toggle-wrap">{{ form.is_active }}</div>
+                <div>
+                    <span class="pf-toggle-label">Publish immediately</span>
+                    <span class="pf-hint">Make this package visible to travelers right away.</span>
+                </div>
             </label>
-            {% if form.is_featured.errors %}
-                <span class="field-hint danger">{{ form.is_featured.errors|striptags }}</span>
+            {% if not is_edit %}
+            <label class="pf-toggle-row">
+                <div class="pf-toggle-wrap">{{ form.limited_time_offer }}</div>
+                <div>
+                    <span class="pf-toggle-label">Limited-time special offer</span>
+                    <span class="pf-hint">Notify opted-in travelers about this deal.</span>
+                </div>
+            </label>
             {% endif %}
-            {% if active_subscription %}
-                <span class="field-hint">
-                    Active plan: {{ active_subscription.plan_name }}.
-                    {% if active_subscription.max_featured_packages %}
-                        Up to {{ active_subscription.max_featured_packages }} featured package(s).
-                    {% else %}
-                        Unlimited featured packages.
-                    {% endif %}
-                </span>
-            {% else %}
-                <span class="field-hint danger">Active subscription required to feature packages.</span>
-            {% endif %}
+            <p class="pf-hint" style="padding: 0 0.25rem;">
+                To feature packages on the homepage, go to
+                <a href="{% url 'vendor_settings' %}">Settings</a> and manage your featured slots.
+            </p>
         </div>
     </div>
 
-    <div class="form-actions">
-        <button class="btn neutral" type="submit">{% if is_edit %}Save Changes{% else %}Save Package{% endif %}</button>
-        <a class="btn secondary" href="{% url 'vendor_packages' %}">Back to Packages</a>
+    <!-- ─── FORM ACTIONS ───────────────────────────────────────── -->
+    <div class="pf-form-footer">
+        <button class="pf-btn-save" type="submit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            {% if is_edit %}Save Changes{% else %}Save Package{% endif %}
+        </button>
+        <a class="pf-btn-cancel" href="{% url 'vendor_packages' %}">Discard</a>
     </div>
 </form>
 
@@ -243,33 +342,21 @@
 
         function renderNewImagePreviews(files) {
             previewContainer.innerHTML = '';
-            if (!files || !files.length) {
-                return;
-            }
-
+            if (!files || !files.length) return;
             files.forEach((file) => {
-                if (!file.type || !file.type.startsWith('image/')) {
-                    return;
-                }
-
+                if (!file.type || !file.type.startsWith('image/')) return;
                 const item = document.createElement('div');
                 item.className = 'preview-image-card';
-
                 const thumb = document.createElement('img');
                 thumb.alt = file.name;
-
                 const name = document.createElement('span');
                 name.className = 'preview-image-name';
                 name.textContent = file.name;
-
                 item.appendChild(thumb);
                 item.appendChild(name);
                 previewContainer.appendChild(item);
-
                 const reader = new FileReader();
-                reader.onload = function (event) {
-                    thumb.src = event.target.result;
-                };
+                reader.onload = (e) => { thumb.src = e.target.result; };
                 reader.readAsDataURL(file);
             });
         }
@@ -281,51 +368,40 @@
         }
 
         function syncImageOrderInputs() {
-            if (!existingGrid) {
-                return;
-            }
-            const cards = existingGrid.querySelectorAll('.existing-image-card');
-            cards.forEach((card, index) => {
+            if (!existingGrid) return;
+            existingGrid.querySelectorAll('.existing-image-card').forEach((card, i) => {
                 const input = card.querySelector('.image-order-input');
-                if (input) {
-                    input.value = index + 1;
-                }
+                if (input) input.value = i + 1;
             });
         }
 
         if (existingGrid) {
-            existingGrid.addEventListener('click', function (event) {
-                const button = event.target.closest('.order-btn');
-                if (!button) {
-                    return;
-                }
-
-                event.preventDefault();
+            existingGrid.addEventListener('click', function (e) {
+                const button = e.target.closest('.order-btn');
+                if (!button) return;
+                e.preventDefault();
                 const card = button.closest('.existing-image-card');
-                if (!card) {
-                    return;
-                }
-
+                if (!card) return;
                 const cards = Array.from(existingGrid.querySelectorAll('.existing-image-card'));
                 const currentIndex = cards.indexOf(card);
                 const direction = Number(button.dataset.direction || 0);
                 const targetIndex = currentIndex + direction;
-
-                if (targetIndex < 0 || targetIndex >= cards.length) {
-                    return;
-                }
-
-                if (direction < 0) {
-                    existingGrid.insertBefore(card, cards[targetIndex]);
-                } else {
-                    existingGrid.insertBefore(cards[targetIndex], card);
-                }
-
+                if (targetIndex < 0 || targetIndex >= cards.length) return;
+                if (direction < 0) existingGrid.insertBefore(card, cards[targetIndex]);
+                else existingGrid.insertBefore(cards[targetIndex], card);
                 syncImageOrderInputs();
             });
-
             syncImageOrderInputs();
         }
+
+        // Amenity card toggle highlight
+        document.querySelectorAll('.pf-amenity-card input[type="checkbox"]').forEach(cb => {
+            function update() {
+                cb.closest('.pf-amenity-card').classList.toggle('is-checked', cb.checked);
+            }
+            update();
+            cb.addEventListener('change', update);
+        });
     })();
 </script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>

@@ -1,12 +1,31 @@
+import mimetypes
+
+import mimetypes
+
 from django.conf import settings
 from django import forms
 from django.utils import timezone
 
-from .models import Booking, Comment, ContactMessage, Post, Review
+from .models import Booking, Comment, ContactMessage, Post, Review, SiteSetting
 
 
 class MultiFileInput(forms.ClearableFileInput):
     allow_multiple_selected = True
+
+
+class MultiFileField(forms.Field):
+    """Accept multiple uploaded files from a single form input name."""
+
+    default_error_messages = {
+        'invalid': 'Only image or video files are allowed.',
+    }
+
+    def clean(self, data):
+        if not data:
+            return []
+        if isinstance(data, (list, tuple)):
+            return [item for item in data if item]
+        return [data]
 
 
 class ReviewForm(forms.ModelForm):
@@ -23,8 +42,8 @@ class ReviewForm(forms.ModelForm):
 
 
 class PostForm(forms.ModelForm):
-    media_files = forms.FileField(
-        required=True,
+    media_files = MultiFileField(
+        required=False,
         widget=MultiFileInput(attrs={
             'multiple': True,
             'accept': 'image/*,video/*',
@@ -43,15 +62,23 @@ class PostForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        media_files = self.files.getlist('media_files')
+        caption = (cleaned_data.get('caption') or '').strip()
+        if not caption:
+            raise forms.ValidationError('Please add a caption.')
+
+        media_files = cleaned_data.get('media_files') or self.files.getlist('media_files')
         if not media_files:
             raise forms.ValidationError('Please upload at least one photo or video.')
 
         for media_file in media_files:
             content_type = (getattr(media_file, 'content_type', '') or '').lower()
+            if not content_type:
+                guessed_type, _ = mimetypes.guess_type(getattr(media_file, 'name', ''))
+                content_type = (guessed_type or '').lower()
             if not (content_type.startswith('image/') or content_type.startswith('video/')):
                 raise forms.ValidationError('Only image or video files are allowed.')
 
+        cleaned_data['caption'] = caption
         cleaned_data['media_files'] = media_files
         return cleaned_data
 
@@ -192,4 +219,27 @@ class ContactMessageForm(forms.ModelForm):
                 'placeholder': 'Tell us what you are planning, and we will help you with the best options.',
                 'required': True,
             }),
+        }
+
+
+class SiteSettingForm(forms.ModelForm):
+    class Meta:
+        model = SiteSetting
+        fields = [
+            'commission_percent',
+            'enable_booking',
+            'enable_community',
+            'contact_email',
+            'contact_phone',
+            'instagram_link',
+            'hero_title',
+            'hero_subtitle',
+        ]
+        widgets = {
+            'commission_percent': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
+            'contact_email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'support@example.com'}),
+            'contact_phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+977 ...'}),
+            'instagram_link': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://instagram.com/...'}),
+            'hero_title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Find Your Perfect Nepal Trek'}),
+            'hero_subtitle': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }

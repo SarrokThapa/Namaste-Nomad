@@ -11,6 +11,7 @@ from .models import (
     Post,
     PostMedia,
     Review,
+    SiteSetting,
     SpecialOffer,
     SupportMessage,
     Transaction,
@@ -20,8 +21,8 @@ from .models import (
 
 @admin.register(Package)
 class PackageAdmin(admin.ModelAdmin):
-    list_display = ('title', 'vendor', 'price', 'is_active', 'is_featured', 'views_count', 'created_at')
-    list_filter = ('is_active', 'is_featured', 'created_at')
+    list_display = ('title', 'vendor', 'price', 'is_active', 'views_count', 'created_at')
+    list_filter = ('is_active', 'created_at')
     search_fields = ('title', 'vendor__email')
 
 
@@ -83,8 +84,7 @@ class TransactionAdmin(admin.ModelAdmin):
         'transaction_id',
         'transaction_type',
         'booking',
-        'vendor_subscription',
-        'vendor_feature',
+        'feature_subscription',
         'traveler',
         'vendor',
         'total_amount',
@@ -96,8 +96,7 @@ class TransactionAdmin(admin.ModelAdmin):
     search_fields = (
         'transaction_id',
         'booking__id',
-        'vendor_subscription__id',
-        'vendor_feature__id',
+        'feature_subscription__id',
         'traveler__email',
         'vendor__email',
         'booking__package__title',
@@ -166,3 +165,16 @@ class SpecialOfferAdmin(PromotionsNotificationAdminMixin, admin.ModelAdmin):
     list_filter = ('is_active', 'valid_until', 'created_at')
     search_fields = ('title', 'summary', 'content')
     notification_message = 'Special offer available: {title}'
+
+
+@admin.register(SiteSetting)
+class SiteSettingAdmin(admin.ModelAdmin):
+    list_display = (
+        'commission_percent',
+        'enable_booking',
+        'enable_community',
+        'contact_email',
+    )
+
+    def has_add_permission(self, request):
+        return not SiteSetting.objects.exists()

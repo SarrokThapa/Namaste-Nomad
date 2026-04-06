@@ -5,8 +5,8 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import FeatureSlot, Notification, TravelerProfile, User, VendorFeature, VendorProfile
-from core.models import Booking, Package, SpecialOffer
+from .models import FeaturedPackage, FeaturePlan, Notification, TravelerProfile, User, VendorFeatureSubscription, VendorProfile
+from core.models import Booking, Package, Review, SpecialOffer
 
 
 class VendorApprovalFlowTests(TestCase):
@@ -203,6 +203,126 @@ class VendorApprovalFlowTests(TestCase):
         self.assertFalse(vendor.is_active)
         self.assertFalse(vendor.vendor_profile.is_approved)
         self.assertFalse(pending_vendors.filter(id=vendor.id).exists())
+
+    def test_admin_can_suspend_traveler_and_view_name_email_in_customers_list(self):
+        admin = User.objects.create_user(
+            username='admin-suspend-traveler@example.com',
+            email='admin-suspend-traveler@example.com',
+            password='admin-pass-123',
+            user_type='admin',
+            is_staff=True,
+            is_active=True,
+        )
+        traveler = User.objects.create_user(
+            username='traveler-suspend@example.com',
+            email='traveler-suspend@example.com',
+            password='traveler-pass-123',
+            user_type='traveler',
+            first_name='Hari',
+            last_name='Sharma',
+            is_active=True,
+        )
+        self.client.force_login(admin)
+
+        response = self.client.post(
+            reverse('admin_traveler_action', args=[traveler.id]),
+            data={
+                'action': 'suspend',
+                'next': f"{reverse('admin_dashboard')}#users",
+            },
+        )
+
+        traveler.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], f"{reverse('admin_dashboard')}#users")
+        self.assertFalse(traveler.is_active)
+
+        dashboard_response = self.client.get(reverse('admin_dashboard'))
+        self.assertContains(dashboard_response, 'Hari Sharma')
+        self.assertContains(dashboard_response, 'traveler-suspend@example.com')
+        self.assertContains(dashboard_response, 'Activate')
+
+    def test_admin_can_activate_traveler_from_customers_list(self):
+        admin = User.objects.create_user(
+            username='admin-activate-traveler@example.com',
+            email='admin-activate-traveler@example.com',
+            password='admin-pass-123',
+            user_type='admin',
+            is_staff=True,
+            is_active=True,
+        )
+        traveler = User.objects.create_user(
+            username='traveler-activate@example.com',
+            email='traveler-activate@example.com',
+            password='traveler-pass-123',
+            user_type='traveler',
+            is_active=False,
+        )
+        self.client.force_login(admin)
+
+        response = self.client.post(
+            reverse('admin_traveler_action', args=[traveler.id]),
+            data={
+                'action': 'activate',
+                'next': f"{reverse('admin_dashboard')}#users",
+            },
+        )
+
+        traveler.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], f"{reverse('admin_dashboard')}#users")
+        self.assertTrue(traveler.is_active)
+
+    def test_admin_dashboard_reviews_section_lists_all_traveler_reviews(self):
+        admin = User.objects.create_user(
+            username='admin-reviews@example.com',
+            email='admin-reviews@example.com',
+            password='admin-pass-123',
+            user_type='admin',
+            is_staff=True,
+            is_active=True,
+        )
+        vendor = User.objects.create_user(
+            username='vendor-reviews@example.com',
+            email='vendor-reviews@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            is_active=True,
+        )
+        traveler = User.objects.create_user(
+            username='traveler-reviews@example.com',
+            email='traveler-reviews@example.com',
+            password='traveler-pass-123',
+            user_type='traveler',
+            first_name='Sita',
+            last_name='Rai',
+        )
+        package = Package.objects.create(
+            vendor=vendor,
+            title='Annapurna Base Camp Trek',
+            location='Annapurna',
+            price='15000.00',
+            available_slots=10,
+            available_from=timezone.localdate() - timedelta(days=2),
+            available_until=timezone.localdate() + timedelta(days=60),
+            is_active=True,
+        )
+        Review.objects.create(
+            package=package,
+            traveler=traveler,
+            rating=5,
+            comment='Amazing guide and very well organized trek.',
+        )
+        self.client.force_login(admin)
+
+        response = self.client.get(reverse('admin_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'All Traveler Reviews')
+        self.assertContains(response, 'Sita Rai')
+        self.assertContains(response, 'traveler-reviews@example.com')
+        self.assertContains(response, 'Annapurna Base Camp Trek')
+        self.assertContains(response, '5/5')
 
 
 class VendorAnalyticsChartTests(TestCase):
@@ -590,7 +710,7 @@ class PromotionsPreferenceTests(TestCase):
         )
 
 
-class FeatureSlotEnforcementTests(TestCase):
+class FeaturePlanEnforcementTests(TestCase):
     def setUp(self):
         self.vendor = User.objects.create_user(
             username='slot-vendor@example.com',
@@ -632,7 +752,7 @@ class FeatureSlotEnforcementTests(TestCase):
             is_active=True,
         )
 
-    def test_vendor_cannot_feature_package_without_purchased_slots(self):
+    def test_vendor_cannot_feature_package_without_subscription(self):
         self.client.force_login(self.vendor)
 
         response = self.client.post(
@@ -641,23 +761,27 @@ class FeatureSlotEnforcementTests(TestCase):
             follow=True,
         )
 
-        self.package_one.refresh_from_db()
         self.assertFalse(self.package_one.is_featured)
-        self.assertContains(response, 'Upgrade subscription to feature more packages')
+        self.assertContains(response, 'active feature plan')
 
-    def test_vendor_cannot_exceed_purchased_feature_slots(self):
-        slot = FeatureSlot.objects.create(
-            name='Homepage Featured Slot',
-            max_slots=10,
-            price_per_slot='1000.00',
+    def test_vendor_cannot_exceed_subscription_slots(self):
+        plan = FeaturePlan.objects.create(
+            name='Basic',
+            slots_count=1,
+            price='5000.00',
+            duration_days=30,
             is_active=True,
         )
-        VendorFeature.objects.create(
+        subscription = VendorFeatureSubscription.objects.create(
             vendor=self.vendor,
-            slot=slot,
-            purchased_slots=1,
+            plan=plan,
+            plan_name=plan.name,
+            slots_total=1,
+            price=plan.price,
             start_date=timezone.localdate(),
-            end_date=timezone.localdate() + timedelta(days=10),
+            end_date=timezone.localdate() + timedelta(days=29),
+            payment_status=VendorFeatureSubscription.PAYMENT_STATUS_PAID,
+            payment_method=VendorFeatureSubscription.PAYMENT_METHOD_ESEWA,
             is_active=True,
         )
         self.client.force_login(self.vendor)
@@ -673,9 +797,7 @@ class FeatureSlotEnforcementTests(TestCase):
             follow=True,
         )
 
-        self.package_one.refresh_from_db()
-        self.package_two.refresh_from_db()
         self.assertTrue(self.package_one.is_featured)
         self.assertFalse(self.package_two.is_featured)
         self.assertContains(first, 'featured')
-        self.assertContains(second, 'Upgrade subscription to feature more packages')
+        self.assertContains(second, 'slots are in use')

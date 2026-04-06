@@ -28,3 +28,41 @@
         <a href="{% url 'account_register_choice' %}" class="btn-dark">Sign Up</a>
     {% endif %}
 </div>
+
+<script>
+    (() => {
+        const currentUrlName = '{{ request.resolver_match.url_name|default:""|escapejs }}';
+        const sectionByUrlName = {
+            home: 'home',
+            package_treks: 'treks',
+            package_tours: 'tours',
+            package_list: 'packages',
+            packages: 'packages',
+            package_detail: 'packages',
+            package_not_available: 'packages',
+            book_package: 'packages',
+            booking_form: 'packages',
+            booking_confirmation: 'packages',
+            community_feed: 'explore',
+            community_dashboard: 'explore',
+            community_post_edit: 'explore',
+            about: 'about',
+            blog_list: 'blog',
+            blog_detail: 'blog',
+            contact: 'contact',
+        };
+
+        const targetSection = sectionByUrlName[currentUrlName];
+        if (!targetSection) {
+            return;
+        }
+
+        const navLinks = document.querySelectorAll('.landing-nav .nav-menu a');
+        navLinks.forEach((link) => {
+            const label = (link.textContent || '').trim().toLowerCase();
+            if (label === targetSection) {
+                link.classList.add('nav-active');
+            }
+        });
+    })();
+</script>

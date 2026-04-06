@@ -40,6 +40,7 @@
                     </div>
                     <div class="booking-actions">
                         <span class="status {{ booking.status }}">{{ booking.get_status_display }}</span>
+                        <a href="{% url 'booking_detail' booking.id %}" class="btn small">View Details</a>
                         {% if booking.status != 'confirmed' and booking.payment_status == 'completed' %}
                             <form method="POST" action="{% url 'vendor_booking_status_update' booking.id %}">
                                 {% csrf_token %}

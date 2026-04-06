@@ -1,11 +1,18 @@
 """Vendor package management views."""
 
 from ..common import *
+from core.services.subscription_service import (
+    expire_overdue_subscriptions,
+    feature_package,
+    get_active_subscription,
+    get_featured_packages_for_vendor,
+    unfeature_package,
+)
+
 
 @never_cache
 @login_required(login_url='account_login_choice')
 @csrf_protect
-
 def vendor_packages(request):
     if not _ensure_vendor(request):
         return redirect('vendor_login')
@@ -14,15 +21,17 @@ def vendor_packages(request):
     packages = Package.objects.filter(vendor=request.user).annotate(
         booking_count=Count('bookings'),
     ).order_by('-created_at')
-    active_subscription = _get_active_subscription(request.user)
-    VendorFeature.expire_overdue(vendor=request.user)
-    featured_count = packages.filter(is_featured=True).count()
-    featured_limit = _total_active_feature_slots_for_vendor(request.user)
+    subscription = get_active_subscription(request.user)
+    featured_entries = get_featured_packages_for_vendor(request.user)
+    featured_package_ids = set(featured_entries.values_list('package_id', flat=True))
+    featured_count = len(featured_package_ids)
+    featured_limit = subscription.slots_total if subscription else 0
     return render(request, 'accounts/vendor_packages.html', {
         'vendor_profile': vendor_profile,
         'active_page': 'packages',
         'packages': packages,
-        'active_subscription': active_subscription,
+        'active_subscription': subscription,
+        'featured_package_ids': featured_package_ids,
         'featured_count': featured_count,
         'featured_limit': featured_limit,
         'featured_remaining': max(featured_limit - featured_count, 0),
@@ -31,7 +40,6 @@ def vendor_packages(request):
 
 @never_cache
 @login_required(login_url='vendor_login')
-
 def vendor_feature_toggle(request, package_id):
     if not _ensure_vendor(request):
         return redirect('vendor_login')
@@ -39,24 +47,30 @@ def vendor_feature_toggle(request, package_id):
         return redirect('vendor_packages')
 
     next_url = request.POST.get('next') or reverse('vendor_packages')
-    VendorFeature.expire_overdue(vendor=request.user)
     package = get_object_or_404(Package, id=package_id, vendor=request.user)
-    if not package.is_featured:
-        purchased_slots = _total_active_feature_slots_for_vendor(request.user)
-        featured_count = Package.objects.filter(vendor=request.user, is_featured=True).count()
-        if purchased_slots <= featured_count:
-            messages.error(request, 'Upgrade subscription to feature more packages')
-            return redirect(next_url)
-        global_capacity = _total_homepage_feature_capacity()
-        global_used = _total_homepage_featured_count()
-        if global_used >= global_capacity:
-            messages.error(request, 'No homepage feature slots available right now.')
-            return redirect(next_url)
+    subscription = get_active_subscription(request.user)
 
-    package.is_featured = not package.is_featured
-    package.save(update_fields=['is_featured'])
-    status_label = 'featured' if package.is_featured else 'unfeatured'
-    messages.success(request, f'{package.title} {status_label}.')
+    if not subscription:
+        messages.error(request, 'You need an active feature plan to feature packages.')
+        return redirect(next_url)
+
+    # Check if package is currently featured
+    is_currently_featured = FeaturedPackage.objects.filter(
+        subscription=subscription,
+        package=package,
+        is_active=True,
+    ).exists()
+
+    if is_currently_featured:
+        unfeature_package(subscription, package)
+        messages.success(request, f'{package.title} removed from featured.')
+    else:
+        fp, error = feature_package(subscription, package)
+        if error:
+            messages.error(request, error)
+        else:
+            messages.success(request, f'{package.title} is now featured!')
+
     return redirect(next_url)
 
 

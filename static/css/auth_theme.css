@@ -1,0 +1,231 @@
+/* Unified auth theme for login/register pages */
+
+:root {
+    --auth-navy: #1e2a44;
+    --auth-ink: #0f172a;
+    --auth-slate: #475569;
+    --auth-border: #d6deea;
+    --auth-card-bg: rgba(255, 255, 255, 0.96);
+    --auth-accent: #f97316;
+    --auth-accent-hover: #ea580c;
+    --auth-focus: rgba(59, 130, 246, 0.22);
+}
+
+body {
+    font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+    color: var(--auth-ink);
+    background:
+        radial-gradient(1200px 520px at 88% -120px, rgba(249, 115, 22, 0.14), transparent 58%),
+        radial-gradient(1100px 520px at -8% 0%, rgba(59, 130, 246, 0.12), transparent 52%),
+        #f3f6fb;
+}
+
+.navbar,
+.navbar.navbar-blue {
+    background: #17253f;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.18);
+}
+
+.nav-brand {
+    font-family: "Space Grotesk", "Plus Jakarta Sans", sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.btn-nav {
+    border-radius: 0.65rem;
+    border-color: rgba(255, 255, 255, 0.32);
+}
+
+.btn-nav:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.btn-nav-orange {
+    background: var(--auth-accent);
+    border-color: var(--auth-accent);
+}
+
+.btn-nav-orange:hover {
+    background: var(--auth-accent-hover);
+    border-color: var(--auth-accent-hover);
+}
+
+.choice-main {
+    max-width: 1120px;
+    padding-top: 3.4rem;
+}
+
+.choice-header h1 {
+    font-family: "Space Grotesk", "Plus Jakarta Sans", sans-serif;
+    font-size: clamp(2rem, 3.2vw, 2.85rem);
+    color: #0f1d3b;
+}
+
+.choice-header p {
+    color: #4b5c78;
+    font-size: 1.04rem;
+}
+
+.choice-grid {
+    gap: 1.45rem;
+}
+
+.choice-card {
+    border-radius: 1.15rem;
+    border: 1px solid var(--auth-border);
+    background: var(--auth-card-bg);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.choice-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 34px rgba(15, 23, 42, 0.12);
+    border-color: #b7c5de;
+}
+
+.choice-icon {
+    background: linear-gradient(145deg, #eef3ff 0%, #e2e8f3 100%);
+    border-color: #c9d4e6;
+    color: #42506a;
+}
+
+.choice-card h2 {
+    color: #0f1d3b;
+}
+
+.choice-card p {
+    color: #546583;
+}
+
+.choice-card li {
+    color: #22304d;
+}
+
+.choice-card li::before {
+    color: var(--auth-accent);
+}
+
+.choice-btn {
+    border: 1px solid #c8d4e5;
+    border-radius: 0.72rem;
+    background: #f7f9fd;
+    color: #1f2f4a;
+    font-weight: 700;
+}
+
+.choice-btn:hover {
+    background: #1f2f4a;
+    border-color: #1f2f4a;
+    color: #fff;
+}
+
+.container {
+    max-width: 1150px;
+}
+
+.auth-card {
+    border: 1px solid var(--auth-border);
+    border-radius: 1.15rem;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.1);
+    background: var(--auth-card-bg);
+}
+
+.auth-card h2 {
+    font-family: "Space Grotesk", "Plus Jakarta Sans", sans-serif;
+    color: #0f1d3b;
+    font-size: clamp(1.7rem, 2.5vw, 2.1rem);
+}
+
+.subtitle {
+    color: #4f607c;
+}
+
+.form-group label {
+    color: #334155;
+    font-weight: 600;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="password"],
+.form-group input[type="tel"] {
+    border-radius: 0.65rem;
+    border-color: #c7d2e4;
+    background: #f8fafd;
+}
+
+.form-group input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px var(--auth-focus);
+    background: #fff;
+}
+
+.btn-primary,
+.btn-primary.btn-blue,
+button.btn-primary {
+    border-radius: 0.72rem;
+    background: linear-gradient(135deg, var(--auth-accent) 0%, #fb923c 100%);
+    border: none;
+    box-shadow: 0 10px 24px rgba(249, 115, 22, 0.25);
+}
+
+.btn-primary:hover,
+.btn-primary.btn-blue:hover,
+button.btn-primary:hover {
+    background: linear-gradient(135deg, var(--auth-accent-hover) 0%, var(--auth-accent) 100%);
+}
+
+.link,
+.link-button {
+    color: #1d4ed8;
+    font-weight: 600;
+}
+
+.divider {
+    color: #64748b;
+}
+
+.divider::before,
+.divider::after {
+    background: #d6deea;
+}
+
+.file-upload {
+    border-color: #c8d4e5;
+    border-radius: 0.8rem;
+    background: #f8fafd;
+}
+
+.file-upload:hover {
+    border-color: #3b82f6;
+    background: #f2f7ff;
+}
+
+.info-box {
+    border-radius: 0.8rem;
+}
+
+@media (max-width: 768px) {
+    .navbar {
+        padding: 0.85rem 1rem;
+    }
+
+    .nav-buttons {
+        gap: 0.55rem;
+    }
+
+    .btn-nav {
+        padding: 0.42rem 0.86rem;
+    }
+
+    .choice-main {
+        padding: 2.4rem 1rem 3rem;
+    }
+
+    .auth-card {
+        padding: 1.45rem;
+    }
+}

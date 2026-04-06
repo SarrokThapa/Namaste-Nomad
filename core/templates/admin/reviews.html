@@ -1,0 +1,45 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Reviews{% endblock %}
+
+{% block content %}
+<section class="admin-heading">
+    <div>
+        <h1>Reviews</h1>
+        <p>View traveler feedback and package ratings.</p>
+    </div>
+</section>
+
+<section class="admin-card">
+    {% if reviews %}
+        <div class="table-scroll-wrap">
+            <table class="activity-table">
+                <thead>
+                    <tr>
+                        <th>Traveler</th>
+                        <th>Email</th>
+                        <th>Package</th>
+                        <th>Rating</th>
+                        <th>Comment</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for review in reviews %}
+                        <tr>
+                            <td>{% firstof review.traveler.get_full_name review.traveler.username "Traveler" %}</td>
+                            <td>{{ review.traveler.email|default:"-" }}</td>
+                            <td>{{ review.package.title }}</td>
+                            <td>{{ review.rating }}/5</td>
+                            <td>{{ review.comment|default:"-"|truncatechars:120 }}</td>
+                            <td>{{ review.created_at|date:"M d, Y" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">No traveler reviews yet.</div>
+    {% endif %}
+</section>
+{% endblock %}

@@ -3,6 +3,7 @@
 from ..utils.helpers import *
 from ..utils.validators import *
 from ..services.search_service import filter_packages
+from ..services.site_settings import get_site_settings
 from .payment_views import *
 
 
@@ -44,38 +45,20 @@ def _build_destination_stats():
 
 def home(request):
     """Landing page"""
-    VendorSubscription.expire_overdue()
-    VendorFeature.expire_overdue()
-    wishlist_ids = _wishlist_ids_for_user(request.user)
+    from core.services.subscription_service import get_all_featured_packages
+
     today = timezone.localdate()
-    homepage_slot_capacity = FeatureSlot.active_total_capacity()
-    active_vendor_ids = VendorFeature.objects.filter(
-        is_active=True,
-        start_date__lte=today,
-        end_date__gte=today,
-    ).values_list('vendor_id', flat=True).distinct()
-    active_subscriptions = VendorSubscription.objects.filter(
-        status=VendorSubscription.STATUS_ACTIVE,
-        start_date__lte=today,
-        end_date__gte=today,
-    )
-    latest_subscription_end = active_subscriptions.filter(vendor_id=OuterRef('vendor_id')).order_by('-end_date').values('end_date')[:1]
-    highest_subscription_price = active_subscriptions.filter(vendor_id=OuterRef('vendor_id')).order_by('-price').values('price')[:1]
+    wishlist_ids = _wishlist_ids_for_user(request.user)
+
     featured_packages = (
-        Package.objects.filter(
-            is_active=True,
-            is_featured=True,
-            vendor_id__in=active_vendor_ids,
-        )
+        get_all_featured_packages()
         .select_related('vendor', 'vendor__vendor_profile')
         .prefetch_related('images')
         .annotate(
             review_count=Count('reviews', distinct=True),
             avg_rating=Avg('reviews__rating'),
-            priority_subscription_end=Subquery(latest_subscription_end),
-            priority_subscription_price=Subquery(highest_subscription_price),
         )
-        .order_by('-priority_subscription_end', '-priority_subscription_price', '-created_at', '-views_count', '-avg_rating')[:homepage_slot_capacity or 0]
+        .order_by('-featured_entries__featured_date', '-views_count', '-avg_rating')
     )
     featured_ids = list(featured_packages.values_list('id', flat=True))
 
@@ -125,7 +108,7 @@ def home(request):
                 review_count=Count('reviews', distinct=True),
                 avg_rating=Avg('reviews__rating'),
             )
-            .order_by('-views_count', '-avg_rating', '-created_at')[:4]
+            .order_by('-views_count', '-avg_rating', '-created_at')[:8]
         )
 
     return render(request, 'core/home.html', {
@@ -359,6 +342,7 @@ def blog_detail(request, slug):
 
 def contact(request):
     """Contact page"""
+    site_settings = get_site_settings()
     initial = {}
     if request.user.is_authenticated:
         initial['email'] = request.user.email or ''
@@ -373,6 +357,8 @@ def contact(request):
             contact_message.save()
 
             recipients = []
+            if site_settings.contact_email:
+                recipients.append(site_settings.contact_email)
             recipients.extend(getattr(settings, 'CONTACT_RECEIVER_EMAILS', []) or [])
             fallback_recipient = getattr(settings, 'CONTACT_RECEIVER_EMAIL', '') or getattr(settings, 'EMAIL_HOST_USER', '')
             if fallback_recipient:

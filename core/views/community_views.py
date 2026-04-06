@@ -1,9 +1,23 @@
 """Community feed and interactions."""
 
+import mimetypes
+
 from ..utils.helpers import *
+from ..services.site_settings import get_site_settings
+
+
+def _ensure_community_enabled(request):
+    if get_site_settings().enable_community:
+        return None
+    messages.error(request, 'Community is currently disabled by admin.')
+    return redirect('home')
 
 
 def community_feed(request):
+    disabled_response = _ensure_community_enabled(request)
+    if disabled_response:
+        return disabled_response
+
     posts = _community_posts(viewer=request.user)
     vendors = get_user_model().objects.filter(user_type='vendor').select_related('vendor_profile').order_by('username')
 
@@ -17,6 +31,10 @@ def community_feed(request):
 
 @login_required(login_url='traveler_login')
 def community_dashboard(request):
+    disabled_response = _ensure_community_enabled(request)
+    if disabled_response:
+        return disabled_response
+
     if getattr(request.user, 'user_type', '') != 'traveler':
         messages.error(request, 'Traveler access only.')
         return redirect('home')
@@ -37,6 +55,10 @@ def community_dashboard(request):
 
 @login_required(login_url='account_login_choice')
 def community_post_create(request):
+    disabled_response = _ensure_community_enabled(request)
+    if disabled_response:
+        return disabled_response
+
     next_url = request.POST.get('next') or reverse('community_feed')
     if request.method != 'POST':
         return redirect(next_url)
@@ -52,6 +74,9 @@ def community_post_create(request):
         media_files = form.cleaned_data.get('media_files', [])
         for index, media_file in enumerate(media_files, start=1):
             content_type = (getattr(media_file, 'content_type', '') or '').lower()
+            if not content_type:
+                guessed_type, _ = mimetypes.guess_type(getattr(media_file, 'name', ''))
+                content_type = (guessed_type or '').lower()
             media_type = (
                 PostMedia.MEDIA_VIDEO
                 if content_type.startswith('video/')
@@ -91,13 +116,28 @@ def community_post_create(request):
         )
         messages.success(request, 'Post shared successfully.')
     else:
-        messages.error(request, 'Please upload at least one photo or video and add a caption.')
+        error_messages = []
+        error_messages.extend([str(error) for error in form.non_field_errors()])
+        for field, field_errors in form.errors.items():
+            if field == '__all__':
+                continue
+            for error in field_errors:
+                error_messages.append(f'{field}: {error}')
+
+        if error_messages:
+            messages.error(request, ' '.join(error_messages))
+        else:
+            messages.error(request, 'Please upload at least one photo or video and add a caption.')
 
     return redirect(next_url)
 
 
 @login_required(login_url='account_login_choice')
 def community_post_edit(request, post_id):
+    disabled_response = _ensure_community_enabled(request)
+    if disabled_response:
+        return disabled_response
+
     post = get_object_or_404(
         Post.objects.select_related('user').prefetch_related('media', 'tagged_vendors'),
         id=post_id,
@@ -190,6 +230,10 @@ def community_post_edit(request, post_id):
 
 @login_required(login_url='account_login_choice')
 def community_post_delete(request, post_id):
+    disabled_response = _ensure_community_enabled(request)
+    if disabled_response:
+        return disabled_response
+
     if request.method != 'POST':
         return redirect('community_feed')
     post = get_object_or_404(Post, id=post_id, user=request.user)
@@ -201,6 +245,10 @@ def community_post_delete(request, post_id):
 
 @login_required(login_url='account_login_choice')
 def community_post_tag_vendor(request, post_id):
+    disabled_response = _ensure_community_enabled(request)
+    if disabled_response:
+        return disabled_response
+
     post = get_object_or_404(Post, id=post_id, user=request.user)
     next_url = request.GET.get('next') or reverse('community_feed')
     edit_url = reverse('community_post_edit', kwargs={'post_id': post.id})
@@ -209,6 +257,10 @@ def community_post_tag_vendor(request, post_id):
 
 @login_required(login_url='account_login_choice')
 def community_comment_create(request, post_id):
+    disabled_response = _ensure_community_enabled(request)
+    if disabled_response:
+        return disabled_response
+
     next_url = request.POST.get('next') or f"{reverse('community_feed')}#post-{post_id}"
     if request.method != 'POST':
         return redirect(next_url)
@@ -253,6 +305,10 @@ def community_comment_create(request, post_id):
 
 @login_required(login_url='account_login_choice')
 def community_post_like_toggle(request, post_id):
+    disabled_response = _ensure_community_enabled(request)
+    if disabled_response:
+        return disabled_response
+
     next_url = request.POST.get('next') or f"{reverse('community_feed')}#post-{post_id}"
     if request.method != 'POST':
         return redirect(next_url)

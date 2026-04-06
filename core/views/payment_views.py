@@ -114,7 +114,7 @@ def _complete_paid_booking(
         booking=booking,
         defaults={
             'transaction_type': Transaction.TYPE_BOOKING,
-            'vendor_subscription': None,
+            'feature_subscription': None,
             'traveler': booking.traveler,
             'vendor': booking.vendor,
             'total_amount': booking.paid_amount or booking.total_price,

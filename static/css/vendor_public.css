@@ -58,3 +58,10 @@
 .vendor-meta a:hover {
     text-decoration: underline;
 }
+
+.vendor-meta .vendor-phone-link {
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+}

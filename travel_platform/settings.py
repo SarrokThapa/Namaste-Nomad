@@ -125,6 +125,7 @@ TEMPLATES = [
                 'social_django.context_processors.backends',
                 'social_django.context_processors.login_redirect',
                 'accounts.context_processors.support_context',
+                'core.context_processors.site_settings',
             ],
         },
     },

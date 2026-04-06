@@ -1,0 +1,72 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Users{% endblock %}
+
+{% block content %}
+<section class="admin-heading">
+    <div>
+        <h1>Users</h1>
+        <p>Manage traveler and vendor accounts in one place.</p>
+    </div>
+</section>
+
+<section class="admin-card">
+    <form method="get" class="admin-inline-filters">
+        <label for="role">Role</label>
+        <select id="role" name="role" class="year-select">
+            <option value="">All</option>
+            <option value="traveler" {% if selected_role == 'traveler' %}selected{% endif %}>Traveler</option>
+            <option value="vendor" {% if selected_role == 'vendor' %}selected{% endif %}>Vendor</option>
+        </select>
+        <button class="btn small secondary" type="submit">Filter</button>
+    </form>
+
+    {% if users %}
+        <div class="table-scroll-wrap">
+            <table class="activity-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                        <th class="action-col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                        <tr>
+                            <td>{% firstof user.get_full_name user.username user.email %}</td>
+                            <td>{{ user.email }}</td>
+                            <td>{{ user.user_type|title }}</td>
+                            <td>{% if user.is_active %}Active{% else %}Suspended{% endif %}</td>
+                            <td>{{ user.date_joined|date:"M d, Y" }}</td>
+                            <td class="action-cell">
+                                <div class="pending-actions">
+                                    {% if user.user_type == 'vendor' %}
+                                        <a class="btn small secondary" href="{% url 'admin_vendor_detail' user.id %}">View</a>
+                                        {% if user.is_active %}
+                                            <form method="POST" action="{% url 'admin_vendor_action' user.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'admin_users' %}"><input type="hidden" name="action" value="suspend"><button class="btn small danger" type="submit">Suspend</button></form>
+                                        {% else %}
+                                            <form method="POST" action="{% url 'admin_vendor_action' user.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'admin_users' %}"><input type="hidden" name="action" value="activate"><button class="btn small success" type="submit">Activate</button></form>
+                                        {% endif %}
+                                    {% else %}
+                                        {% if user.is_active %}
+                                            <form method="POST" action="{% url 'admin_traveler_action' user.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'admin_users' %}"><input type="hidden" name="action" value="suspend"><button class="btn small danger" type="submit">Suspend</button></form>
+                                        {% else %}
+                                            <form method="POST" action="{% url 'admin_traveler_action' user.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'admin_users' %}"><input type="hidden" name="action" value="activate"><button class="btn small success" type="submit">Activate</button></form>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">No users found.</div>
+    {% endif %}
+</section>
+{% endblock %}

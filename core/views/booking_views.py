@@ -1,13 +1,30 @@
 """Booking lifecycle and invoice views."""
 
+import json
+
+from ..services.booking_service import _parse_traveler_post_data, save_booking_travelers
 from ..utils.helpers import *
+from ..services.site_settings import get_site_settings
 from .payment_views import *
 
+
+NATIONALITY_CHOICES = [
+    'Nepali', 'Indian', 'Chinese', 'American', 'British', 'Australian',
+    'German', 'French', 'Japanese', 'South Korean', 'Canadian', 'Malaysian',
+    'Singaporean', 'Thai', 'Bangladeshi', 'Pakistani', 'Sri Lankan',
+    'Bhutanese', 'Dutch', 'Italian', 'Spanish', 'Brazilian', 'Russian',
+    'Israeli', 'Turkish', 'Egyptian', 'South African', 'Nigerian', 'Kenyan',
+    'Other',
+]
 
 
 @login_required(login_url='account_login_choice')
 def package_book(request, package_id):
     package = get_object_or_404(Package, id=package_id, is_active=True)
+
+    if not get_site_settings().enable_booking:
+        messages.error(request, 'Booking is currently disabled by admin.')
+        return redirect('package_detail', package_id=package.id)
 
     if getattr(request.user, 'user_type', '') != 'traveler':
         messages.error(request, 'Only traveler accounts can create bookings.')
@@ -21,136 +38,161 @@ def package_book(request, package_id):
         _expire_stale_pending_bookings(package_id=package.id)
     package.refresh_from_db(fields=['available_slots'])
 
+    # Build autofill data for Person 1 from the logged-in user's profile.
+    traveler_profile = _safe_related(request.user, 'traveler_profile')
+    primary_autofill = {
+        'full_name': request.user.get_full_name().strip() or '',
+        'email': request.user.email or '',
+        'phone_number': request.user.phone or '',
+        'gender': getattr(traveler_profile, 'gender', '') or '',
+        'nationality': getattr(traveler_profile, 'nationality', '') or 'Nepali',
+    }
+
+    # posted_travelers carries previously entered data back on validation failure.
+    posted_travelers = []
+    traveler_errors = {}
+
     if request.method == 'POST':
         form = BookingForm(request.POST, package=package)
         if form.is_valid():
-            selected_payment_method = form.cleaned_data['payment_method']
-            booking = None
-            booking_created = False
-            with transaction.atomic():
-                _expire_stale_pending_bookings(package_id=package.id)
-                locked_package = Package.objects.select_for_update().get(id=package.id)
-                number_of_people = form.cleaned_data['number_of_people']
-                travel_date = form.cleaned_data['travel_date']
-                special_notes = form.cleaned_data.get('special_notes', '')
-                original_total = (locked_package.price * number_of_people).quantize(Decimal('0.01'))
-                best_discount, _best_amount = _best_available_discount_for_user(
-                    request.user,
-                    original_total,
-                )
-                existing_pending_booking = (
-                    Booking.objects.select_for_update()
-                    .filter(
-                        package=locked_package,
-                        traveler=request.user,
-                        status=Booking.STATUS_PENDING,
-                        payment_status__in=[
-                            Booking.PAYMENT_STATUS_PENDING,
-                            Booking.PAYMENT_STATUS_FAILED,
-                        ],
-                    )
-                    .order_by('-created_at')
-                    .first()
-                )
-                slot_delta = number_of_people
-                if existing_pending_booking is not None:
-                    slot_delta -= existing_pending_booking.number_of_people
+            number_of_people = form.cleaned_data['number_of_people']
+            travelers_data, traveler_errors = _parse_traveler_post_data(
+                request.POST, number_of_people,
+            )
+            posted_travelers = travelers_data
 
-                if slot_delta > locked_package.available_slots:
-                    form.add_error(
-                        'number_of_people',
-                        f'Only {locked_package.available_slots} slot(s) are currently available.',
-                    )
-                else:
-                    booking = existing_pending_booking
-                    if booking is None:
-                        booking = form.save(commit=False)
-                        booking.package = locked_package
-                        booking.traveler = request.user
-                        booking_created = True
-                    else:
-                        booking.number_of_people = number_of_people
-                        booking.travel_date = travel_date
-                        booking.start_date = travel_date
-                        booking.end_date = travel_date
-                        booking.special_notes = special_notes
-                        booking.payment_reference = ''
-                        booking.stripe_checkout_session_id = ''
-                        booking.esewa_transaction_id = ''
-                        booking.paid_amount = None
-                        booking.paid_at = None
-
-                    booking.status = Booking.STATUS_PENDING
-                    booking.payment_method = selected_payment_method
-                    booking.payment_status = Booking.PAYMENT_STATUS_PENDING
-                    booking.source = 'direct'
-                    booking.discount = best_discount
-                    booking.payment_expires_at = _booking_payment_expires_at()
-                    booking.save()
-
-                    if slot_delta != 0:
-                        locked_package.available_slots -= slot_delta
-                        locked_package.save(update_fields=['available_slots'])
-
-            if form.errors:
+            if traveler_errors:
+                # Re-render form with traveler errors highlighted.
                 package.refresh_from_db(fields=['available_slots'])
             else:
-                if booking.payment_method == Booking.PAYMENT_METHOD_STRIPE:
-                    success_url = (
-                        request.build_absolute_uri(
-                            reverse('booking_confirmation', kwargs={'booking_id': booking.id}),
-                        )
-                        + '?session_id={CHECKOUT_SESSION_ID}'
+                selected_payment_method = form.cleaned_data['payment_method']
+                booking = None
+                booking_created = False
+                with transaction.atomic():
+                    _expire_stale_pending_bookings(package_id=package.id)
+                    locked_package = Package.objects.select_for_update().get(id=package.id)
+                    travel_date = form.cleaned_data['travel_date']
+                    special_notes = form.cleaned_data.get('special_notes', '')
+                    original_total = (locked_package.price * number_of_people).quantize(Decimal('0.01'))
+                    best_discount, _best_amount = _best_available_discount_for_user(
+                        request.user, original_total,
                     )
-                    cancel_url = request.build_absolute_uri(
-                        reverse('booking_checkout_cancel', kwargs={'booking_id': booking.id}),
+                    existing_pending_booking = (
+                        Booking.objects.select_for_update()
+                        .filter(
+                            package=locked_package,
+                            traveler=request.user,
+                            status=Booking.STATUS_PENDING,
+                            payment_status__in=[
+                                Booking.PAYMENT_STATUS_PENDING,
+                                Booking.PAYMENT_STATUS_FAILED,
+                            ],
+                        )
+                        .order_by('-created_at')
+                        .first()
                     )
-                    try:
-                        session_data = create_checkout_session(
-                            booking=booking,
-                            success_url=success_url,
-                            cancel_url=cancel_url,
+                    slot_delta = number_of_people
+                    if existing_pending_booking is not None:
+                        slot_delta -= existing_pending_booking.number_of_people
+
+                    if slot_delta > locked_package.available_slots:
+                        form.add_error(
+                            'number_of_people',
+                            f'Only {locked_package.available_slots} slot(s) are currently available.',
                         )
-                        checkout_url = session_data.get('url')
-                        if not checkout_url:
-                            raise StripeError('Stripe did not return a checkout URL.')
-                    except StripeError as exc:
-                        with transaction.atomic():
-                            locked_booking = Booking.objects.select_for_update().get(id=booking.id)
-                            _cancel_unpaid_booking(
-                                locked_booking,
-                                Booking.PAYMENT_STATUS_FAILED,
-                            )
-                        form.add_error(None, str(exc))
-                        package.refresh_from_db(fields=['available_slots'])
                     else:
-                        booking.stripe_checkout_session_id = session_data.get('id', '')
-                        booking.payment_reference = (
-                            session_data.get('payment_intent')
-                            or session_data.get('id', '')
+                        booking = existing_pending_booking
+                        if booking is None:
+                            booking = form.save(commit=False)
+                            booking.package = locked_package
+                            booking.traveler = request.user
+                            booking_created = True
+                        else:
+                            booking.number_of_people = number_of_people
+                            booking.travel_date = travel_date
+                            booking.start_date = travel_date
+                            booking.end_date = travel_date
+                            booking.special_notes = special_notes
+                            booking.payment_reference = ''
+                            booking.stripe_checkout_session_id = ''
+                            booking.esewa_transaction_id = ''
+                            booking.paid_amount = None
+                            booking.paid_at = None
+
+                        booking.status = Booking.STATUS_PENDING
+                        booking.payment_method = selected_payment_method
+                        booking.payment_status = Booking.PAYMENT_STATUS_PENDING
+                        booking.source = 'direct'
+                        booking.discount = best_discount
+                        booking.payment_expires_at = _booking_payment_expires_at()
+                        booking.save()
+
+                        if slot_delta != 0:
+                            locked_package.available_slots -= slot_delta
+                            locked_package.save(update_fields=['available_slots'])
+
+                        # Save traveler details (inside the atomic block).
+                        save_booking_travelers(booking, travelers_data)
+
+                if form.errors:
+                    package.refresh_from_db(fields=['available_slots'])
+                elif booking is not None:
+                    if booking.payment_method == Booking.PAYMENT_METHOD_STRIPE:
+                        success_url = (
+                            request.build_absolute_uri(
+                                reverse('booking_confirmation', kwargs={'booking_id': booking.id}),
+                            )
+                            + '?session_id={CHECKOUT_SESSION_ID}'
                         )
-                        booking.save(update_fields=['stripe_checkout_session_id', 'payment_reference'])
-                        if booking_created:
-                            _notify_booking_created(booking)
-                        return redirect(checkout_url)
-                elif booking.payment_method == Booking.PAYMENT_METHOD_ESEWA:
-                    try:
-                        response = _render_esewa_checkout(request, booking)
-                    except EsewaError as exc:
-                        with transaction.atomic():
-                            locked_booking = Booking.objects.select_for_update().get(id=booking.id)
-                            _cancel_unpaid_booking(
-                                locked_booking,
-                                Booking.PAYMENT_STATUS_FAILED,
+                        cancel_url = request.build_absolute_uri(
+                            reverse('booking_checkout_cancel', kwargs={'booking_id': booking.id}),
+                        )
+                        try:
+                            session_data = create_checkout_session(
+                                booking=booking,
+                                success_url=success_url,
+                                cancel_url=cancel_url,
                             )
-                        form.add_error(None, str(exc))
-                        package.refresh_from_db(fields=['available_slots'])
+                            checkout_url = session_data.get('url')
+                            if not checkout_url:
+                                raise StripeError('Stripe did not return a checkout URL.')
+                        except StripeError as exc:
+                            with transaction.atomic():
+                                locked_booking = Booking.objects.select_for_update().get(id=booking.id)
+                                _cancel_unpaid_booking(locked_booking, Booking.PAYMENT_STATUS_FAILED)
+                            form.add_error(None, str(exc))
+                            package.refresh_from_db(fields=['available_slots'])
+                        else:
+                            booking.stripe_checkout_session_id = session_data.get('id', '')
+                            booking.payment_reference = (
+                                session_data.get('payment_intent') or session_data.get('id', '')
+                            )
+                            booking.save(update_fields=['stripe_checkout_session_id', 'payment_reference'])
+                            if booking_created:
+                                _notify_booking_created(booking)
+                            return redirect(checkout_url)
+                    elif booking.payment_method == Booking.PAYMENT_METHOD_ESEWA:
+                        try:
+                            response = _render_esewa_checkout(request, booking)
+                        except EsewaError as exc:
+                            with transaction.atomic():
+                                locked_booking = Booking.objects.select_for_update().get(id=booking.id)
+                                _cancel_unpaid_booking(locked_booking, Booking.PAYMENT_STATUS_FAILED)
+                            form.add_error(None, str(exc))
+                            package.refresh_from_db(fields=['available_slots'])
+                        else:
+                            if booking_created:
+                                _notify_booking_created(booking)
+                            return response
                     else:
-                        if booking_created:
-                            _notify_booking_created(booking)
-                        return response
-                else:
-                    form.add_error('payment_method', 'Unsupported payment method selected.')
+                        form.add_error('payment_method', 'Unsupported payment method selected.')
+        else:
+            # Form-level errors — still parse traveler data so the accordion repopulates.
+            try:
+                n = max(1, int(request.POST.get('number_of_people', 1)))
+            except (TypeError, ValueError):
+                n = 1
+            posted_travelers, _ = _parse_traveler_post_data(request.POST, n)
     else:
         form = BookingForm(
             package=package,
@@ -172,10 +214,11 @@ def package_book(request, package_id):
             preview_people = 1
     preview_original_total = (package.price * preview_people).quantize(Decimal('0.01'))
     available_discount, available_discount_amount = _best_available_discount_for_user(
-        request.user,
-        preview_original_total,
+        request.user, preview_original_total,
     )
     preview_final_total = (preview_original_total - available_discount_amount).quantize(Decimal('0.01'))
+
+    start_step = 2 if traveler_errors else 1
 
     return render(request, 'core/booking_form.html', {
         'package': package,
@@ -187,6 +230,11 @@ def package_book(request, package_id):
         'reward_points': reward_points,
         'discount_percent': discount_percent,
         'next_discount_points': next_discount_points,
+        'start_step': start_step,
+        'nationality_choices_json': json.dumps(NATIONALITY_CHOICES),
+        'primary_autofill_json': json.dumps(primary_autofill),
+        'posted_travelers_json': json.dumps(posted_travelers),
+        'traveler_errors_json': json.dumps({str(k): v for k, v in traveler_errors.items()}),
     })
 
 
@@ -291,10 +339,7 @@ def booking_checkout_cancel(request, booking_id):
             locked_booking.status == Booking.STATUS_PENDING
             and locked_booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED
         ):
-            _cancel_unpaid_booking(
-                locked_booking,
-                Booking.PAYMENT_STATUS_FAILED,
-            )
+            _cancel_unpaid_booking(locked_booking, Booking.PAYMENT_STATUS_FAILED)
 
     if (
         booking.payment_method == Booking.PAYMENT_METHOD_STRIPE
@@ -310,6 +355,116 @@ def booking_checkout_cancel(request, booking_id):
         'Payment was cancelled. Your reserved slots were released.',
     )
     return redirect('package_book', package_id=booking.package_id)
+
+
+@login_required(login_url='account_login_choice')
+def booking_detail(request, booking_id):
+    """
+    Detail view showing booking summary + all traveler details.
+    Accessible by: the traveler who made the booking, the vendor of the package, admin staff.
+    """
+    user = request.user
+    user_type = getattr(user, 'user_type', '')
+
+    booking = get_object_or_404(
+        Booking.objects.select_related('package', 'traveler', 'vendor').prefetch_related('booking_travelers'),
+        id=booking_id,
+    )
+
+    is_owner_traveler = booking.traveler_id == user.id
+    is_package_vendor = booking.vendor_id == user.id
+    is_admin = user_type == 'admin' and user.is_staff
+
+    if not (is_owner_traveler or is_package_vendor or is_admin):
+        raise Http404('Booking not found.')
+
+    can_edit_travelers = (
+        is_owner_traveler
+        and booking.status == Booking.STATUS_PENDING
+        and booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED
+    )
+
+    travelers = list(booking.booking_travelers.order_by('traveler_index'))
+
+    return render(request, 'core/booking_detail.html', {
+        'booking': booking,
+        'travelers': travelers,
+        'can_edit_travelers': can_edit_travelers,
+        'is_owner_traveler': is_owner_traveler,
+        'is_package_vendor': is_package_vendor,
+        'is_admin': is_admin,
+    })
+
+
+@login_required(login_url='account_login_choice')
+def booking_traveler_edit(request, booking_id):
+    """
+    Allow the primary traveler to edit traveler details while booking is still pending.
+    """
+    if getattr(request.user, 'user_type', '') != 'traveler':
+        raise Http404('Traveler access only.')
+
+    booking = get_object_or_404(
+        Booking.objects.select_related('package').prefetch_related('booking_travelers'),
+        id=booking_id,
+        traveler=request.user,
+    )
+
+    if booking.payment_status == Booking.PAYMENT_STATUS_COMPLETED:
+        messages.info(request, 'Traveler details are locked after payment is confirmed.')
+        return redirect('booking_detail', booking_id=booking.id)
+
+    existing_travelers = list(booking.booking_travelers.order_by('traveler_index'))
+
+    traveler_profile = _safe_related(request.user, 'traveler_profile')
+    primary_autofill = {
+        'full_name': request.user.get_full_name().strip() or '',
+        'email': request.user.email or '',
+        'phone_number': request.user.phone or '',
+        'gender': getattr(traveler_profile, 'gender', '') or '',
+        'nationality': getattr(traveler_profile, 'nationality', '') or 'Nepali',
+    }
+
+    # Seed posted_travelers from existing DB records.
+    posted_travelers = [
+        {
+            'full_name': t.full_name,
+            'age': t.age,
+            'gender': t.gender,
+            'phone_number': t.phone_number,
+            'email': t.email,
+            'nationality': t.nationality,
+            'id_type': t.id_type,
+            'id_number': t.id_number,
+            'medical_notes': t.medical_notes,
+            'emergency_contact_name': t.emergency_contact_name,
+            'emergency_contact_phone': t.emergency_contact_phone,
+        }
+        for t in existing_travelers
+    ]
+    # Pad to current number_of_people if records are fewer.
+    while len(posted_travelers) < booking.number_of_people:
+        posted_travelers.append({})
+
+    traveler_errors = {}
+
+    if request.method == 'POST':
+        travelers_data, traveler_errors = _parse_traveler_post_data(
+            request.POST, booking.number_of_people,
+        )
+        posted_travelers = travelers_data
+        if not traveler_errors:
+            save_booking_travelers(booking, travelers_data)
+            messages.success(request, 'Traveler details updated successfully.')
+            return redirect('booking_detail', booking_id=booking.id)
+
+    return render(request, 'core/booking_traveler_edit.html', {
+        'booking': booking,
+        'nationality_choices_json': json.dumps(NATIONALITY_CHOICES),
+        'primary_autofill_json': json.dumps(primary_autofill),
+        'posted_travelers_json': json.dumps(posted_travelers),
+        'traveler_errors_json': json.dumps({str(k): v for k, v in traveler_errors.items()}),
+    })
 
 
 @login_required(login_url='account_login_choice')

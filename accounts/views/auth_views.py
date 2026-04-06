@@ -2,6 +2,7 @@
 
 from .common import *
 from ..services import oauth_service, otp_service, email_service
+from ..services import password_reset_service as prs
 
 @never_cache
 @csrf_protect
@@ -358,6 +359,146 @@ def traveler_register(request):
 
 def landing(request):
     return render(request, 'landing.html')
+
+
+@never_cache
+@csrf_protect
+def forgot_password(request):
+    """Step 1 — user enters their email address."""
+    if request.user.is_authenticated:
+        return redirect(_dashboard_route_name(request.user))
+
+    if request.method == 'POST':
+        email = (request.POST.get('email') or '').strip().lower()
+
+        if not email:
+            messages.error(request, 'Please enter your email address.')
+            return render(request, 'accounts/forgot_password.html')
+
+        if prs.is_rate_limited(email):
+            messages.error(request, 'Too many reset requests. Please try again in an hour.')
+            return render(request, 'accounts/forgot_password.html')
+
+        if User.objects.filter(email=email).exists():
+            otp_record, otp_code = prs.create_reset_otp(email)
+            prs.store_reset_session(request, email, otp_record.id)
+            email_service.send_password_reset_otp(email, otp_code)
+        else:
+            # Don't reveal whether email exists — show same message
+            prs.store_email_only_session(request, email)
+
+        messages.success(request, 'Reset code sent to your email.')
+        return redirect('forgot_password_verify')
+
+    return render(request, 'accounts/forgot_password.html')
+
+
+@never_cache
+@csrf_protect
+def forgot_password_verify(request):
+    """Step 2 — user enters the 6-digit OTP."""
+    email = prs.get_reset_email(request)
+    if not email:
+        return redirect('forgot_password')
+
+    masked = prs.mask_email(email)
+    resend_seconds = prs.seconds_until_resend(request)
+
+    if request.method == 'POST':
+        submitted = (request.POST.get('otp_code') or '').strip()
+        result = prs.verify_reset_otp(request, submitted)
+
+        if result == 'valid':
+            return redirect('forgot_password_new_password')
+
+        if result == 'expired':
+            messages.error(request, 'Code expired. Please request a new one.')
+        elif result == 'blocked':
+            messages.error(request, 'Too many wrong attempts. Please try again in 15 minutes.')
+        elif result == 'error':
+            messages.error(request, 'Invalid or expired code. Please request a new one.')
+        else:
+            messages.error(request, 'Invalid code. Please try again.')
+
+        resend_seconds = prs.seconds_until_resend(request)
+        return render(request, 'accounts/forgot_password_verify.html', {
+            'masked_email': masked,
+            'resend_seconds': resend_seconds,
+        })
+
+    return render(request, 'accounts/forgot_password_verify.html', {
+        'masked_email': masked,
+        'resend_seconds': resend_seconds,
+    })
+
+
+@csrf_protect
+def forgot_password_resend(request):
+    """Resend a fresh OTP — enforces 60-second cooldown."""
+    email = prs.get_reset_email(request)
+    if not email:
+        return redirect('forgot_password')
+
+    if prs.seconds_until_resend(request) > 0:
+        messages.error(request, 'Please wait before requesting a new code.')
+        return redirect('forgot_password_verify')
+
+    if prs.is_rate_limited(email):
+        messages.error(request, 'Too many reset requests. Please try again in an hour.')
+        return redirect('forgot_password_verify')
+
+    if User.objects.filter(email=email).exists():
+        otp_record, otp_code = prs.create_reset_otp(email)
+        prs.refresh_resend_cooldown(request, otp_record.id)
+        email_service.send_password_reset_otp(email, otp_code)
+        messages.success(request, 'New reset code sent to your email.')
+    else:
+        prs.store_email_only_session(request, email)
+        messages.success(request, 'New reset code sent to your email.')
+
+    return redirect('forgot_password_verify')
+
+
+@never_cache
+@csrf_protect
+def forgot_password_new_password(request):
+    """Step 3 — user sets a new password (only reachable after OTP verified)."""
+    if not prs.is_reset_verified(request):
+        return redirect('forgot_password')
+
+    if request.method == 'POST':
+        password = request.POST.get('password') or ''
+        confirm = request.POST.get('confirm_password') or ''
+
+        if len(password) < 8:
+            messages.error(request, 'Password must be at least 8 characters.')
+            return render(request, 'accounts/forgot_password_new_password.html')
+
+        if password != confirm:
+            messages.error(request, 'Passwords do not match.')
+            return render(request, 'accounts/forgot_password_new_password.html')
+
+        email = prs.consume_reset_otp(request)
+        if not email:
+            messages.error(request, 'Session expired. Please start over.')
+            prs.clear_reset_session(request)
+            return redirect('forgot_password')
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            messages.error(request, 'Account not found. Please contact support.')
+            prs.clear_reset_session(request)
+            return redirect('forgot_password')
+
+        user.set_password(password)
+        user.save(update_fields=['password'])
+        prs.clear_reset_session(request)
+        email_service.send_password_changed_confirmation(user)
+        messages.success(request, 'Password reset successful! Please login with your new password.')
+        return redirect('account_login_choice')
+
+    return render(request, 'accounts/forgot_password_new_password.html')
 
 
 @never_cache

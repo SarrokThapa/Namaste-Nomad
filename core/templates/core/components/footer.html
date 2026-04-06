@@ -10,9 +10,38 @@
                 </div>
                 <p>Your trusted companion for finding the perfect trekking adventure.</p>
                 <div class="footer-social" aria-label="Social media links">
-                    <a href="https://www.instagram.com/namastenomad2026/" target="_blank" rel="noopener noreferrer" class="social-icon instagram" aria-label="Follow us on Instagram">
+                    <a href="{{ site_settings.instagram_link|default:'https://www.instagram.com/namastenomad2026/' }}" target="_blank" rel="noopener noreferrer" class="social-icon instagram" aria-label="Follow us on Instagram">
                         <i class="fab fa-instagram" aria-hidden="true"></i>
                     </a>
+                    <a href="https://www.facebook.com/share/18TESa7Zyk/" target="_blank" rel="noopener noreferrer" class="social-icon facebook" aria-label="Follow us on Facebook">
+                        <i class="fab fa-facebook-f" aria-hidden="true"></i>
+                    </a>
+                    <a href="https://x.com/Blitz07047739" target="_blank" rel="noopener noreferrer" class="social-icon x" aria-label="Follow us on X">
+                        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M18.901 2H22l-6.766 7.736L23.2 22h-6.24l-4.886-6.787L6.133 22H3.03l7.236-8.272L.8 2h6.398l4.41 6.22L18.901 2zm-1.095 18.12h1.715L6.274 3.783H4.435L17.806 20.12z"/>
+                        </svg>
+                    </a>
+                </div>
+                <div class="footer-payment" aria-label="Payment partners">
+                    <p class="footer-payment-label">Payment Partners</p>
+                    <div class="payment-partners">
+                        <!-- Stripe official wordmark -->
+                        <span class="payment-logo stripe-logo" aria-label="Stripe">
+                            <svg viewBox="0 0 60 25" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" fill="none">
+                                <path d="M5.471 9.825c0-.602.495-.834 1.313-.834 1.173 0 2.655.355 3.828 .99V6.593a10.17 10.17 0 0 0-3.828-.706C4.1 5.887 2 7.107 2 9.99c0 4.595 6.326 3.862 6.326 5.843 0 .713-.619.944-1.482.944-1.28 0-2.921-.527-4.218-1.237v3.427c1.438.619 2.89.876 4.218.876 3.213 0 5.42-1.186 5.42-4.096-.014-4.96-6.793-4.075-6.793-5.922zM18.27 3l-3.303.703-.013 10.814c0 1.997 1.5 3.469 3.497 3.469 1.107 0 1.915-.203 2.36-.444V14.87c-.431.175-2.56.793-2.56-1.204V9.04h2.56V6.074h-2.56L18.27 3zm6.662 3.608l-.21-1.143H21.68v12.44h3.4v-8.43c.802-1.05 2.16-.858 2.59-.71V6.065c-.443-.162-2.063-.46-2.738 1.543zm4.67-1.143h3.413v12.44h-3.413V5.465zm0-2.017l3.413-.727V0l-3.413.727v2.721zm9.773 2.017l-.21-1.143h-3.044v12.44h3.4v-8.43c.793-1.05 2.152-.858 2.582-.71V6.065c-.444-.162-2.063-.46-2.728 1.4zm10.135-.177c-3.414 0-5.487 2.578-5.487 6.264 0 4.13 2.335 6.263 5.826 6.263 1.679 0 2.95-.37 3.91-1V14.04c-.96.493-2.063.78-3.455.78-1.368 0-2.578-.48-2.737-2.14h6.89c.014-.188.042-.937.042-1.284-.014-3.63-1.94-6.109-4.989-6.109zm-2.01 5.04c.146-1.585.993-2.24 2.01-2.24s1.81.668 1.944 2.24h-3.953z" fill="#ffffff"/>
+                            </svg>
+                        </span>
+                        <!-- eSewa logo -->
+                        <span class="payment-logo esewa-logo" aria-label="eSewa">
+                            <svg viewBox="0 0 80 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <!-- Green "e" circle -->
+                                <circle cx="13" cy="14" r="11" fill="#60bb46"/>
+                                <text x="8.5" y="19" font-size="14" font-weight="900" font-family="Arial, sans-serif" fill="#ffffff">e</text>
+                                <!-- "Sewa" wordmark -->
+                                <text x="27" y="19" font-size="12.5" font-weight="800" font-family="Arial, sans-serif" fill="#60bb46">Sewa</text>
+                            </svg>
+                        </span>
+                    </div>
                 </div>
             </div>
 

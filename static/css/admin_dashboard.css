@@ -76,6 +76,27 @@
     margin-top: 0.35rem;
 }
 
+.admin-breadcrumb {
+    margin-bottom: 1rem;
+    color: #64748b;
+    font-size: 0.84rem;
+    font-weight: 600;
+}
+
+.admin-inline-filters {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.admin-inline-filters label {
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
 .admin-stat-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -305,6 +326,16 @@
     vertical-align: top;
 }
 
+.activity-table th.action-col,
+.activity-table td.action-cell {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.activity-table td.action-cell {
+    vertical-align: middle;
+}
+
 .table-scroll-wrap {
     width: 100%;
     overflow-x: auto;
@@ -360,12 +391,19 @@
     align-items: center;
 }
 
+.activity-table td.action-cell .pending-actions {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+}
+
 .pending-actions form {
     margin: 0;
 }
 
 .pending-actions .btn {
     white-space: nowrap;
+    min-width: 86px;
+    text-align: center;
 }
 
 .admin-mini-grid {

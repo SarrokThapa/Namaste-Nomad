@@ -1,18 +1,14 @@
 .packages-search-bar {
     margin-top: 1.6rem;
     display: grid;
-    grid-template-columns: repeat(5, minmax(150px, 1fr)) 140px;
+    grid-template-columns: repeat(5, minmax(120px, 1fr)) 110px 110px;
     gap: 0.8rem;
     align-items: end;
 }
 
-.packages-search-bar .btn-search {
-    width: 100%;
-}
-
+.packages-search-bar .btn-search,
 .packages-search-bar .btn-search-clear {
-    grid-column: -2 / -1;
-    grid-row: 2;
+    width: 100%;
 }
 
 .packages-toolbar {
@@ -184,8 +180,9 @@
         grid-template-columns: repeat(2, minmax(150px, 1fr));
     }
 
+    .packages-search-bar .btn-search,
     .packages-search-bar .btn-search-clear {
-        grid-column: 2;
+        grid-column: auto;
     }
 
     .packages-layout {

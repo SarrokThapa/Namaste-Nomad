@@ -1,0 +1,290 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Traveler Details - Booking #{{ booking.id }} - Namaste Nomad</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/packages.css' %}?v=20260301b">
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
+</head>
+<body class="packages-body">
+    {% include "core/includes/messages_toast.html" %}
+    <nav class="landing-nav">
+        <div class="nav-container">
+            <a class="nav-brand" href="{% url 'home' %}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+                <span>Namaste Nomad</span>
+            </a>
+            {% include "core/includes/public_nav_actions.html" %}
+        </div>
+    </nav>
+
+    <main class="booking-shell">
+        <section class="booking-summary-card">
+            <h1>Edit Traveler Details</h1>
+            <p class="booking-summary-title">{{ booking.package.title }}</p>
+            <p class="booking-summary-meta">
+                Booking #{{ booking.id }} &middot;
+                {{ booking.travel_date|date:"M d, Y" }} &middot;
+                {{ booking.number_of_people }} person{{ booking.number_of_people|pluralize }}
+            </p>
+            <div class="booking-notes booking-edit-notice">
+                <span>Note</span>
+                <p>You can edit traveler details while the booking is still pending. Details become read-only once payment is confirmed.</p>
+            </div>
+        </section>
+
+        <section class="booking-form-card">
+            <form method="POST" id="editTravelerForm" novalidate>
+                {% csrf_token %}
+
+                <div class="traveler-details-section" id="travelerDetailsSection">
+                    <div class="traveler-details-header">
+                        <div class="traveler-details-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/></svg>
+                            {{ booking.number_of_people }} Traveler{{ booking.number_of_people|pluralize }}
+                        </div>
+                        <div class="traveler-accordion-controls">
+                            <button type="button" class="btn-accordion-ctrl" id="expandAllBtn">Expand All</button>
+                            <button type="button" class="btn-accordion-ctrl" id="collapseAllBtn">Collapse All</button>
+                        </div>
+                    </div>
+                    <div class="traveler-cards-container" id="travelerCardsContainer"></div>
+                </div>
+
+                <div class="booking-form-actions">
+                    <button type="submit" id="saveTravelerBtn" class="btn-primary">Save Traveler Details</button>
+                    <a href="{% url 'booking_detail' booking.id %}" class="btn-outline-dark">Cancel</a>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script id="nationalityChoicesData" type="application/json">{{ nationality_choices_json }}</script>
+    <script id="primaryAutofillData" type="application/json">{{ primary_autofill_json }}</script>
+    <script id="postedTravelersData" type="application/json">{{ posted_travelers_json }}</script>
+    <script id="travelerErrorsData" type="application/json">{{ traveler_errors_json }}</script>
+
+    <script>
+    (() => {
+        const TOTAL_COUNT = {{ booking.number_of_people }};
+        const NATIONALITY_CHOICES = JSON.parse(document.getElementById('nationalityChoicesData').textContent);
+        const PRIMARY_AUTOFILL = JSON.parse(document.getElementById('primaryAutofillData').textContent);
+        const POSTED_TRAVELERS = JSON.parse(document.getElementById('postedTravelersData').textContent);
+        const TRAVELER_ERRORS = JSON.parse(document.getElementById('travelerErrorsData').textContent);
+        const container = document.getElementById('travelerCardsContainer');
+        const saveBtn = document.getElementById('saveTravelerBtn');
+
+        const buildNationalitySelect = (name, value) => {
+            const sel = document.createElement('select');
+            sel.name = name; sel.id = name;
+            NATIONALITY_CHOICES.forEach(nat => {
+                const opt = document.createElement('option');
+                opt.value = nat; opt.textContent = nat;
+                if (nat === value) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            return sel;
+        };
+        const ID_TYPE_CHOICES = [
+            ['', 'Select ID Type'], ['citizenship', 'Citizenship'],
+            ['passport', 'Passport'], ['national_id', 'National ID'],
+            ['driving_license', 'Driving License'],
+        ];
+        const buildIdTypeSelect = (name, value) => {
+            const sel = document.createElement('select');
+            sel.name = name; sel.id = name;
+            ID_TYPE_CHOICES.forEach(([val, label]) => {
+                const opt = document.createElement('option');
+                opt.value = val; opt.textContent = label;
+                if (val === value) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            return sel;
+        };
+        const GENDER_CHOICES = [
+            ['', 'Select Gender'], ['male', 'Male'], ['female', 'Female'], ['other', 'Other'],
+        ];
+        const buildGenderSelect = (name, value) => {
+            const sel = document.createElement('select');
+            sel.name = name; sel.id = name;
+            GENDER_CHOICES.forEach(([val, label]) => {
+                const opt = document.createElement('option');
+                opt.value = val; opt.textContent = label;
+                if (val === value) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            return sel;
+        };
+        const makeField = (label, inputEl, errorMsg, required) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'form-field traveler-form-field';
+            const lbl = document.createElement('label');
+            lbl.textContent = label + (required ? ' *' : '');
+            lbl.setAttribute('for', inputEl.id);
+            wrap.appendChild(lbl);
+            wrap.appendChild(inputEl);
+            if (errorMsg) {
+                const err = document.createElement('div');
+                err.className = 'field-error traveler-field-error';
+                err.textContent = errorMsg;
+                wrap.appendChild(err);
+                inputEl.classList.add('field-has-error');
+            }
+            return wrap;
+        };
+        const makeInput = (type, name, value, placeholder) => {
+            const inp = document.createElement('input');
+            inp.type = type; inp.name = name; inp.id = name;
+            inp.value = value || '';
+            if (placeholder) inp.placeholder = placeholder;
+            return inp;
+        };
+        const makeTextarea = (name, value, placeholder, rows) => {
+            const ta = document.createElement('textarea');
+            ta.name = name; ta.id = name; ta.value = value || '';
+            if (placeholder) ta.placeholder = placeholder;
+            ta.rows = rows || 2;
+            return ta;
+        };
+
+        const buildCard = (index, d, errors) => {
+            const p = `t_${index}_`;
+            const e = errors || {};
+            const isPrimary = index === 0;
+            const card = document.createElement('div');
+            card.className = 'traveler-card' + (Object.keys(e).length ? ' traveler-card--error' : '');
+            card.dataset.travelerIndex = index;
+
+            const header = document.createElement('div');
+            header.className = 'traveler-card-header';
+            header.setAttribute('role', 'button');
+            header.setAttribute('aria-expanded', 'true');
+            header.tabIndex = 0;
+            const headerLeft = document.createElement('div');
+            headerLeft.className = 'traveler-card-header-left';
+            const badge = document.createElement('span');
+            badge.className = 'traveler-badge' + (isPrimary ? ' traveler-badge--primary' : '');
+            badge.textContent = `Traveler ${index + 1} of ${TOTAL_COUNT}`;
+            headerLeft.appendChild(badge);
+            if (isPrimary) {
+                const pl = document.createElement('span');
+                pl.className = 'traveler-primary-label';
+                pl.textContent = 'Primary Traveler (You)';
+                headerLeft.appendChild(pl);
+            }
+            const chevron = document.createElement('div');
+            chevron.className = 'traveler-card-chevron';
+            chevron.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>';
+            header.appendChild(headerLeft);
+            header.appendChild(chevron);
+            card.appendChild(header);
+
+            const body = document.createElement('div');
+            body.className = 'traveler-card-body';
+            const grid = document.createElement('div');
+            grid.className = 'traveler-form-grid';
+
+            grid.appendChild(makeField('Full Name', makeInput('text', p + 'full_name', d.full_name, 'e.g. Ram Kumar Shrestha'), e.full_name, true));
+            const ageInp = makeInput('number', p + 'age', d.age, '');
+            ageInp.min = 1; ageInp.max = 120;
+            grid.appendChild(makeField('Age', ageInp, e.age, true));
+            grid.appendChild(makeField('Gender', buildGenderSelect(p + 'gender', d.gender), e.gender, false));
+            grid.appendChild(makeField('Nationality', buildNationalitySelect(p + 'nationality', d.nationality || 'Nepali'), e.nationality, false));
+            grid.appendChild(makeField('Phone Number' + (isPrimary ? '' : ' (Optional)'), makeInput('tel', p + 'phone_number', d.phone_number, '+977 98XXXXXXXX'), e.phone_number, isPrimary));
+            grid.appendChild(makeField('Email' + (isPrimary ? '' : ' (Optional)'), makeInput('email', p + 'email', d.email, isPrimary ? 'you@example.com' : 'Optional'), e.email, isPrimary));
+            grid.appendChild(makeField('ID Type', buildIdTypeSelect(p + 'id_type', d.id_type), e.id_type, false));
+            grid.appendChild(makeField('ID Number', makeInput('text', p + 'id_number', d.id_number, 'ID / Passport / License No.'), e.id_number, true));
+            const medWrap = makeField('Medical Conditions / Allergies (Optional)', makeTextarea(p + 'medical_notes', d.medical_notes, 'Any medical conditions, allergies...', 2), e.medical_notes, false);
+            medWrap.classList.add('traveler-span-2');
+            grid.appendChild(medWrap);
+            if (isPrimary) {
+                grid.appendChild(makeField('Emergency Contact Name', makeInput('text', p + 'emergency_contact_name', d.emergency_contact_name, 'Contact person full name'), e.emergency_contact_name, true));
+                grid.appendChild(makeField('Emergency Contact Phone', makeInput('tel', p + 'emergency_contact_phone', d.emergency_contact_phone, '+977 ...'), e.emergency_contact_phone, true));
+            }
+
+            body.appendChild(grid);
+            card.appendChild(body);
+
+            const toggle = () => {
+                const exp = header.getAttribute('aria-expanded') === 'true';
+                header.setAttribute('aria-expanded', String(!exp));
+                body.classList.toggle('traveler-card-body--collapsed', exp);
+                chevron.classList.toggle('traveler-card-chevron--open', !exp);
+            };
+            header.addEventListener('click', toggle);
+            header.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(); }});
+            if (index !== 0 && !Object.keys(e).length) {
+                header.setAttribute('aria-expanded', 'false');
+                body.classList.add('traveler-card-body--collapsed');
+            } else {
+                chevron.classList.add('traveler-card-chevron--open');
+            }
+            return card;
+        };
+
+        const render = () => {
+            container.innerHTML = '';
+            for (let i = 0; i < TOTAL_COUNT; i++) {
+                const d = POSTED_TRAVELERS[i] || (i === 0 ? PRIMARY_AUTOFILL : {});
+                container.appendChild(buildCard(i, d, TRAVELER_ERRORS[String(i)] || {}));
+            }
+        };
+
+        document.getElementById('expandAllBtn').addEventListener('click', () => {
+            container.querySelectorAll('.traveler-card-header').forEach(h => {
+                h.setAttribute('aria-expanded', 'true');
+                h.nextElementSibling.classList.remove('traveler-card-body--collapsed');
+                h.querySelector('.traveler-card-chevron').classList.add('traveler-card-chevron--open');
+            });
+        });
+        document.getElementById('collapseAllBtn').addEventListener('click', () => {
+            container.querySelectorAll('.traveler-card-header').forEach(h => {
+                h.setAttribute('aria-expanded', 'false');
+                h.nextElementSibling.classList.add('traveler-card-body--collapsed');
+                h.querySelector('.traveler-card-chevron').classList.remove('traveler-card-chevron--open');
+            });
+        });
+
+        document.getElementById('editTravelerForm').addEventListener('submit', ev => {
+            const required = ['full_name', 'age', 'id_number'];
+            let hasError = false;
+            for (let i = 0; i < TOTAL_COUNT; i++) {
+                const fields = [...required];
+                if (i === 0) fields.push('phone_number', 'email', 'emergency_contact_name', 'emergency_contact_phone');
+                for (const f of fields) {
+                    const el = document.querySelector(`[name="t_${i}_${f}"]`);
+                    if (!el || !el.value.trim()) { hasError = true; break; }
+                }
+                if (hasError) {
+                    const card = container.querySelector(`[data-traveler-index="${i}"]`);
+                    if (card) {
+                        const h = card.querySelector('.traveler-card-header');
+                        if (h && h.getAttribute('aria-expanded') === 'false') h.click();
+                    }
+                    break;
+                }
+            }
+            if (hasError) {
+                ev.preventDefault();
+                if (typeof showToast === 'function') showToast('Please fill in all required fields.', 'error');
+            }
+        });
+
+        render();
+    })();
+    </script>
+    <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
+    <script src="{% static 'js/toast.js' %}"></script>
+    <script src="{% static 'js/animations.js' %}"></script>
+</body>
+</html>

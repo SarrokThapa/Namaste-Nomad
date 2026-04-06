@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/landing.css' %}">
-    <link rel="stylesheet" href="{% static 'css/packages.css' %}?v=20260301b">
+    <link rel="stylesheet" href="{% static 'css/packages.css' %}?v=20260405c">
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     <link rel="stylesheet" href="{% static 'css/animations.css' %}">
     <link rel="stylesheet" href="{% static 'css/toast.css' %}">
@@ -37,202 +37,663 @@
         </div>
     </nav>
 
+    <main class="booking-shell booking-multistep-shell">
 
-    <main class="booking-shell">
-        <section class="booking-summary-card">
-            <h1>Book Your Package</h1>
-            <p class="booking-summary-title">{{ package.title }}</p>
-            <p class="booking-summary-meta">
-                {{ package.location|default:"Nepal" }}
-                {% if package.duration_days %} · {{ package.duration_days }} day{{ package.duration_days|pluralize }}{% endif %}
-            </p>
-            <div class="booking-summary-grid">
-                <div>
-                    <span>Price Per Person</span>
-                    <strong>Rs {{ package.price|floatformat:0 }}</strong>
-                </div>
-                <div>
-                    <span>Available Slots</span>
-                    <strong>{{ package.available_slots }}</strong>
-                </div>
-                <div>
-                    <span>Available From</span>
-                    <strong>{{ package.available_from|date:"M d, Y"|default:"Not set" }}</strong>
-                </div>
-                <div>
-                    <span>Available Until</span>
-                    <strong>{{ package.available_until|date:"M d, Y"|default:"Not set" }}</strong>
-                </div>
-                <div>
-                    <span>Status</span>
-                    <strong>Online Payment</strong>
-                </div>
+        {# ── Progress Indicator ───────────────────────── #}
+        <div class="booking-progress" id="bookingProgress">
+            <div class="bp-step" id="bpStep1">
+                <div class="bp-circle bp-circle--active" id="bpCircle1">1</div>
+                <span class="bp-label">Booking Info</span>
             </div>
-        </section>
+            <div class="bp-connector" id="bpConn1"></div>
+            <div class="bp-step" id="bpStep2">
+                <div class="bp-circle bp-circle--pending" id="bpCircle2">2</div>
+                <span class="bp-label">Traveler Details</span>
+            </div>
+            <div class="bp-connector" id="bpConn2"></div>
+            <div class="bp-step" id="bpStep3">
+                <div class="bp-circle bp-circle--pending" id="bpCircle3">3</div>
+                <span class="bp-label">Payment</span>
+            </div>
+        </div>
 
-        <section class="booking-form-card">
-            <h2>Booking Details</h2>
-            {% if not package.is_in_season %}
-                <div class="booking-form-errors">
-                    This package is currently not available for booking.
+        {# ── Package Summary Strip ────────────────────── #}
+        <div class="booking-pkg-strip">
+            <div class="bps-title">{{ package.title }}</div>
+            <div class="bps-meta">
+                {{ package.location|default:"Nepal" }}{% if package.duration_days %} &middot; {{ package.duration_days }} day{{ package.duration_days|pluralize }}{% endif %}
+                &middot; Rs {{ package.price|floatformat:0 }}/person
+                &middot; {{ package.available_slots }} slot{{ package.available_slots|pluralize }} left
+            </div>
+            {% if package.available_from or package.available_until %}
+                <div class="bps-dates">
+                    Available:
+                    {% if package.available_from %}{{ package.available_from|date:"M d, Y" }}{% else %}Now{% endif %}
+                    -
+                    {% if package.available_until %}{{ package.available_until|date:"M d, Y" }}{% else %}Open Ended{% endif %}
                 </div>
             {% endif %}
-            <form method="POST">
+        </div>
+
+        {# ── Form Card ───────────────────────────────── #}
+        <section class="booking-form-card">
+
+            {# Season / global errors shown above the form #}
+            {% if not package.is_in_season %}
+                <div class="booking-form-errors">This package is currently not available for booking.</div>
+            {% endif %}
+            {% if form.non_field_errors %}
+                <div class="booking-form-errors">
+                    {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+                </div>
+            {% endif %}
+
+            <form method="POST" id="bookingForm" novalidate>
                 {% csrf_token %}
 
-                {% if form.non_field_errors %}
-                    <div class="booking-form-errors">
-                        {% for error in form.non_field_errors %}
-                            <p>{{ error }}</p>
-                        {% endfor %}
-                    </div>
-                {% endif %}
+                {# ══ STEP 1 — Booking Info ══════════════════════════════════ #}
+                <div class="booking-step" id="step1">
+                    <h2 class="step-heading">Booking Info</h2>
 
-                <div class="booking-form-grid">
-                    <div class="form-field">
-                        <label for="{{ form.number_of_people.id_for_label }}">Number of People</label>
-                        {{ form.number_of_people }}
-                        {% if form.number_of_people.errors %}
-                            <div class="field-error">{{ form.number_of_people.errors|striptags }}</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="form-field">
-                        <label for="{{ form.travel_date.id_for_label }}">Travel Date</label>
-                        {{ form.travel_date }}
-                        {% if form.travel_date.errors %}
-                            <div class="field-error">{{ form.travel_date.errors|striptags }}</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="form-field span-2">
-                        <label for="{{ form.special_notes.id_for_label }}">Special Notes (Optional)</label>
-                        {{ form.special_notes }}
-                        {% if form.special_notes.errors %}
-                            <div class="field-error">{{ form.special_notes.errors|striptags }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div class="booking-notes">
-                    <span>Payment Method</span>
-                    {{ form.payment_method }}
-                    {% if form.payment_method.errors %}
-                        <div class="field-error">{{ form.payment_method.errors|striptags }}</div>
-                    {% endif %}
-                    <p>Use eSewa for NPR checkout. Stripe card checkout is available for international payments.</p>
-                </div>
-
-                <div class="booking-rewards">
-                    <span>Reward Points</span>
-                    {% if reward_points %}
-                        <p>You have {{ reward_points }} points.</p>
-                        {% if discount_percent %}
-                            <p>You can apply a {{ discount_percent }}% discount on this booking.</p>
-                        {% else %}
-                            <p>Earn 100 points to unlock a 5% discount.</p>
-                        {% endif %}
-                        {% if next_discount_points %}
-                            <small>Next discount unlocks at {{ next_discount_points }} points.</small>
-                        {% endif %}
-                    {% else %}
-                        <p>No reward points yet. Start earning points by posting, reviewing, and saving trips.</p>
-                    {% endif %}
-                </div>
-
-                {% if available_discount %}
-                    <div class="booking-rewards" style="margin-top: 10px; border-color: #86efac; background: #f0fdf4;">
-                        <span>&#127881; You have a discount available!</span>
-                        {% if available_discount.fixed_amount %}
-                            <p>Auto-applied discount: Rs {{ available_discount.fixed_amount|floatformat:0 }}</p>
-                        {% else %}
-                            <p>Auto-applied discount: {{ available_discount.percentage|floatformat:0 }}%</p>
-                            {% if available_discount.max_discount_cap %}
-                                <small>Maximum discount cap: Rs {{ available_discount.max_discount_cap|floatformat:0 }}</small>
+                    <div class="booking-form-grid">
+                        <div class="form-field">
+                            <label for="{{ form.number_of_people.id_for_label }}">Number of People *</label>
+                            {{ form.number_of_people }}
+                            {% if form.number_of_people.errors %}
+                                <div class="field-error">{{ form.number_of_people.errors|striptags }}</div>
                             {% endif %}
-                        {% endif %}
+                        </div>
+
+                        <div class="form-field">
+                            <label for="{{ form.travel_date.id_for_label }}">Travel Date *</label>
+                            {{ form.travel_date }}
+                            {% if form.travel_date.errors %}
+                                <div class="field-error">{{ form.travel_date.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-field span-2">
+                            <label for="{{ form.special_notes.id_for_label }}">Special Notes <span class="label-optional">(Optional)</span></label>
+                            {{ form.special_notes }}
+                        </div>
                     </div>
-                {% endif %}
 
-                <div
-                    class="booking-total"
-                    data-discount-percentage="{% if available_discount and available_discount.percentage %}{{ available_discount.percentage }}{% endif %}"
-                    data-discount-fixed="{% if available_discount and available_discount.fixed_amount %}{{ available_discount.fixed_amount }}{% endif %}"
-                    data-discount-cap="{% if available_discount and available_discount.max_discount_cap %}{{ available_discount.max_discount_cap }}{% endif %}"
-                >
-                    <span>Original Price</span>
-                    <strong id="originalTotal">Rs {{ original_total|floatformat:0 }}</strong>
-                    <span>Discount</span>
-                    <strong id="discountAmount">- Rs {{ discount_amount|floatformat:0 }}</strong>
-                    <span>Final Price</span>
-                    <strong id="estimatedTotal">Rs {{ estimated_total|floatformat:0 }}</strong>
+                    {% if reward_points %}
+                        <div class="booking-rewards">
+                            <span>Reward Points</span>
+                            <p>You have {{ reward_points }} points.
+                            {% if discount_percent %}
+                                A {{ discount_percent }}% discount will be auto-applied.
+                            {% endif %}
+                            </p>
+                        </div>
+                    {% endif %}
+
+                    <div class="step-actions">
+                        <a href="{% url 'package_detail' package.id %}" class="btn-outline-dark">Back to Package</a>
+                        <button type="button" id="step1Next" class="btn-primary" {% if package.available_slots == 0 or not package.is_in_season %}disabled{% endif %}>
+                            Next: Traveler Details
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
+                    </div>
                 </div>
 
-                <div class="booking-form-actions">
-                    <button type="submit" id="paymentSubmitBtn" class="btn-primary" {% if package.available_slots == 0 or not package.is_in_season %}disabled{% endif %}>Pay with eSewa</button>
-                    <a href="{% url 'package_detail' package.id %}" class="btn-outline-dark">Back to Package</a>
+                {# ══ STEP 2 — Traveler Details ══════════════════════════════ #}
+                <div class="booking-step" id="step2" hidden>
+                    <h2 class="step-heading">
+                        Enter details for <span id="travelerCountLabel">1</span> traveler<span id="travelerPluralLabel"></span>
+                    </h2>
+
+                    <div id="travelerCardsContainer" class="traveler-cards-container"></div>
+
+                    <div class="step-actions">
+                        <button type="button" id="step2Back" class="btn-outline-dark">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+                            Back
+                        </button>
+                        <button type="button" id="step2Next" class="btn-primary">
+                            Next: Payment
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
+                    </div>
                 </div>
+
+                {# ══ STEP 3 — Payment ═══════════════════════════════════════ #}
+                <div class="booking-step" id="step3" hidden>
+                    <h2 class="step-heading">Payment</h2>
+
+                    {# Booking summary — populated by JS #}
+                    <div id="step3Summary" class="s3-summary-card"></div>
+
+                    {# Discount banner — shown if applicable #}
+                    {% if available_discount %}
+                        <div class="booking-rewards traveler-discount-banner">
+                            <span>&#127881; Discount Applied!</span>
+                            {% if available_discount.fixed_amount %}
+                                <p>Rs {{ available_discount.fixed_amount|floatformat:0 }} off your booking.</p>
+                            {% else %}
+                                <p>{{ available_discount.percentage|floatformat:0 }}% off your booking.{% if available_discount.max_discount_cap %} (Max Rs {{ available_discount.max_discount_cap|floatformat:0 }}){% endif %}</p>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    {# Payment method #}
+                    <div class="booking-notes s3-payment-method">
+                        <span>Payment Method</span>
+                        {{ form.payment_method }}
+                        {% if form.payment_method.errors %}
+                            <div class="field-error">{{ form.payment_method.errors|striptags }}</div>
+                        {% endif %}
+                        <p>Use eSewa for NPR checkout. Stripe card checkout is available for international payments.</p>
+                    </div>
+
+                    <div class="step-actions">
+                        <button type="button" id="step3Back" class="btn-outline-dark">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+                            Back
+                        </button>
+                        <button type="submit" id="pay-button" class="btn-pay btn-esewa">
+                            Pay with eSewa
+                        </button>
+                    </div>
+                </div>
+
             </form>
         </section>
     </main>
 
+    {# ── Data islands (server → JS) ───────────────────── #}
+    <script id="nationalityChoicesData" type="application/json">{{ nationality_choices_json }}</script>
+    <script id="primaryAutofillData"    type="application/json">{{ primary_autofill_json }}</script>
+    <script id="postedTravelersData"    type="application/json">{{ posted_travelers_json }}</script>
+    <script id="travelerErrorsData"     type="application/json">{{ traveler_errors_json }}</script>
+
     <script>
-        (() => {
-            const peopleInput = document.getElementById('{{ form.number_of_people.id_for_label }}');
-            const totalNode = document.getElementById('estimatedTotal');
-            const originalTotalNode = document.getElementById('originalTotal');
-            const discountAmountNode = document.getElementById('discountAmount');
-            const paymentMethodNodes = document.querySelectorAll('input[name="payment_method"]');
-            const paymentSubmitBtn = document.getElementById('paymentSubmitBtn');
-            const discountDataNode = document.querySelector('.booking-total');
-            const price = Number('{{ package.price|floatformat:2 }}');
-            const discountPercent = Number((discountDataNode && discountDataNode.dataset.discountPercentage) || 0);
-            const discountFixed = Number((discountDataNode && discountDataNode.dataset.discountFixed) || 0);
-            const discountCap = Number((discountDataNode && discountDataNode.dataset.discountCap) || 0);
+    (() => {
+        'use strict';
 
-            if (!peopleInput || !totalNode || Number.isNaN(price)) return;
+        function safeJsonParse(id, fallback) {
+            const el = document.getElementById(id);
+            if (!el) return fallback;
+            try {
+                return JSON.parse(el.textContent || '');
+            } catch (_err) {
+                return fallback;
+            }
+        }
 
-            const updateTotal = () => {
-                const people = Math.max(parseInt(peopleInput.value || '1', 10), 1);
-                const original = price * people;
-                let discount = 0;
+        /* ════════════════════════════════════════════════
+           Config (rendered server-side)
+           ════════════════════════════════════════════════ */
+        const PRICE_PER_PERSON  = Number('{{ package.price|floatformat:2 }}');
+        const START_STEP        = {{ start_step }};
+        const AVAIL_SLOTS       = {{ package.available_slots }};
+        const AVAIL_FROM        = '{{ package.available_from|date:"Y-m-d"|default:"" }}';
+        const AVAIL_UNTIL       = '{{ package.available_until|date:"Y-m-d"|default:"" }}';
+        const DISC_PERCENT      = Number('{% if available_discount and available_discount.percentage %}{{ available_discount.percentage|floatformat:4 }}{% else %}0{% endif %}');
+        const DISC_FIXED        = Number('{% if available_discount and available_discount.fixed_amount %}{{ available_discount.fixed_amount|floatformat:2 }}{% else %}0{% endif %}');
+        const DISC_CAP          = Number('{% if available_discount and available_discount.max_discount_cap %}{{ available_discount.max_discount_cap|floatformat:2 }}{% else %}0{% endif %}');
+        const FORM_IS_BOUND     = {{ form.is_bound|yesno:"true,false" }};
+        const HAS_PAYMENT_ERROR = {{ form.payment_method.errors|yesno:"true,false" }};
 
-                if (discountFixed > 0) {
-                    discount = discountFixed;
-                } else if (discountPercent > 0) {
-                    discount = (original * discountPercent) / 100;
+        const NATIONALITY_CHOICES = safeJsonParse('nationalityChoicesData', ['Nepali']);
+        const PRIMARY_AUTOFILL    = safeJsonParse('primaryAutofillData', {});
+        const POSTED_TRAVELERS    = safeJsonParse('postedTravelersData', []);
+        const TRAVELER_ERRORS     = safeJsonParse('travelerErrorsData', {});
+
+        const ID_TYPE_OPTS = [
+            ['', 'Select ID Type'],
+            ['citizenship', 'Citizenship'],
+            ['passport', 'Passport'],
+            ['national_id', 'National ID'],
+            ['driving_license', 'Driving License'],
+        ];
+        const GENDER_OPTS = [
+            ['', 'Select Gender'],
+            ['male', 'Male'],
+            ['female', 'Female'],
+            ['other', 'Other'],
+        ];
+
+        /* ════════════════════════════════════════════════
+           DOM refs
+           ════════════════════════════════════════════════ */
+        const peopleInput        = document.getElementById('{{ form.number_of_people.id_for_label }}');
+        const travelDateInput    = document.getElementById('{{ form.travel_date.id_for_label }}');
+        const container          = document.getElementById('travelerCardsContainer');
+        const payBtn             = document.getElementById('pay-button');
+        const travelerCountLabel = document.getElementById('travelerCountLabel');
+        const travelerPluralLbl  = document.getElementById('travelerPluralLabel');
+
+        /* ════════════════════════════════════════════════
+           Step navigation
+           ════════════════════════════════════════════════ */
+        let currentStep    = 1;
+
+        const stepEls      = [1, 2, 3].map(n => document.getElementById('step' + n));
+        const circles      = [1, 2, 3].map(n => document.getElementById('bpCircle' + n));
+        const connectors   = [1, 2].map(n => document.getElementById('bpConn' + n));
+
+        const CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
+
+        function goToStep(n) {
+            stepEls.forEach((el, i) => {
+                const isActive = (i + 1 === n);
+                el.hidden = !isActive;
+                el.classList.toggle('step-active', isActive);
+                if (!isActive) {
+                    el.classList.remove('step-enter-forward', 'step-enter-backward', 'step-exit-forward', 'step-exit-backward');
                 }
-
-                if (discountCap > 0) {
-                    discount = Math.min(discount, discountCap);
-                }
-
-                discount = Math.min(discount, original);
-                const finalTotal = Math.max(original - discount, 0);
-
-                if (originalTotalNode) {
-                    originalTotalNode.textContent = `Rs ${Math.round(original).toLocaleString()}`;
-                }
-                if (discountAmountNode) {
-                    discountAmountNode.textContent = `- Rs ${Math.round(discount).toLocaleString()}`;
-                }
-                totalNode.textContent = `Rs ${Math.round(finalTotal).toLocaleString()}`;
-            };
-
-            peopleInput.addEventListener('input', updateTotal);
-            const updateSubmitLabel = () => {
-                if (!paymentSubmitBtn || !paymentMethodNodes.length) return;
-                const selected = Array.from(paymentMethodNodes).find((node) => node.checked);
-                const method = selected ? selected.value : '';
-                paymentSubmitBtn.textContent = method === 'stripe' ? 'Continue to Stripe' : 'Pay with eSewa';
-            };
-            paymentMethodNodes.forEach((node) => {
-                node.addEventListener('change', updateSubmitLabel);
             });
-            updateTotal();
-            updateSubmitLabel();
-        })();
+
+            circles.forEach((c, i) => {
+                const sn = i + 1;
+                c.className = 'bp-circle';
+                if (sn < n)       { c.classList.add('bp-circle--done');    c.innerHTML = CHECK_SVG; }
+                else if (sn === n){ c.classList.add('bp-circle--active');  c.textContent = sn; }
+                else              { c.classList.add('bp-circle--pending'); c.textContent = sn; }
+            });
+            connectors.forEach((conn, i) => {
+                conn.classList.toggle('bp-connector--done', i + 1 < n);
+            });
+            currentStep = n;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        /* ════════════════════════════════════════════════
+           Price helpers
+           ════════════════════════════════════════════════ */
+        function calcPrices(count) {
+            const original = PRICE_PER_PERSON * count;
+            let discount = 0;
+            if (DISC_FIXED > 0)        discount = DISC_FIXED;
+            else if (DISC_PERCENT > 0) discount = (original * DISC_PERCENT) / 100;
+            if (DISC_CAP > 0) discount = Math.min(discount, DISC_CAP);
+            discount = Math.min(discount, original);
+            return { original, discount, final: Math.max(original - discount, 0) };
+        }
+
+        function fmtRs(n) { return 'Rs ' + Math.round(n).toLocaleString(); }
+
+        /* ════════════════════════════════════════════════
+           Step 1 — validation
+           ════════════════════════════════════════════════ */
+        function validateStep1() {
+            const people    = parseInt(peopleInput.value || '0', 10);
+            const dateVal   = travelDateInput.value;
+            const today     = new Date().toISOString().slice(0, 10);
+            let valid = true;
+
+            clearFieldError(peopleInput);
+            clearFieldError(travelDateInput);
+
+            if (!people || people < 1) {
+                showFieldError(peopleInput, 'Please enter at least 1 person.');
+                valid = false;
+            } else if (people > AVAIL_SLOTS) {
+                showFieldError(peopleInput, `Only ${AVAIL_SLOTS} slot(s) available.`);
+                valid = false;
+            }
+
+            if (!dateVal) {
+                showFieldError(travelDateInput, 'Please select a travel date.');
+                valid = false;
+            } else if (dateVal < today) {
+                showFieldError(travelDateInput, 'Travel date must be in the future.');
+                valid = false;
+            } else if (AVAIL_FROM && dateVal < AVAIL_FROM) {
+                showFieldError(travelDateInput, `Package opens from ${AVAIL_FROM}.`);
+                valid = false;
+            } else if (AVAIL_UNTIL && dateVal > AVAIL_UNTIL) {
+                showFieldError(travelDateInput, `Package closes after ${AVAIL_UNTIL}.`);
+                valid = false;
+            }
+
+            if (!valid) showErrorToast('Please fix the errors before continuing.');
+            return valid;
+        }
+
+        /* ════════════════════════════════════════════════
+           Step 2 — traveler card builder
+           ════════════════════════════════════════════════ */
+        function makeEl(tag, attrs, text) {
+            const el = document.createElement(tag);
+            Object.entries(attrs || {}).forEach(([k, v]) => {
+                if (k === 'className') el.className = v;
+                else el.setAttribute(k, v);
+            });
+            if (text !== undefined) el.textContent = text;
+            return el;
+        }
+
+        function makeInput(type, name, value, placeholder) {
+            const el = makeEl('input', { type, name, id: name });
+            el.value = value || '';
+            if (placeholder) el.placeholder = placeholder;
+            return el;
+        }
+
+        function makeTextarea(name, value, placeholder, rows) {
+            const el = makeEl('textarea', { name, id: name, rows: rows || 2 });
+            el.value = value || '';
+            if (placeholder) el.placeholder = placeholder;
+            return el;
+        }
+
+        function makeSelect(name, options, value) {
+            const sel = makeEl('select', { name, id: name });
+            options.forEach(([val, label]) => {
+                const opt = makeEl('option', { value: val }, label);
+                if (val === value) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            return sel;
+        }
+
+        function makeNatSelect(name, value) {
+            const sel = makeEl('select', { name, id: name });
+            NATIONALITY_CHOICES.forEach(nat => {
+                const opt = makeEl('option', { value: nat }, nat);
+                if (nat === value) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            return sel;
+        }
+
+        function makeField(labelText, inputEl, required) {
+            const wrap = makeEl('div', { className: 'form-field traveler-form-field' });
+            const lbl  = makeEl('label', { for: inputEl.id });
+            lbl.textContent = labelText + (required ? ' *' : '');
+            wrap.appendChild(lbl);
+            wrap.appendChild(inputEl);
+            return wrap;
+        }
+
+        function buildCard(index, totalCount) {
+            const p         = `t_${index}_`;
+            const d         = POSTED_TRAVELERS[index] || (index === 0 ? PRIMARY_AUTOFILL : {});
+            const e         = TRAVELER_ERRORS[String(index)] || {};
+            const isPrimary = index === 0;
+
+            const card = makeEl('div', {
+                className: 'traveler-simple-card' + (Object.keys(e).length ? ' traveler-simple-card--error' : ''),
+                'data-traveler-index': index,
+            });
+
+            /* Header */
+            const hdr = makeEl('div', { className: 'traveler-simple-card-header' + (isPrimary ? ' traveler-simple-card-header--primary' : '') });
+            const badge = makeEl('span', { className: 'traveler-badge' + (isPrimary ? ' traveler-badge--primary' : '') });
+            badge.textContent = isPrimary ? 'Primary Traveler (You)' : `Traveler ${index + 1}`;
+            const countTag = makeEl('span', { className: 'traveler-count-label' }, `Traveler ${index + 1} of ${totalCount}`);
+            hdr.appendChild(badge);
+            hdr.appendChild(countTag);
+            card.appendChild(hdr);
+
+            /* Body / grid */
+            const body = makeEl('div', { className: 'traveler-simple-card-body' });
+            const grid = makeEl('div', { className: 'traveler-form-grid' });
+
+            const fullNameInp = makeInput('text', p + 'full_name', d.full_name, 'e.g. Ram Kumar Shrestha');
+            grid.appendChild(makeField('Full Name', fullNameInp, true));
+            if (e.full_name) showFieldError(fullNameInp, e.full_name);
+
+            const ageInp = makeInput('number', p + 'age', d.age, '');
+            ageInp.min = 1; ageInp.max = 120;
+            grid.appendChild(makeField('Age', ageInp, true));
+            if (e.age) showFieldError(ageInp, e.age);
+
+            const genderSel = makeSelect(p + 'gender', GENDER_OPTS, d.gender);
+            grid.appendChild(makeField('Gender', genderSel, false));
+
+            const natSel = makeNatSelect(p + 'nationality', d.nationality || (isPrimary ? PRIMARY_AUTOFILL.nationality : 'Nepali'));
+            grid.appendChild(makeField('Nationality', natSel, false));
+
+            const phoneInp = makeInput('tel', p + 'phone_number', d.phone_number, '+977 98XXXXXXXX');
+            grid.appendChild(makeField('Phone' + (isPrimary ? '' : ' (Optional)'), phoneInp, isPrimary));
+            if (e.phone_number) showFieldError(phoneInp, e.phone_number);
+
+            const emailInp = makeInput('email', p + 'email', d.email, isPrimary ? 'you@example.com' : 'Optional');
+            grid.appendChild(makeField('Email' + (isPrimary ? '' : ' (Optional)'), emailInp, isPrimary));
+            if (e.email) showFieldError(emailInp, e.email);
+
+            const idTypeSel = makeSelect(p + 'id_type', ID_TYPE_OPTS, d.id_type);
+            grid.appendChild(makeField('ID Type', idTypeSel, false));
+
+            const idNumInp = makeInput('text', p + 'id_number', d.id_number, 'ID / Passport No.');
+            grid.appendChild(makeField('ID Number', idNumInp, true));
+            if (e.id_number) showFieldError(idNumInp, e.id_number);
+
+            const medWrap = makeField('Medical / Allergies (Optional)', makeTextarea(p + 'medical_notes', d.medical_notes, 'Any conditions, allergies...', 2), false);
+            medWrap.classList.add('traveler-span-2');
+            grid.appendChild(medWrap);
+
+            if (isPrimary) {
+                const ecNameInp = makeInput('text', p + 'emergency_contact_name', d.emergency_contact_name, 'Contact person full name');
+                grid.appendChild(makeField('Emergency Contact Name', ecNameInp, true));
+                if (e.emergency_contact_name) showFieldError(ecNameInp, e.emergency_contact_name);
+
+                const ecPhoneInp = makeInput('tel', p + 'emergency_contact_phone', d.emergency_contact_phone, '+977 ...');
+                grid.appendChild(makeField('Emergency Contact Phone', ecPhoneInp, true));
+                if (e.emergency_contact_phone) showFieldError(ecPhoneInp, e.emergency_contact_phone);
+            }
+
+            body.appendChild(grid);
+            card.appendChild(body);
+            return card;
+        }
+
+        /* Sync cards to the current count — preserves existing data */
+        function syncTravelerCards(count) {
+            const n = Math.max(count, 1);
+
+            /* Remove extra cards from end */
+            while (container.children.length > n) container.removeChild(container.lastChild);
+
+            /* Append new cards only for missing indices */
+            while (container.children.length < n) {
+                container.appendChild(buildCard(container.children.length, n));
+            }
+
+            /* Refresh "X of N" labels on all cards without rebuilding inputs */
+            container.querySelectorAll('.traveler-count-label').forEach((lbl, i) => {
+                lbl.textContent = `Traveler ${i + 1} of ${n}`;
+            });
+
+            travelerCountLabel.textContent = n;
+            travelerPluralLbl.textContent  = n !== 1 ? 's' : '';
+        }
+
+        /* ════════════════════════════════════════════════
+           Step 2 — validation
+           ════════════════════════════════════════════════ */
+        function validateStep2() {
+            const count = Math.max(parseInt(peopleInput.value || '1', 10), 1);
+            let valid = true;
+            let firstErrorEl = null;
+
+            for (let i = 0; i < count; i++) {
+                const isPrimary = i === 0;
+                const required  = ['full_name', 'age', 'id_number'];
+                if (isPrimary) required.push('phone_number', 'email', 'emergency_contact_name', 'emergency_contact_phone');
+
+                required.forEach(field => {
+                    const el = document.querySelector(`[name="t_${i}_${field}"]`);
+                    if (!el) return;
+                    clearFieldError(el);
+                    if (!el.value.trim()) {
+                        showFieldError(el, 'This field is required.');
+                        if (!firstErrorEl) firstErrorEl = el;
+                        valid = false;
+                    }
+                });
+
+                /* Email format check for primary */
+                if (isPrimary) {
+                    const emailEl = document.querySelector('[name="t_0_email"]');
+                    if (emailEl && emailEl.value.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailEl.value.trim())) {
+                        showFieldError(emailEl, 'Please enter a valid email address.');
+                        if (!firstErrorEl) firstErrorEl = emailEl;
+                        valid = false;
+                    }
+                }
+            }
+
+            if (!valid) {
+                showErrorToast('Please fill in all required traveler details.');
+                if (firstErrorEl) firstErrorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return valid;
+        }
+
+        function showErrorToast(message) {
+            if (window.Toast && typeof window.Toast.error === 'function') {
+                window.Toast.error(message);
+            }
+        }
+
+        /* ════════════════════════════════════════════════
+           Field error helpers
+           ════════════════════════════════════════════════ */
+        function showFieldError(el, msg) {
+            el.classList.add('field-has-error');
+            let errEl = el.parentElement && el.parentElement.querySelector('.traveler-field-error-msg');
+            if (!errEl) {
+                errEl = makeEl('div', { className: 'field-error traveler-field-error-msg' });
+                el.insertAdjacentElement('afterend', errEl);
+            }
+            errEl.textContent = msg;
+        }
+
+        function clearFieldError(el) {
+            el.classList.remove('field-has-error');
+            const errEl = el.parentElement && el.parentElement.querySelector('.traveler-field-error-msg');
+            if (errEl) errEl.remove();
+        }
+
+        /* ════════════════════════════════════════════════
+           Step 3 — booking summary
+           ════════════════════════════════════════════════ */
+        function updateStep3Summary() {
+            const count   = Math.max(parseInt(peopleInput.value || '1', 10), 1);
+            const dateVal = travelDateInput.value;
+            const { original, discount, final } = calcPrices(count);
+
+            const names = [];
+            for (let i = 0; i < count; i++) {
+                const el = document.querySelector(`[name="t_${i}_full_name"]`);
+                if (el && el.value.trim()) names.push(el.value.trim());
+            }
+
+            const nameRows = names.length
+                ? `<div class="s3-row s3-names"><span>Travelers</span><div class="s3-name-list">${names.map(n => `<span>${n}</span>`).join('')}</div></div>`
+                : '';
+
+            const discountRow = discount > 0
+                ? `<div class="s3-row s3-discount-row"><span>Discount</span><strong>- ${fmtRs(discount)}</strong></div>`
+                : '';
+
+            const originalRow = discount > 0
+                ? `<div class="s3-row"><span>Original total</span><strong>${fmtRs(original)}</strong></div>`
+                : '';
+
+            document.getElementById('step3Summary').innerHTML = `
+                <div class="s3-summary-grid">
+                    <div class="s3-row">
+                        <span>Package</span>
+                        <strong>{{ package.title|escapejs }}</strong>
+                    </div>
+                    <div class="s3-row">
+                        <span>Travel Date</span>
+                        <strong>${dateVal || '—'}</strong>
+                    </div>
+                    <div class="s3-row">
+                        <span>No. of people</span>
+                        <strong>${count} person${count !== 1 ? 's' : ''}</strong>
+                    </div>
+                    ${nameRows}
+                    <div class="s3-divider"></div>
+                    <div class="s3-row">
+                        <span>Price per person</span>
+                        <strong>${fmtRs(PRICE_PER_PERSON)}</strong>
+                    </div>
+                    ${originalRow}
+                    ${discountRow}
+                    <div class="s3-row s3-total-row">
+                        <span>Total to pay</span>
+                        <strong>${fmtRs(final)}</strong>
+                    </div>
+                </div>`;
+        }
+
+        /* ════════════════════════════════════════════════
+           Payment button
+           ════════════════════════════════════════════════ */
+        function updatePayButton() {
+            if (!payBtn) return;
+            const checked = document.querySelector('input[name="payment_method"]:checked');
+            const method  = checked ? String(checked.value || '').trim().toLowerCase() : 'esewa';
+            if (method === 'stripe') {
+                payBtn.textContent = 'Pay with Stripe';
+                payBtn.className   = 'btn-pay btn-stripe';
+            } else {
+                payBtn.textContent = 'Pay with eSewa';
+                payBtn.className   = 'btn-pay btn-esewa';
+            }
+        }
+
+        /* ════════════════════════════════════════════════
+           Wire up events
+           ════════════════════════════════════════════════ */
+        /* Step 1 → 2 */
+        document.getElementById('step1Next').addEventListener('click', () => {
+            if (!validateStep1()) return;
+            syncTravelerCards(Math.max(parseInt(peopleInput.value || '1', 10), 1));
+            goToStep(2);
+        });
+
+        /* Step 2 ↔ */
+        document.getElementById('step2Back').addEventListener('click', () => goToStep(1));
+        document.getElementById('step2Next').addEventListener('click', () => {
+            if (!validateStep2()) return;
+            updateStep3Summary();
+            goToStep(3);
+        });
+
+        /* Step 3 ← */
+        document.getElementById('step3Back').addEventListener('click', () => goToStep(2));
+
+        /* Payment method radios → update button INSTANTLY */
+        document.querySelectorAll('input[name="payment_method"]').forEach(radio => {
+            radio.addEventListener('change', updatePayButton);
+        });
+
+        /* Real-time field error clearing on step 2 inputs */
+        container.addEventListener('input', e => {
+            if (e.target.classList.contains('field-has-error')) clearFieldError(e.target);
+        });
+        container.addEventListener('change', e => {
+            if (e.target.classList.contains('field-has-error')) clearFieldError(e.target);
+        });
+
+        /* ════════════════════════════════════════════════
+           Initialise
+           ════════════════════════════════════════════════ */
+        updatePayButton();
+
+        if (START_STEP === 2) {
+            /* Server returned traveler errors — rebuild cards and jump to step 2 */
+            syncTravelerCards(Math.max(parseInt(peopleInput.value || '1', 10), 1));
+            goToStep(2);
+        } else if (FORM_IS_BOUND && HAS_PAYMENT_ERROR) {
+            syncTravelerCards(Math.max(parseInt(peopleInput.value || '1', 10), 1));
+            updateStep3Summary();
+            goToStep(3);
+        } else {
+            goToStep(1);
+        }
+    })();
     </script>
+
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
     <script src="{% static 'js/toast.js' %}"></script>
     <script src="{% static 'js/animations.js' %}"></script>

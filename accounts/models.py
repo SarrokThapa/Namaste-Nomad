@@ -94,153 +94,73 @@ class OTP(models.Model):
         return f"OTP for {self.user.email} - {self.otp_code}"
 
 
-class VendorSubscriptionPlan(models.Model):
+class FeaturePlan(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    slots_count = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     duration_days = models.PositiveIntegerField()
-    max_featured_packages = models.PositiveIntegerField(blank=True, null=True)
+    description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ('price', 'duration_days', 'name')
+        ordering = ('price', 'slots_count', 'name')
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.slots_count} slots, {self.duration_days}d)"
 
 
-class VendorSubscription(models.Model):
-    STATUS_ACTIVE = 'active'
-    STATUS_EXPIRED = 'expired'
-    STATUS_CHOICES = (
-        (STATUS_ACTIVE, 'Active'),
-        (STATUS_EXPIRED, 'Expired'),
+class VendorFeatureSubscription(models.Model):
+    PAYMENT_STATUS_PENDING = 'pending'
+    PAYMENT_STATUS_PAID = 'paid'
+    PAYMENT_STATUS_CHOICES = (
+        (PAYMENT_STATUS_PENDING, 'Pending'),
+        (PAYMENT_STATUS_PAID, 'Paid'),
+    )
+
+    PAYMENT_METHOD_ESEWA = 'esewa'
+    PAYMENT_METHOD_STRIPE = 'stripe'
+    PAYMENT_METHOD_CHOICES = (
+        (PAYMENT_METHOD_ESEWA, 'eSewa'),
+        (PAYMENT_METHOD_STRIPE, 'Stripe'),
     )
 
     vendor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='vendor_subscriptions',
+        related_name='feature_subscriptions',
     )
     plan = models.ForeignKey(
-        VendorSubscriptionPlan,
+        FeaturePlan,
         on_delete=models.SET_NULL,
         related_name='subscriptions',
-        blank=True,
         null=True,
     )
     plan_name = models.CharField(max_length=100)
+    slots_total = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    duration_days = models.PositiveIntegerField()
-    max_featured_packages = models.PositiveIntegerField(blank=True, null=True)
     start_date = models.DateField()
     end_date = models.DateField()
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default=PAYMENT_METHOD_ESEWA)
+    transaction_id = models.CharField(max_length=255, blank=True)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ('-start_date', '-id')
 
-    def is_active(self, on_date=None):
-        check_date = on_date or timezone.localdate()
-        return (
-            self.status == self.STATUS_ACTIVE
-            and self.start_date <= check_date <= self.end_date
-        )
+    @property
+    def slots_used(self):
+        return self.featured_packages.filter(is_active=True).count()
 
-    @classmethod
-    def expire_overdue(cls, vendor=None):
-        today = timezone.localdate()
-        overdue = cls.objects.filter(status=cls.STATUS_ACTIVE, end_date__lt=today)
-        if vendor is not None:
-            overdue = overdue.filter(vendor=vendor)
-        vendor_ids = list(overdue.values_list('vendor_id', flat=True).distinct())
-        overdue.update(status=cls.STATUS_EXPIRED)
+    @property
+    def slots_remaining(self):
+        return max(self.slots_total - self.slots_used, 0)
 
-        if vendor_ids:
-            active_vendor_ids = set(
-                cls.objects.filter(
-                    vendor_id__in=vendor_ids,
-                    status=cls.STATUS_ACTIVE,
-                    start_date__lte=today,
-                    end_date__gte=today,
-                ).values_list('vendor_id', flat=True)
-            )
-            vendors_to_unfeature = [vendor_id for vendor_id in vendor_ids if vendor_id not in active_vendor_ids]
-            if vendors_to_unfeature:
-                from core.models import Package
-                Package.objects.filter(
-                    vendor_id__in=vendors_to_unfeature,
-                    is_featured=True,
-                ).update(is_featured=False)
-        return vendor_ids
-
-    @classmethod
-    def active_for_vendor(cls, vendor):
-        cls.expire_overdue(vendor=vendor)
-        today = timezone.localdate()
-        return (
-            cls.objects.filter(
-                vendor=vendor,
-                status=cls.STATUS_ACTIVE,
-                start_date__lte=today,
-                end_date__gte=today,
-            )
-            .order_by('-end_date', '-start_date')
-            .first()
-        )
-
-    def __str__(self):
-        return f"{self.vendor.email} - {self.plan_name} ({self.status})"
-
-
-class FeatureSlot(models.Model):
-    MIN_HOMEPAGE_FEATURE_CAPACITY = 6
-
-    name = models.CharField(max_length=120)
-    max_slots = models.PositiveIntegerField(default=1)
-    price_per_slot = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ('-created_at',)
-
-    @classmethod
-    def active_total_capacity(cls):
-        total = cls.objects.filter(is_active=True).aggregate(total=models.Sum('max_slots'))['total'] or 0
-        return max(total, cls.MIN_HOMEPAGE_FEATURE_CAPACITY)
-
-    def __str__(self):
-        return f"{self.name} ({self.max_slots} slots)"
-
-
-class VendorFeature(models.Model):
-    vendor = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='vendor_features',
-    )
-    slot = models.ForeignKey(
-        FeatureSlot,
-        on_delete=models.CASCADE,
-        related_name='vendor_purchases',
-    )
-    package = models.ForeignKey(
-        'core.Package',
-        on_delete=models.SET_NULL,
-        related_name='vendor_features',
-        null=True,
-        blank=True,
-    )
-    purchased_slots = models.PositiveIntegerField(default=1)
-    start_date = models.DateField()
-    end_date = models.DateField()
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ('-created_at',)
+    @property
+    def is_expired(self):
+        return self.end_date < timezone.localdate()
 
     @classmethod
     def expire_overdue(cls, vendor=None):
@@ -248,47 +168,73 @@ class VendorFeature(models.Model):
         overdue = cls.objects.filter(is_active=True, end_date__lt=today)
         if vendor is not None:
             overdue = overdue.filter(vendor=vendor)
-        vendor_ids = list(overdue.values_list('vendor_id', flat=True).distinct())
-        overdue.update(is_active=False)
-        if vendor_ids:
-            from core.models import Package
-            for vendor_id in vendor_ids:
-                allowed = cls.total_slots_for_vendor(vendor_id)
-                featured_qs = Package.objects.filter(vendor_id=vendor_id, is_featured=True).order_by('-created_at')
-                if allowed <= 0:
-                    featured_qs.update(is_featured=False)
-                    continue
-                allowed_ids = list(featured_qs.values_list('id', flat=True)[:allowed])
-                if allowed_ids:
-                    featured_qs.exclude(id__in=allowed_ids).update(is_featured=False)
-        return vendor_ids
-
-    @classmethod
-    def total_slots_for_vendor(cls, vendor):
-        vendor_id = getattr(vendor, 'id', vendor)
-        cls.expire_overdue(vendor=vendor)
-        today = timezone.localdate()
-        return cls.objects.filter(
-            vendor_id=vendor_id,
-            is_active=True,
-            start_date__lte=today,
-            end_date__gte=today,
-        ).aggregate(total=models.Sum('purchased_slots'))['total'] or 0
+        expired_ids = list(overdue.values_list('id', flat=True))
+        if expired_ids:
+            FeaturedPackage.objects.filter(
+                subscription_id__in=expired_ids,
+                is_active=True,
+            ).update(is_active=False)
+            overdue.update(is_active=False)
+        return expired_ids
 
     @classmethod
     def active_for_vendor(cls, vendor):
-        vendor_id = getattr(vendor, 'id', vendor)
         cls.expire_overdue(vendor=vendor)
         today = timezone.localdate()
         return cls.objects.filter(
-            vendor_id=vendor_id,
+            vendor=vendor,
             is_active=True,
+            payment_status=cls.PAYMENT_STATUS_PAID,
             start_date__lte=today,
             end_date__gte=today,
-        )
+        ).order_by('-end_date').first()
 
     def __str__(self):
-        return f"{self.vendor.email} · {self.slot.name} · {self.purchased_slots}"
+        return f"{self.vendor.email} - {self.plan_name} ({self.slots_used}/{self.slots_total})"
+
+
+class FeaturedPackage(models.Model):
+    subscription = models.ForeignKey(
+        VendorFeatureSubscription,
+        on_delete=models.CASCADE,
+        related_name='featured_packages',
+    )
+    package = models.ForeignKey(
+        'core.Package',
+        on_delete=models.CASCADE,
+        related_name='featured_entries',
+    )
+    featured_date = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ('-featured_date',)
+        constraints = [
+            models.UniqueConstraint(
+                fields=['subscription', 'package'],
+                name='unique_featured_package_per_subscription',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.package.title} (via {self.subscription.plan_name})"
+
+
+class PasswordResetOTP(models.Model):
+    email = models.EmailField(db_index=True)
+    otp_hash = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    is_used = models.BooleanField(default=False)
+    verified = models.BooleanField(default=False)
+    blocked_until = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        return f"PasswordResetOTP for {self.email}"
 
 
 class Notification(models.Model):

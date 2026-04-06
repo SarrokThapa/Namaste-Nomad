@@ -1,14 +1,13 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import (
-    FeatureSlot,
+    FeaturedPackage,
+    FeaturePlan,
     Notification,
     OTP,
     User,
-    VendorFeature,
+    VendorFeatureSubscription,
     VendorProfile,
-    VendorSubscription,
-    VendorSubscriptionPlan,
 )
 
 @admin.register(User)
@@ -60,51 +59,36 @@ class OTPAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'expires_at')
 
 
-@admin.register(VendorSubscriptionPlan)
-class VendorSubscriptionPlanAdmin(admin.ModelAdmin):
-    list_display = ('name', 'price', 'duration_days', 'max_featured_packages', 'is_active', 'created_at')
+@admin.register(FeaturePlan)
+class FeaturePlanAdmin(admin.ModelAdmin):
+    list_display = ('name', 'slots_count', 'price', 'duration_days', 'is_active', 'created_at')
     list_filter = ('is_active', 'created_at')
     search_fields = ('name',)
 
 
-@admin.register(VendorSubscription)
-class VendorSubscriptionAdmin(admin.ModelAdmin):
+@admin.register(VendorFeatureSubscription)
+class VendorFeatureSubscriptionAdmin(admin.ModelAdmin):
     list_display = (
         'vendor',
         'plan_name',
+        'slots_total',
         'price',
-        'duration_days',
-        'max_featured_packages',
         'start_date',
         'end_date',
-        'status',
-        'created_at',
-    )
-    list_filter = ('status', 'start_date', 'end_date', 'created_at')
-    search_fields = ('vendor__email', 'plan_name')
-
-
-@admin.register(FeatureSlot)
-class FeatureSlotAdmin(admin.ModelAdmin):
-    list_display = ('name', 'max_slots', 'price_per_slot', 'is_active', 'created_at')
-    list_filter = ('is_active', 'created_at')
-    search_fields = ('name',)
-
-
-@admin.register(VendorFeature)
-class VendorFeatureAdmin(admin.ModelAdmin):
-    list_display = (
-        'vendor',
-        'slot',
-        'package',
-        'purchased_slots',
-        'start_date',
-        'end_date',
+        'payment_status',
+        'payment_method',
         'is_active',
         'created_at',
     )
-    list_filter = ('is_active', 'slot', 'start_date', 'end_date', 'created_at')
-    search_fields = ('vendor__email', 'slot__name', 'package__title')
+    list_filter = ('is_active', 'payment_status', 'payment_method', 'start_date', 'end_date', 'created_at')
+    search_fields = ('vendor__email', 'plan_name', 'transaction_id')
+
+
+@admin.register(FeaturedPackage)
+class FeaturedPackageAdmin(admin.ModelAdmin):
+    list_display = ('package', 'subscription', 'is_active', 'featured_date')
+    list_filter = ('is_active', 'featured_date')
+    search_fields = ('package__title', 'subscription__vendor__email')
 
 
 @admin.register(Notification)

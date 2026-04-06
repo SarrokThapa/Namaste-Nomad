@@ -63,6 +63,9 @@
                 {% if vendor.email %}
                     <span>{{ vendor.email }}</span>
                 {% endif %}
+                {% if vendor.phone %}
+                    <a class="vendor-phone-link" href="tel:{{ vendor.phone }}">{{ vendor.phone }}</a>
+                {% endif %}
             </div>
         </div>
     </header>

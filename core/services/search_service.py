@@ -1,8 +1,10 @@
 """Package search and filter service for public discovery pages."""
 
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 
+from accounts.models import FeaturedPackage
 from core.models import Package
 
 
@@ -171,6 +173,17 @@ def filter_packages(queryset, params, forced_category=None, budget_cutoff=None):
     if verified_only:
         queryset = queryset.filter(vendor__vendor_profile__is_verified=True)
 
+    today = timezone.localdate()
+    featured_subquery = FeaturedPackage.objects.filter(
+        package=OuterRef('pk'),
+        is_active=True,
+        subscription__is_active=True,
+        subscription__payment_status='paid',
+        subscription__start_date__lte=today,
+        subscription__end_date__gte=today,
+    )
+    queryset = queryset.annotate(_featured=Exists(featured_subquery))
+
     if quick_filter == 'best_rated':
         queryset = queryset.filter(avg_rating__gte=4.5)
     elif quick_filter == 'budget':
@@ -180,21 +193,21 @@ def filter_packages(queryset, params, forced_category=None, budget_cutoff=None):
         if threshold is not None:
             queryset = queryset.filter(price__lte=threshold)
     elif quick_filter == 'featured':
-        queryset = queryset.filter(is_featured=True)
+        queryset = queryset.filter(_featured=True)
     elif quick_filter == 'beginner':
         queryset = queryset.filter(difficulty__in=['easy', 'moderate'])
 
     if sort == 'price_low':
-        queryset = queryset.order_by('-is_featured', 'price', '-avg_rating')
+        queryset = queryset.order_by('-_featured', 'price', '-avg_rating')
     elif sort == 'price_high':
-        queryset = queryset.order_by('-is_featured', '-price', '-avg_rating')
+        queryset = queryset.order_by('-_featured', '-price', '-avg_rating')
     elif sort == 'rating':
-        queryset = queryset.order_by('-is_featured', '-avg_rating', '-review_count')
+        queryset = queryset.order_by('-_featured', '-avg_rating', '-review_count')
     elif sort == 'newest':
-        queryset = queryset.order_by('-is_featured', '-created_at')
+        queryset = queryset.order_by('-_featured', '-created_at')
     else:
         sort = 'popular'
-        queryset = queryset.order_by('-is_featured', '-booking_count', '-views_count', '-created_at')
+        queryset = queryset.order_by('-_featured', '-booking_count', '-views_count', '-created_at')
 
     applied = {
         'destination': search_term,

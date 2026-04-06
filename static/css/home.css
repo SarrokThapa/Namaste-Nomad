@@ -120,6 +120,7 @@
 /* Scroll row */
 .moments-scroll {
     display: flex;
+    align-items: flex-start;
     gap: 1rem;
     overflow-x: auto;
     padding-bottom: 0.5rem;
@@ -133,9 +134,10 @@
     display: none;
 }
 
-/* Each card: width fixed, height = image's natural height */
+/* Each card uses a fixed media frame so rows stay visually full. */
 .moment-card {
     flex: 0 0 190px;
+    aspect-ratio: 3 / 4;
     border-radius: 14px;
     overflow: hidden;
     text-decoration: none;
@@ -152,13 +154,11 @@
     box-shadow: 0 18px 36px rgba(12, 27, 42, 0.22);
 }
 
-/* The image/video stretches to card width, height is natural */
+/* Media always fills the full card frame. */
 .moment-media-img {
     display: block;
     width: 100%;
-    height: auto;
-    /* cap extreme heights */
-    max-height: 480px;
+    height: 100%;
     object-fit: cover;
 }
 
@@ -170,7 +170,7 @@ video.moment-media-img {
 /* Placeholder when no image */
 .moment-media-placeholder {
     width: 100%;
-    aspect-ratio: 3 / 4;
+    height: 100%;
     background: linear-gradient(135deg, #2a3a50, #1a2838);
     display: flex;
     align-items: center;
@@ -434,6 +434,23 @@ video.moment-media-img {
     background: #229e93;
 }
 
+/* Keep homepage featured cards in a stable 3-column layout (3 + 3 for six cards). */
+.featured .trek-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 992px) {
+    .featured .trek-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .featured .trek-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* =====================================================
    SECTION 3: POPULAR DESTINATIONS
    ===================================================== */
@@ -509,6 +526,46 @@ video.moment-media-img {
     font-size: 0.82rem;
     font-weight: 700;
     color: var(--accent);
+}
+
+/* =====================================================
+   SECTION 3.5: RECOMMENDED PACKAGES
+   ===================================================== */
+
+.recommended-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.recommended-row > [class*="col-"] {
+    display: flex;
+}
+
+.recommended-row .package-card {
+    width: 100%;
+    height: 100%;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.recommended-row .package-card:hover {
+    transform: translateY(-5px);
+}
+
+.recommended-row .review-empty {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 991.98px) {
+    .recommended-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 575.98px) {
+    .recommended-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* =====================================================
@@ -605,12 +662,17 @@ video.moment-media-img {
     background: var(--accent);
     color: #fff;
     border: none;
-    border-radius: 0.25rem;
-    padding: 0.35rem 0.8rem;
+    border-radius: 0.45rem;
+    padding: 0.55rem 1rem;
+    min-height: 2.25rem;
     font-size: 0.8rem;
     font-weight: 600;
+    line-height: 1;
     text-decoration: none;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     transition: background 0.2s;
 }
 
@@ -899,6 +961,7 @@ video.moment-media-img {
 
     .moment-card {
         flex: 0 0 185px;
+        aspect-ratio: 3 / 4;
     }
 
     .moment-image {

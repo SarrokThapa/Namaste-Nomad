@@ -1,0 +1,200 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking #{{ booking.id }} Details - Namaste Nomad</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <link rel="stylesheet" href="{% static 'css/packages.css' %}?v=20260301b">
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
+    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
+</head>
+<body class="packages-body">
+    {% include "core/includes/messages_toast.html" %}
+    <nav class="landing-nav">
+        <div class="nav-container">
+            <a class="nav-brand" href="{% url 'home' %}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19l8-14 8 14H4z"/>
+                </svg>
+                <span>Namaste Nomad</span>
+            </a>
+            {% include "core/includes/public_nav_actions.html" %}
+        </div>
+    </nav>
+
+    <main class="booking-shell booking-detail-shell">
+
+        {# ── Booking Summary ─────────────────────────────── #}
+        <section class="booking-summary-card">
+            <div class="booking-detail-toprow">
+                <div>
+                    <h1>Booking #{{ booking.id }}</h1>
+                    <p class="booking-summary-title">{{ booking.package.title }}</p>
+                    <p class="booking-summary-meta">
+                        {{ booking.package.location|default:"Nepal" }}
+                        {% if booking.package.duration_days %} · {{ booking.package.duration_days }} day{{ booking.package.duration_days|pluralize }}{% endif %}
+                    </p>
+                </div>
+                <div class="booking-detail-status-col">
+                    <span class="booking-detail-status-pill booking-detail-status-pill--{{ booking.status }}">{{ booking.get_status_display }}</span>
+                    <span class="booking-detail-status-pill booking-detail-status-pill--payment-{{ booking.payment_status }}">Payment: {{ booking.get_payment_status_display }}</span>
+                </div>
+            </div>
+
+            <div class="booking-summary-grid">
+                <div>
+                    <span>Travel Date</span>
+                    <strong>{{ booking.travel_date|date:"M d, Y" }}</strong>
+                </div>
+                <div>
+                    <span>Travelers</span>
+                    <strong>{{ booking.number_of_people }} person{{ booking.number_of_people|pluralize }}</strong>
+                </div>
+                <div>
+                    <span>Total Amount</span>
+                    <strong>Rs {{ booking.total_price|floatformat:0 }}</strong>
+                </div>
+                <div>
+                    <span>Payment Method</span>
+                    <strong>{{ booking.get_payment_method_display }}</strong>
+                </div>
+                {% if is_package_vendor or is_admin %}
+                    <div>
+                        <span>Vendor Earning</span>
+                        <strong>Rs {{ booking.vendor_amount|floatformat:0 }}</strong>
+                    </div>
+                    <div>
+                        <span>Booked By</span>
+                        <strong>{{ booking.traveler.get_full_name|default:booking.traveler.username }}</strong>
+                    </div>
+                {% endif %}
+                {% if booking.discount_amount %}
+                    <div>
+                        <span>Discount Applied</span>
+                        <strong>- Rs {{ booking.discount_amount|floatformat:0 }}</strong>
+                    </div>
+                {% endif %}
+                {% if booking.paid_at %}
+                    <div>
+                        <span>Paid On</span>
+                        <strong>{{ booking.paid_at|date:"M d, Y H:i" }}</strong>
+                    </div>
+                {% endif %}
+            </div>
+
+            {% if booking.special_notes %}
+                <div class="booking-notes booking-detail-notes">
+                    <span>Special Notes</span>
+                    <p>{{ booking.special_notes }}</p>
+                </div>
+            {% endif %}
+
+            <div class="booking-detail-actions">
+                {% if is_owner_traveler %}
+                    <a href="{% url 'traveler_bookings' %}" class="btn-outline-dark">My Bookings</a>
+                    {% if can_edit_travelers %}
+                        <a href="{% url 'booking_traveler_edit' booking.id %}" class="btn-primary">Edit Traveler Details</a>
+                    {% endif %}
+                    {% if booking.payment_status == 'completed' %}
+                        <a href="{% url 'booking_invoice_download' booking.id %}" class="btn-outline-dark">Download Invoice</a>
+                    {% elif booking.status != 'cancelled' %}
+                        <a href="{% url 'booking_confirmation' booking.id %}" class="btn-primary">Continue to Payment</a>
+                    {% endif %}
+                {% elif is_package_vendor %}
+                    <a href="{% url 'vendor_bookings' %}" class="btn-outline-dark">All Bookings</a>
+                {% elif is_admin %}
+                    <a href="{% url 'admin_dashboard' %}" class="btn-outline-dark">Admin Dashboard</a>
+                {% endif %}
+            </div>
+        </section>
+
+        {# ── Traveler Details ─────────────────────────────── #}
+        <section class="booking-form-card booking-detail-travelers-card">
+            <h2>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/></svg>
+                Traveler Details
+            </h2>
+
+            {% if travelers %}
+                <div class="booking-detail-traveler-list">
+                    {% for traveler in travelers %}
+                        <div class="booking-detail-traveler-row">
+                            <div class="booking-detail-traveler-header">
+                                <div class="booking-detail-traveler-index">
+                                    <span class="traveler-badge {% if traveler.is_primary %}traveler-badge--primary{% endif %}">
+                                        Traveler {{ forloop.counter }}
+                                        {% if traveler.is_primary %} — Primary{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="booking-detail-traveler-grid">
+                                <div class="booking-detail-traveler-field">
+                                    <span>Full Name</span>
+                                    <strong>{{ traveler.full_name }}</strong>
+                                </div>
+                                <div class="booking-detail-traveler-field">
+                                    <span>Age</span>
+                                    <strong>{{ traveler.age }}</strong>
+                                </div>
+                                <div class="booking-detail-traveler-field">
+                                    <span>Gender</span>
+                                    <strong>{{ traveler.get_gender_display|default:"—" }}</strong>
+                                </div>
+                                <div class="booking-detail-traveler-field">
+                                    <span>Nationality</span>
+                                    <strong>{{ traveler.nationality|default:"—" }}</strong>
+                                </div>
+                                <div class="booking-detail-traveler-field">
+                                    <span>Phone</span>
+                                    <strong>{{ traveler.phone_number|default:"—" }}</strong>
+                                </div>
+                                <div class="booking-detail-traveler-field">
+                                    <span>Email</span>
+                                    <strong>{{ traveler.email|default:"—" }}</strong>
+                                </div>
+                                <div class="booking-detail-traveler-field">
+                                    <span>ID Type</span>
+                                    <strong>{{ traveler.get_id_type_display|default:"—" }}</strong>
+                                </div>
+                                <div class="booking-detail-traveler-field">
+                                    <span>ID Number</span>
+                                    <strong>{{ traveler.id_number|default:"—" }}</strong>
+                                </div>
+                                {% if traveler.medical_notes %}
+                                    <div class="booking-detail-traveler-field booking-detail-traveler-field--wide">
+                                        <span>Medical / Allergies</span>
+                                        <strong>{{ traveler.medical_notes }}</strong>
+                                    </div>
+                                {% endif %}
+                                {% if traveler.is_primary %}
+                                    <div class="booking-detail-traveler-field">
+                                        <span>Emergency Contact</span>
+                                        <strong>{{ traveler.emergency_contact_name|default:"—" }}</strong>
+                                    </div>
+                                    <div class="booking-detail-traveler-field">
+                                        <span>Emergency Phone</span>
+                                        <strong>{{ traveler.emergency_contact_phone|default:"—" }}</strong>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="booking-detail-no-travelers">No traveler details have been submitted for this booking yet.</p>
+            {% endif %}
+        </section>
+
+    </main>
+
+    <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
+    <script src="{% static 'js/toast.js' %}"></script>
+    <script src="{% static 'js/animations.js' %}"></script>
+</body>
+</html>

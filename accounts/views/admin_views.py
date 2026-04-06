@@ -2,6 +2,11 @@
 
 from .common import *
 from ..services import email_service
+from core.services.subscription_service import (
+    deactivate_subscription,
+    expire_overdue_subscriptions,
+    get_all_featured_packages,
+)
 
 @admin_required
 def admin_support_inbox(request):
@@ -101,8 +106,7 @@ def admin_support_chat(request, conversation_id):
 @never_cache
 @admin_required
 def admin_dashboard(request):
-    VendorSubscription.expire_overdue()
-    VendorFeature.expire_overdue()
+    expire_overdue_subscriptions()
     admin_profile = _get_admin_profile(request.user)
     vendors = User.objects.filter(user_type='vendor').select_related('vendor_profile').annotate(
         package_count=Count('vendor_packages', distinct=True),
@@ -120,12 +124,16 @@ def admin_dashboard(request):
         'package__vendor',
     ).order_by('-created_at')
     reviews = Review.objects.select_related('traveler', 'package').order_by('-created_at')
-    subscription_plans = VendorSubscriptionPlan.objects.order_by('price', 'duration_days')
-    vendor_subscriptions = VendorSubscription.objects.select_related('vendor').order_by('-created_at')
-    feature_slots = FeatureSlot.objects.order_by('-created_at')
-    vendor_features = VendorFeature.objects.select_related('vendor', 'slot', 'package').order_by('-created_at')
-    subscription_revenue = vendor_subscriptions.aggregate(total=Sum('price'))['total'] or 0
-    featured_packages = Package.objects.filter(is_featured=True).select_related('vendor').order_by('-created_at')
+    feature_plans = FeaturePlan.objects.order_by('price', 'slots_count')
+    active_subscriptions = VendorFeatureSubscription.objects.filter(
+        is_active=True,
+        payment_status=VendorFeatureSubscription.PAYMENT_STATUS_PAID,
+    ).select_related('vendor', 'plan').order_by('-created_at')
+    all_subscriptions = VendorFeatureSubscription.objects.select_related('vendor', 'plan').order_by('-created_at')
+    subscription_revenue = all_subscriptions.filter(
+        payment_status=VendorFeatureSubscription.PAYMENT_STATUS_PAID,
+    ).aggregate(total=Sum('price'))['total'] or 0
+    featured_packages = get_all_featured_packages().select_related('vendor').order_by('-created_at')
 
     platform_earnings = bookings.filter(status='confirmed').aggregate(
         total=Sum('platform_fee')
@@ -188,8 +196,7 @@ def admin_dashboard(request):
         'total_reviews': total_reviews,
         'avg_rating': round(avg_rating or 0, 1),
         'forum_posts': 0,
-        'feature_slot_capacity': _total_homepage_feature_capacity(),
-        'feature_slot_used': _total_homepage_featured_count(),
+        'featured_packages_count': featured_packages.count(),
     }
     current_year = timezone.localdate().year
     analytics_years = [current_year - 2, current_year - 1, current_year]
@@ -201,10 +208,10 @@ def admin_dashboard(request):
         'travelers': travelers,
         'packages': packages,
         'bookings': bookings,
-        'subscription_plans': subscription_plans,
-        'vendor_subscriptions': vendor_subscriptions,
-        'feature_slots': feature_slots,
-        'vendor_features': vendor_features,
+        'reviews': reviews,
+        'feature_plans': feature_plans,
+        'active_subscriptions': active_subscriptions,
+        'all_subscriptions': all_subscriptions,
         'featured_packages': featured_packages,
         'stats': stats,
         'activity_items': activity_items,
@@ -224,7 +231,10 @@ def admin_analytics_api(request):
 
     bookings_for_year = Booking.objects.filter(created_at__year=selected_year)
     confirmed_bookings_for_year = bookings_for_year.filter(status=Booking.STATUS_CONFIRMED)
-    subscriptions_for_year = VendorSubscription.objects.filter(created_at__year=selected_year)
+    subscriptions_for_year = VendorFeatureSubscription.objects.filter(
+        created_at__year=selected_year,
+        payment_status=VendorFeatureSubscription.PAYMENT_STATUS_PAID,
+    )
     users_for_year = User.objects.filter(date_joined__year=selected_year)
     active_vendors_for_year = User.objects.filter(
         user_type='vendor',
@@ -410,13 +420,7 @@ def admin_profile(request):
 @admin_required
 @csrf_protect
 def admin_vendor_action(request, vendor_id):
-    next_url = (request.POST.get('next') or '').strip()
-    if not next_url or not url_has_allowed_host_and_scheme(
-        url=next_url,
-        allowed_hosts={request.get_host()},
-        require_https=request.is_secure(),
-    ):
-        next_url = reverse('admin_dashboard')
+    next_url = _safe_next_url(request, 'admin_dashboard')
 
     if request.method != 'POST':
         return redirect(next_url)
@@ -498,7 +502,44 @@ def admin_vendor_action(request, vendor_id):
 
 @admin_required
 @csrf_protect
+def admin_traveler_action(request, traveler_id):
+    next_url = _safe_next_url(request, 'admin_dashboard')
+    if request.method != 'POST':
+        return redirect(next_url)
+
+    traveler = get_object_or_404(User, id=traveler_id, user_type='traveler')
+    action = (request.POST.get('action') or '').strip().lower()
+
+    if action == 'suspend':
+        traveler.is_active = False
+        create_notification(
+            traveler,
+            'Your traveler account was suspended by admin.',
+            Notification.TYPE_ADMIN_MESSAGE,
+            related_object_id=traveler.id,
+        )
+        messages.success(request, f'{traveler.email} suspended.')
+    elif action == 'activate':
+        traveler.is_active = True
+        create_notification(
+            traveler,
+            'Your traveler account was activated by admin.',
+            Notification.TYPE_ADMIN_MESSAGE,
+            related_object_id=traveler.id,
+        )
+        messages.success(request, f'{traveler.email} activated.')
+    else:
+        messages.error(request, 'Invalid action.')
+        return redirect(next_url)
+
+    traveler.save(update_fields=['is_active'])
+    return redirect(next_url)
+
+
+@admin_required
+@csrf_protect
 def admin_package_toggle(request, package_id):
+    next_url = request.POST.get('next') or 'admin_dashboard'
     if request.method != 'POST':
         return redirect('admin_dashboard')
 
@@ -520,124 +561,111 @@ def admin_package_toggle(request, package_id):
 
     status_label = 'activated' if package.is_active else 'deactivated'
     messages.success(request, f'{package.title} {status_label}.')
-    return redirect('admin_dashboard')
+    return redirect(next_url)
 
 
 @admin_required
 @csrf_protect
 def admin_feature_toggle(request, package_id):
+    """Admin can toggle featured status for a package (requires vendor to have active subscription)."""
+    next_url = request.POST.get('next') or 'admin_dashboard'
     if request.method != 'POST':
         return redirect('admin_dashboard')
 
+    from core.services.subscription_service import (
+        feature_package,
+        get_active_subscription,
+        unfeature_package,
+    )
+
     package = get_object_or_404(Package, id=package_id)
-    if not package.is_featured:
-        VendorFeature.expire_overdue(vendor=package.vendor)
-        purchased_slots = _total_active_feature_slots_for_vendor(package.vendor)
-        featured_count = Package.objects.filter(
-            vendor=package.vendor,
-            is_featured=True,
-        ).count()
-        if purchased_slots <= featured_count:
-            messages.error(request, 'Upgrade subscription to feature more packages')
-            return redirect('admin_dashboard')
-        global_capacity = _total_homepage_feature_capacity()
-        global_used = _total_homepage_featured_count()
-        if global_used >= global_capacity:
-            messages.error(request, 'No homepage feature slots available right now.')
-            return redirect('admin_dashboard')
+    subscription = get_active_subscription(package.vendor)
 
-    package.is_featured = not package.is_featured
-    package.save(update_fields=['is_featured'])
+    if not subscription:
+        messages.error(request, 'Vendor has no active feature plan.')
+        return redirect(next_url)
 
-    status_label = 'featured' if package.is_featured else 'unfeatured'
-    messages.success(request, f'{package.title} {status_label}.')
-    return redirect('admin_dashboard')
+    is_featured = FeaturedPackage.objects.filter(
+        subscription=subscription,
+        package=package,
+        is_active=True,
+    ).exists()
+
+    if is_featured:
+        unfeature_package(subscription, package)
+        messages.success(request, f'{package.title} unfeatured.')
+    else:
+        fp, error = feature_package(subscription, package)
+        if error:
+            messages.error(request, error)
+        else:
+            messages.success(request, f'{package.title} featured.')
+
+    return redirect(next_url)
 
 
 @admin_required
 @csrf_protect
-def admin_subscription_plan_create(request):
+def admin_feature_plan_create(request):
+    next_url = request.POST.get('next') or 'admin_dashboard'
     if request.method != 'POST':
         return redirect('admin_dashboard')
 
     name = (request.POST.get('name') or '').strip()
+    slots_raw = (request.POST.get('slots_count') or '').strip()
     price_raw = (request.POST.get('price') or '').strip()
     duration_raw = (request.POST.get('duration_days') or '').strip()
-    limit_raw = (request.POST.get('max_featured_packages') or '').strip()
+    description = (request.POST.get('description') or '').strip()
 
-    if not name or not price_raw or not duration_raw:
-        messages.error(request, 'Plan name, price, and duration are required.')
-        return redirect('admin_dashboard')
+    if not name or not slots_raw or not price_raw or not duration_raw:
+        messages.error(request, 'Plan name, slots, price, and duration are all required.')
+        return redirect(next_url)
 
     try:
+        slots_count = int(slots_raw)
         price = Decimal(price_raw)
         duration_days = int(duration_raw)
-        max_featured_packages = int(limit_raw) if limit_raw else None
     except (ValueError, TypeError, InvalidOperation):
-        messages.error(request, 'Invalid subscription plan values.')
-        return redirect('admin_dashboard')
+        messages.error(request, 'Invalid plan values.')
+        return redirect(next_url)
 
+    if slots_count < 1:
+        messages.error(request, 'Slots must be at least 1.')
+        return redirect(next_url)
     if duration_days < 1:
         messages.error(request, 'Duration must be at least 1 day.')
-        return redirect('admin_dashboard')
+        return redirect(next_url)
     if price < 0:
         messages.error(request, 'Price must be a positive value.')
-        return redirect('admin_dashboard')
-    if max_featured_packages is not None and max_featured_packages < 1:
-        messages.error(request, 'Featured limit must be at least 1.')
-        return redirect('admin_dashboard')
+        return redirect(next_url)
 
     try:
-        VendorSubscriptionPlan.objects.create(
+        FeaturePlan.objects.create(
             name=name,
+            slots_count=slots_count,
             price=price,
-            duration_days=max(duration_days, 1),
-            max_featured_packages=max_featured_packages,
+            duration_days=duration_days,
+            description=description,
             is_active=True,
         )
     except IntegrityError:
         messages.error(request, 'A plan with that name already exists.')
     else:
-        messages.success(request, 'Subscription plan created.')
-    return redirect('admin_dashboard')
+        messages.success(request, 'Feature plan created.')
+    return redirect(next_url)
 
 
 @admin_required
 @csrf_protect
-def admin_feature_slot_create(request):
+def admin_subscription_deactivate(request, subscription_id):
+    next_url = request.POST.get('next') or 'admin_dashboard'
     if request.method != 'POST':
         return redirect('admin_dashboard')
 
-    name = (request.POST.get('name') or '').strip()
-    max_slots_raw = (request.POST.get('max_slots') or '').strip()
-    price_raw = (request.POST.get('price_per_slot') or '').strip()
-
-    if not name or not max_slots_raw or not price_raw:
-        messages.error(request, 'Feature slot name, max slots, and price are required.')
-        return redirect('admin_dashboard')
-
-    try:
-        max_slots = int(max_slots_raw)
-        price_per_slot = Decimal(price_raw)
-    except (ValueError, TypeError, InvalidOperation):
-        messages.error(request, 'Invalid feature slot values.')
-        return redirect('admin_dashboard')
-
-    if max_slots < 1:
-        messages.error(request, 'Max slots must be at least 1.')
-        return redirect('admin_dashboard')
-    if price_per_slot < 0:
-        messages.error(request, 'Price per slot must be a positive value.')
-        return redirect('admin_dashboard')
-
-    FeatureSlot.objects.create(
-        name=name,
-        max_slots=max_slots,
-        price_per_slot=price_per_slot,
-        is_active=True,
-    )
-    messages.success(request, 'Feature slot created.')
-    return redirect('admin_dashboard')
+    subscription = get_object_or_404(VendorFeatureSubscription, id=subscription_id)
+    deactivate_subscription(subscription)
+    messages.success(request, f'Subscription for {subscription.vendor.email} deactivated.')
+    return redirect(next_url)
 
 
 @admin_required

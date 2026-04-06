@@ -89,16 +89,15 @@ from core.services.esewa_service import (
 
 from ..models import (
     AdminProfile,
-    FeatureSlot,
+    FeaturedPackage,
+    FeaturePlan,
     Notification,
     Badge,
     UserBadge,
     TravelerProfile,
     User,
-    VendorFeature,
+    VendorFeatureSubscription,
     VendorProfile,
-    VendorSubscription,
-    VendorSubscriptionPlan,
 )
 
 from ..forms import PackageForm, VendorProfileForm
@@ -149,7 +148,7 @@ def _get_traveler_profile(user):
 
 
 def _get_active_subscription(vendor):
-    return VendorSubscription.active_for_vendor(vendor)
+    return VendorFeatureSubscription.active_for_vendor(vendor)
 
 
 def _sync_active_special_offers_for_user(user):
@@ -257,8 +256,8 @@ def _safe_next_url(request, fallback_name):
     return reverse(fallback_name)
 
 
-def _subscription_esewa_payload(*, amount, pid, success_url, failure_url):
-    """Build eSewa V2 payment payload for subscriptions / feature slots."""
+def _plan_esewa_payload(*, amount, pid, success_url, failure_url):
+    """Build eSewa V2 payment payload for feature plan purchases."""
     return build_esewa_v2_payload(
         amount=amount,
         transaction_uuid=pid,
@@ -267,148 +266,8 @@ def _subscription_esewa_payload(*, amount, pid, success_url, failure_url):
     )
 
 
-def _subscription_payment_session_key(vendor_id):
-    return f'subscription_payment_{vendor_id}'
-
-
-def _feature_slot_payment_session_key(vendor_id):
-    return f'feature_slot_payment_{vendor_id}'
-
-
-def _record_subscription_transaction(*, vendor, subscription, amount, payment_status, payment_method):
-    return Transaction.objects.create(
-        transaction_type=Transaction.TYPE_SUBSCRIPTION,
-        booking=None,
-        vendor_subscription=subscription,
-        traveler=None,
-        vendor=vendor,
-        total_amount=Decimal(str(amount)).quantize(Decimal('0.01')),
-        payment_method=payment_method,
-        payment_status=payment_status,
-    )
-
-
-def _record_feature_slot_transaction(*, vendor, vendor_feature, amount, payment_status, payment_method):
-    return Transaction.objects.create(
-        transaction_type=Transaction.TYPE_FEATURE_SLOT,
-        booking=None,
-        vendor_subscription=None,
-        vendor_feature=vendor_feature,
-        traveler=None,
-        vendor=vendor,
-        total_amount=Decimal(str(amount)).quantize(Decimal('0.01')),
-        payment_method=payment_method,
-        payment_status=payment_status,
-    )
-
-
-def _total_active_feature_slots_for_vendor(vendor):
-    return VendorFeature.total_slots_for_vendor(vendor)
-
-
-def _total_featured_packages_for_vendor(vendor):
-    return Package.objects.filter(vendor=vendor, is_featured=True).count()
-
-
-def _total_homepage_feature_capacity():
-    return FeatureSlot.active_total_capacity()
-
-
-def _total_homepage_featured_count():
-    return Package.objects.filter(is_active=True, is_featured=True).count()
-
-
-def _activate_feature_slots_after_verified_payment(*, vendor, slot, purchased_slots, amount, payment_method):
-    today = timezone.localdate()
-    end_date = today + timedelta(days=29)
-    with transaction.atomic():
-        vendor_feature = VendorFeature.objects.create(
-            vendor=vendor,
-            slot=slot,
-            package=None,
-            purchased_slots=max(int(purchased_slots or 0), 1),
-            start_date=today,
-            end_date=end_date,
-            is_active=True,
-        )
-        _record_feature_slot_transaction(
-            vendor=vendor,
-            vendor_feature=vendor_feature,
-            amount=amount,
-            payment_status=Booking.PAYMENT_STATUS_COMPLETED,
-            payment_method=payment_method,
-        )
-    return vendor_feature
-
-
-def _activate_subscription_after_verified_payment(*, vendor, plan, amount, payment_method):
-    with transaction.atomic():
-        VendorSubscription.expire_overdue(vendor=vendor)
-        active_subscription = VendorSubscription.active_for_vendor(vendor)
-        today = timezone.localdate()
-
-        if active_subscription and active_subscription.status == VendorSubscription.STATUS_ACTIVE:
-            base_end = active_subscription.end_date if active_subscription.end_date >= today else today - timedelta(days=1)
-            active_subscription.plan = plan
-            active_subscription.plan_name = plan.name
-            active_subscription.price = plan.price
-            active_subscription.duration_days = plan.duration_days
-            active_subscription.max_featured_packages = plan.max_featured_packages
-            active_subscription.start_date = min(active_subscription.start_date, today)
-            active_subscription.end_date = base_end + timedelta(days=max(plan.duration_days, 1))
-            active_subscription.status = VendorSubscription.STATUS_ACTIVE
-            active_subscription.save(
-                update_fields=[
-                    'plan',
-                    'plan_name',
-                    'price',
-                    'duration_days',
-                    'max_featured_packages',
-                    'start_date',
-                    'end_date',
-                    'status',
-                ]
-            )
-            subscription = active_subscription
-        else:
-            VendorSubscription.objects.filter(
-                vendor=vendor,
-                status=VendorSubscription.STATUS_ACTIVE,
-            ).update(status=VendorSubscription.STATUS_EXPIRED)
-
-            start_date = today
-            end_date = start_date + timedelta(days=max(plan.duration_days - 1, 0))
-            subscription = VendorSubscription.objects.create(
-                vendor=vendor,
-                plan=plan,
-                plan_name=plan.name,
-                price=plan.price,
-                duration_days=plan.duration_days,
-                max_featured_packages=plan.max_featured_packages,
-                start_date=start_date,
-                end_date=end_date,
-                status=VendorSubscription.STATUS_ACTIVE,
-            )
-
-        _record_subscription_transaction(
-            vendor=vendor,
-            subscription=subscription,
-            amount=amount,
-            payment_status=Booking.PAYMENT_STATUS_COMPLETED,
-            payment_method=payment_method,
-        )
-
-        if subscription.max_featured_packages is not None:
-            featured_packages = Package.objects.filter(vendor=vendor, is_featured=True).order_by('-created_at')
-            allowed_ids = list(
-                featured_packages.values_list('id', flat=True)[:subscription.max_featured_packages]
-            )
-            if allowed_ids:
-                Package.objects.filter(vendor=vendor, is_featured=True).exclude(id__in=allowed_ids).update(is_featured=False)
-            else:
-                featured_packages.update(is_featured=False)
-
-    return subscription
+def _plan_payment_session_key(vendor_id):
+    return f'feature_plan_payment_{vendor_id}'
 
 
 def _parse_filter_date(raw_value):
@@ -765,19 +624,16 @@ def _package_category_breakdown_for_year(year):
     packages = Package.objects.filter(created_at__year=year)
     trek_count = 0
     tour_count = 0
-    cultural_count = 0
 
     for package in packages:
-        if _is_cultural_package(package):
-            cultural_count += 1
-        elif package.category == Package.CATEGORY_TREK:
+        if package.category == Package.CATEGORY_TREK:
             trek_count += 1
         else:
             tour_count += 1
 
     return {
-        'labels': ['Treks', 'Tours', 'Cultural'],
-        'values': [trek_count, tour_count, cultural_count],
+        'labels': ['Treks', 'Tours'],
+        'values': [trek_count, tour_count],
     }
 
 
@@ -890,16 +746,15 @@ __all__ = [
     'build_esewa_v2_payload',
     'esewa_process_success_callback',
     'AdminProfile',
-    'FeatureSlot',
+    'FeaturedPackage',
+    'FeaturePlan',
     'Notification',
     'Badge',
     'UserBadge',
     'TravelerProfile',
     'User',
-    'VendorFeature',
+    'VendorFeatureSubscription',
     'VendorProfile',
-    'VendorSubscription',
-    'VendorSubscriptionPlan',
     'PackageForm',
     'VendorProfileForm',
     'create_notification',
@@ -926,17 +781,8 @@ __all__ = [
     '_ensure_vendor_account',
     '_ensure_traveler',
     '_safe_next_url',
-    '_subscription_esewa_payload',
-    '_subscription_payment_session_key',
-    '_feature_slot_payment_session_key',
-    '_record_subscription_transaction',
-    '_record_feature_slot_transaction',
-    '_total_active_feature_slots_for_vendor',
-    '_total_featured_packages_for_vendor',
-    '_total_homepage_feature_capacity',
-    '_total_homepage_featured_count',
-    '_activate_feature_slots_after_verified_payment',
-    '_activate_subscription_after_verified_payment',
+    '_plan_esewa_payload',
+    '_plan_payment_session_key',
     '_parse_filter_date',
     '_apply_transaction_filters',
     '_transaction_csv_response',

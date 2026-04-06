@@ -1,0 +1,125 @@
+{% extends "admin/admin_base.html" %}
+{% load static %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<section class="admin-heading">
+    <div>
+        <h1>Admin Dashboard</h1>
+        <p>Control access, review listings, and track platform health.</p>
+    </div>
+</section>
+
+<section class="admin-stat-grid">
+    <div class="admin-stat-card"><div><span>Platform Earnings</span><strong data-stat-value="platform_earnings">Rs {{ stats.platform_earnings|floatformat:0 }}</strong><small data-growth-key="revenue">--</small></div><div class="stat-icon revenue">Rs</div></div>
+    <div class="admin-stat-card"><div><span>Vendor Earnings</span><strong data-stat-value="vendor_earnings">Rs {{ stats.vendor_earnings|floatformat:0 }}</strong><small data-growth-key="vendor_earnings">--</small></div><div class="stat-icon revenue">VE</div></div>
+    <div class="admin-stat-card"><div><span>Subscription Revenue</span><strong data-stat-value="subscription_revenue">Rs {{ stats.subscription_revenue|floatformat:0 }}</strong><small data-growth-key="subscriptions">--</small></div><div class="stat-icon revenue">SR</div></div>
+    <div class="admin-stat-card"><div><span>Total Users</span><strong data-stat-value="total_users">{{ stats.total_users }}</strong><small data-growth-key="users">--</small></div><div class="stat-icon users">US</div></div>
+    <div class="admin-stat-card"><div><span>Active Vendors</span><strong data-stat-value="active_vendors">{{ stats.active_vendors }}</strong><small data-growth-key="active_vendors">--</small></div><div class="stat-icon vendors">VN</div></div>
+    <div class="admin-stat-card"><div><span>Total Bookings</span><strong data-stat-value="total_bookings">{{ stats.total_bookings }}</strong><small data-growth-key="bookings">--</small></div><div class="stat-icon bookings">BK</div></div>
+</section>
+
+<section class="admin-card admin-analytics-toolbar">
+    <div class="card-header">
+        <h2>Analytics Overview</h2>
+        <div class="year-select-wrap">
+            <label class="year-select-label" for="adminAnalyticsYear">Year</label>
+            <select id="adminAnalyticsYear" class="year-select">
+                {% for year in analytics_years %}
+                    <option value="{{ year }}" {% if year == selected_analytics_year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="analytics-toolbar-meta" id="adminAnalyticsStatus" aria-live="polite">Loading analytics data...</div>
+</section>
+
+<section
+    class="admin-analytics-grid dashboard-charts"
+    data-admin-analytics-dashboard
+    data-analytics-url="{% url 'admin_analytics_api' %}"
+>
+    <article class="admin-card analytics-card chart-card">
+        <div class="card-header analytics-card-head"><h2>Platform Revenue by Month</h2><span class="chart-growth-chip" data-chart-growth="revenue">--</span></div>
+        <div class="chart-canvas chart-canvas--fixed"><canvas id="adminRevenueChart" aria-label="Platform monthly revenue chart"></canvas></div>
+    </article>
+    <article class="admin-card analytics-card chart-card">
+        <div class="card-header analytics-card-head"><h2>Bookings per Month</h2><span class="chart-growth-chip" data-chart-growth="bookings">--</span></div>
+        <div class="chart-canvas chart-canvas--fixed"><canvas id="adminBookingsChart" aria-label="Monthly bookings chart"></canvas></div>
+    </article>
+    <article class="admin-card analytics-card chart-card">
+        <div class="card-header analytics-card-head"><h2>Top Vendors by Earnings</h2></div>
+        <div class="chart-canvas chart-canvas--fixed"><canvas id="adminVendorsChart" aria-label="Top vendors earnings chart"></canvas></div>
+    </article>
+    <article class="admin-card analytics-card chart-card">
+        <div class="card-header analytics-card-head"><h2>Package Category Split</h2></div>
+        <div class="chart-canvas chart-canvas--fixed chart-canvas--pie"><canvas id="adminCategoryChart" aria-label="Package category chart"></canvas></div>
+    </article>
+</section>
+
+<section class="admin-panels">
+    <div class="admin-card">
+        <div class="card-header"><h2>Recent Activity</h2></div>
+        {% if activity_items %}
+            <table class="activity-table">
+                <thead><tr><th>Action</th><th>User/Vendor</th><th>Date</th><th>Details</th></tr></thead>
+                <tbody>
+                    {% for item in activity_items %}
+                        <tr>
+                            <td>{{ item.action }}</td>
+                            <td>{{ item.actor }}</td>
+                            <td>{{ item.date|date:"M d, Y" }}</td>
+                            <td>{{ item.details }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">No recent activity yet.</div>
+        {% endif %}
+    </div>
+
+    <div class="admin-card">
+        <div class="card-header"><h2>Vendor Approval Requests</h2></div>
+        {% if pending_vendors %}
+            <div class="table-scroll-wrap">
+                <table class="activity-table vendor-approval-table">
+                    <thead><tr><th>Vendor Name</th><th>Email</th><th>Phone</th><th>Document</th><th>Joined</th><th class="action-col">Actions</th></tr></thead>
+                    <tbody>
+                        {% for vendor in pending_vendors %}
+                            <tr>
+                                <td>{{ vendor.vendor_profile.business_name|default:vendor.get_full_name|default:vendor.email }}</td>
+                                <td>{{ vendor.email }}</td>
+                                <td>{{ vendor.phone|default:"-" }}</td>
+                                <td>
+                                    {% if vendor.vendor_profile.document %}
+                                        <a class="btn small secondary" href="{{ vendor.vendor_profile.document.url }}" target="_blank" rel="noopener">View / Download</a>
+                                    {% else %}
+                                        <span>-</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ vendor.date_joined|date:"M d, Y" }}</td>
+                                <td class="action-cell">
+                                    <div class="pending-actions">
+                                        <a class="btn small secondary" href="{% url 'admin_vendor_detail' vendor.id %}">View Details</a>
+                                        <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'admin_dashboard' %}"><input type="hidden" name="action" value="approve"><button class="btn small success" type="submit">Approve</button></form>
+                                        <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'admin_dashboard' %}"><input type="hidden" name="action" value="reject"><button class="btn small danger" type="submit">Reject</button></form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">No pending approvals.</div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/admin_dashboard_analytics.js' %}?v=20260325a"></script>
+{% endblock %}

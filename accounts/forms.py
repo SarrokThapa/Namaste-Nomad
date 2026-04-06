@@ -1,7 +1,6 @@
 from django import forms
 
 from core.models import Package
-from .models import VendorSubscription
 from .models import VendorProfile
 
 
@@ -28,7 +27,6 @@ class PackageForm(forms.ModelForm):
             'difficulty',
             'group_size',
             'best_season',
-            'image_url',
             'description',
             'itinerary',
             'inclusions',
@@ -39,7 +37,6 @@ class PackageForm(forms.ModelForm):
             'includes_transport',
             'includes_permits',
             'is_active',
-            'is_featured',
         ]
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Everest Base Camp Trek'}),
@@ -55,7 +52,6 @@ class PackageForm(forms.ModelForm):
             'difficulty': forms.Select(attrs={'class': 'form-control'}),
             'group_size': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '10'}),
             'best_season': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Mar-May, Sep-Nov'}),
-            'image_url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://...'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'itinerary': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Day 1: Kathmandu\nDay 2: Lukla...'}),
             'inclusions': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Guide\nPermits\nAccommodation'}),
@@ -66,7 +62,6 @@ class PackageForm(forms.ModelForm):
             'includes_transport': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
             'includes_permits': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
-            'is_featured': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
         }
         labels = {
             'category': 'Category',
@@ -75,14 +70,12 @@ class PackageForm(forms.ModelForm):
             'available_from': 'Available From',
             'available_until': 'Available Until',
             'group_size': 'Group Size',
-            'image_url': 'Cover Image URL',
             'has_guide': 'Guide Included',
             'includes_meals': 'Meals Included',
             'includes_accommodation': 'Accommodation Included',
             'includes_transport': 'Transportation Included',
             'includes_permits': 'Permits Included',
             'is_active': 'Publish package',
-            'is_featured': 'Feature this package',
             'location_name': 'Location Name',
             'latitude': 'Latitude',
             'longitude': 'Longitude',
@@ -98,21 +91,11 @@ class PackageForm(forms.ModelForm):
         self.fields['longitude'].required = True
         self.fields['available_from'].required = True
         self.fields['available_until'].required = True
-        self.subscription = None
-        if self.vendor is None:
-            self.fields.pop('is_featured', None)
-        else:
-            self.subscription = VendorSubscription.active_for_vendor(self.vendor)
-            if not self.subscription and 'is_featured' in self.fields:
-                if getattr(self.instance, 'is_featured', False):
-                    self.instance.is_featured = False
-                self.fields['is_featured'].disabled = True
 
     def clean(self):
         cleaned_data = super().clean()
         available_from = cleaned_data.get('available_from')
         available_until = cleaned_data.get('available_until')
-        is_featured = cleaned_data.get('is_featured')
         location_name = (cleaned_data.get('location_name') or '').strip()
         latitude = cleaned_data.get('latitude')
         longitude = cleaned_data.get('longitude')
@@ -132,21 +115,6 @@ class PackageForm(forms.ModelForm):
 
         if available_from and available_until and available_from > available_until:
             self.add_error('available_until', 'Available until must be after the available from date.')
-
-        if is_featured:
-            subscription = VendorSubscription.active_for_vendor(self.vendor)
-            if subscription is None:
-                self.add_error('is_featured', 'An active subscription is required to feature packages.')
-            elif subscription.max_featured_packages is not None:
-                featured_count = Package.objects.filter(
-                    vendor=self.vendor,
-                    is_featured=True,
-                ).exclude(pk=getattr(self.instance, 'pk', None)).count()
-                if featured_count >= subscription.max_featured_packages:
-                    self.add_error(
-                        'is_featured',
-                        f'Your plan allows up to {subscription.max_featured_packages} featured package(s).',
-                    )
 
         return cleaned_data
 

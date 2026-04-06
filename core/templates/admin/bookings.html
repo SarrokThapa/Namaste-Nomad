@@ -1,0 +1,69 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Bookings{% endblock %}
+
+{% block content %}
+<section class="admin-heading">
+    <div>
+        <h1>Bookings</h1>
+        <p>Review booking, package, and payment status at a glance.</p>
+    </div>
+</section>
+
+<section class="admin-card">
+    <form method="get" class="admin-inline-filters">
+        <label for="status">Booking Status</label>
+        <select id="status" name="status" class="year-select">
+            <option value="">All</option>
+            <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="confirmed" {% if selected_status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+            <option value="cancelled" {% if selected_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+        </select>
+
+        <label for="payment_status">Payment</label>
+        <select id="payment_status" name="payment_status" class="year-select">
+            <option value="">All</option>
+            <option value="pending" {% if selected_payment_status == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="completed" {% if selected_payment_status == 'completed' %}selected{% endif %}>Completed</option>
+            <option value="failed" {% if selected_payment_status == 'failed' %}selected{% endif %}>Failed</option>
+        </select>
+
+        <button class="btn small secondary" type="submit">Filter</button>
+    </form>
+
+    {% if bookings %}
+        <div class="table-scroll-wrap">
+            <table class="activity-table">
+                <thead>
+                    <tr>
+                        <th>Traveler</th>
+                        <th>Package</th>
+                        <th>Vendor</th>
+                        <th>Date</th>
+                        <th>People</th>
+                        <th>Total</th>
+                        <th>Payment</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for booking in bookings %}
+                        <tr>
+                            <td>{{ booking.traveler.get_full_name|default:booking.traveler.email|default:"Traveler" }}</td>
+                            <td>{{ booking.package.title }}</td>
+                            <td>{{ booking.vendor.get_full_name|default:booking.package.vendor.get_full_name|default:booking.package.vendor.email|default:"Vendor" }}</td>
+                            <td>{{ booking.travel_date|date:"M d, Y" }}</td>
+                            <td>{{ booking.number_of_people }}</td>
+                            <td>Rs {{ booking.total_price|floatformat:0 }}</td>
+                            <td>{{ booking.get_payment_status_display }}</td>
+                            <td>{{ booking.get_status_display }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">No bookings found.</div>
+    {% endif %}
+</section>
+{% endblock %}

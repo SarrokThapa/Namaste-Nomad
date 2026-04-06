@@ -1,0 +1,66 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<section class="admin-heading">
+    <div>
+        <h1>Reports</h1>
+        <p>Monitor platform-level performance and recent booking activity.</p>
+    </div>
+</section>
+
+<section class="admin-mini-grid">
+    <div class="mini-card"><span>Platform Earnings</span><strong>Rs {{ stats.platform_earnings|floatformat:0 }}</strong></div>
+    <div class="mini-card"><span>Vendor Earnings</span><strong>Rs {{ stats.vendor_earnings|floatformat:0 }}</strong></div>
+    <div class="mini-card"><span>Subscription Revenue</span><strong>Rs {{ stats.subscription_revenue|floatformat:0 }}</strong></div>
+    <div class="mini-card"><span>Total Users</span><strong>{{ stats.total_users }}</strong></div>
+    <div class="mini-card"><span>Total Bookings</span><strong>{{ stats.total_bookings }}</strong></div>
+    <div class="mini-card"><span>Total Packages</span><strong>{{ stats.total_packages }}</strong></div>
+    <div class="mini-card"><span>Total Reviews</span><strong>{{ stats.total_reviews }}</strong></div>
+    <div class="mini-card"><span>Average Rating</span><strong>{{ stats.avg_rating }}</strong></div>
+</section>
+
+<section class="admin-card admin-actions">
+    <div class="card-header"><h2>Quick Actions</h2></div>
+    <div class="action-buttons">
+        <a class="action-btn primary" href="{% url 'admin_vendors' %}">Approve Vendors</a>
+        <a class="action-btn dark" href="{% url 'admin_dashboard' %}">View Analytics</a>
+        <a class="action-btn success" href="{% url 'admin_users' %}">Manage Users</a>
+    </div>
+</section>
+
+<section class="admin-card">
+    <div class="card-header"><h2>Recent Bookings</h2></div>
+    {% if recent_bookings %}
+        <div class="table-scroll-wrap">
+            <table class="activity-table">
+                <thead>
+                    <tr>
+                        <th>Traveler</th>
+                        <th>Package</th>
+                        <th>Travel Date</th>
+                        <th>Total</th>
+                        <th>Payment</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for booking in recent_bookings %}
+                        <tr>
+                            <td>{% firstof booking.traveler.get_full_name booking.traveler.email "Traveler" %}</td>
+                            <td>{{ booking.package.title }}</td>
+                            <td>{{ booking.travel_date|date:"M d, Y" }}</td>
+                            <td>Rs {{ booking.total_price|floatformat:0 }}</td>
+                            <td>{{ booking.get_payment_status_display }}</td>
+                            <td>{{ booking.get_status_display }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">No bookings yet.</div>
+    {% endif %}
+</section>
+{% endblock %}

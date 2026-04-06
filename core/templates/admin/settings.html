@@ -1,184 +1,89 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Settings - Namaste Nomad</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/vendor_dashboard.css' %}?v=20260226b">
-    <link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}?v=20260226b">
-    <link rel="stylesheet" href="{% static 'css/layout.css' %}?v=20260401c">
-    <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
-    <link rel="stylesheet" href="{% static 'css/animations.css' %}">
-    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
-</head>
-<body class="admin-dashboard">
-    {% include "core/includes/messages_toast.html" %}
-    <header class="topbar admin-topbar">
-        <a class="brand" href="{% url 'home' %}">
-            <svg class="brand-logo" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M4 19l8-14 8 14H4z"/>
-            </svg>
-            <span class="brand-name">Namaste Nomad</span>
-        </a>
-        <div class="topbar-actions">
-            {% include "accounts/includes/notification_bell.html" %}
-            <div class="admin-user">
-                <div class="avatar topbar-avatar">
-                    {% if admin_profile and admin_profile.avatar %}
-                        <img class="topbar-avatar-image" src="{{ admin_profile.avatar.url }}" alt="Admin avatar">
-                    {% else %}
-                        <img class="topbar-avatar-image" src="{% static 'images/default-avatar.svg' %}" alt="Default admin avatar">
-                    {% endif %}
-                </div>
-                <span>{{ request.user.first_name|default:"Admin" }}</span>
-            </div>
-        </div>
-    </header>
+{% extends "admin/admin_base.html" %}
 
-    <div class="dashboard-shell admin-shell">
-        <aside class="sidebar admin-sidebar">
-            <nav class="sidebar-nav">
-                <a class="nav-item {% if active_page == 'dashboard' %}active{% endif %}" href="{% url 'admin_dashboard' %}">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 13h8V3H3v10zM13 21h8V11h-8v10zM13 3h8v6h-8V3zM3 21h8v-6H3v6z"/>
-                        </svg>
-                    </span>
-                    Dashboard
-                </a>
-                <a class="nav-item {% if active_page == 'support' %}active{% endif %}" href="{% url 'admin_support_inbox' %}">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/>
-                        </svg>
-                    </span>
-                    Support
-                </a>
-                <a class="nav-item {% if active_page == 'notifications' %}active{% endif %}" href="{% url 'notifications_list' %}">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                        </svg>
-                    </span>
-                    Notifications
-                </a>
-                <a class="nav-item {% if active_page == 'settings' %}active{% endif %}" href="{% url 'admin_settings' %}">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 20c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z"/>
-                            <path d="M12 14v-4"/>
-                            <path d="M12 8h.01"/>
-                        </svg>
-                    </span>
-                    Settings
-                </a>
-                <a class="nav-item {% if active_page == 'profile' %}active{% endif %}" href="{% url 'admin_profile' %}">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="8" r="4"/>
-                            <path d="M4 20c2-4 6-6 8-6s6 2 8 6"/>
-                        </svg>
-                    </span>
-                    Profile
-                </a>
-                <a class="nav-item logout" href="{% url 'logout' %}">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M10 17l5-5-5-5"/>
-                            <path d="M15 12H3"/>
-                            <path d="M11 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8"/>
-                        </svg>
-                    </span>
-                    Logout
-                </a>
-            </nav>
-        </aside>
+{% block title %}Settings{% endblock %}
 
-        <main class="dashboard-main admin-main main-content">
-
-            <form method="post" class="admin-card">
-                {% csrf_token %}
-                <div class="card-header">
-                    <h2>Admin Settings</h2>
-                    <span class="card-meta">Platform configuration</span>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="{{ form.commission_percent.id_for_label }}">Commission Percent</label>
-                        {{ form.commission_percent }}
-                        {% if form.commission_percent.errors %}<small class="field-hint danger">{{ form.commission_percent.errors|striptags }}</small>{% endif %}
-                    </div>
-                </div>
-
-                <div class="toggle-row" style="margin-top: 1rem;">
-                    <div>
-                        <strong>Enable Booking</strong>
-                        <p>Allow travelers to create new bookings.</p>
-                    </div>
-                    <label class="toggle-switch" for="{{ form.enable_booking.id_for_label }}">
-                        {{ form.enable_booking }}
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                <div class="toggle-row" style="margin-top: 0.8rem;">
-                    <div>
-                        <strong>Enable Community</strong>
-                        <p>Allow community feed, posts, likes, and comments.</p>
-                    </div>
-                    <label class="toggle-switch" for="{{ form.enable_community.id_for_label }}">
-                        {{ form.enable_community }}
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="form-grid" style="margin-top: 1rem;">
-                    <div class="form-group">
-                        <label for="{{ form.contact_email.id_for_label }}">Contact Email</label>
-                        {{ form.contact_email }}
-                        {% if form.contact_email.errors %}<small class="field-hint danger">{{ form.contact_email.errors|striptags }}</small>{% endif %}
-                    </div>
-                    <div class="form-group">
-                        <label for="{{ form.contact_phone.id_for_label }}">Contact Phone</label>
-                        {{ form.contact_phone }}
-                        {% if form.contact_phone.errors %}<small class="field-hint danger">{{ form.contact_phone.errors|striptags }}</small>{% endif %}
-                    </div>
-                </div>
-
-                <div class="form-group" style="margin-top: 1rem;">
-                    <label for="{{ form.instagram_link.id_for_label }}">Instagram Link</label>
-                    {{ form.instagram_link }}
-                    {% if form.instagram_link.errors %}<small class="field-hint danger">{{ form.instagram_link.errors|striptags }}</small>{% endif %}
-                </div>
-
-                <div class="form-group" style="margin-top: 1rem;">
-                    <label for="{{ form.hero_title.id_for_label }}">Homepage Hero Title</label>
-                    {{ form.hero_title }}
-                    {% if form.hero_title.errors %}<small class="field-hint danger">{{ form.hero_title.errors|striptags }}</small>{% endif %}
-                </div>
-
-                <div class="form-group" style="margin-top: 1rem;">
-                    <label for="{{ form.hero_subtitle.id_for_label }}">Homepage Hero Subtitle</label>
-                    {{ form.hero_subtitle }}
-                    {% if form.hero_subtitle.errors %}<small class="field-hint danger">{{ form.hero_subtitle.errors|striptags }}</small>{% endif %}
-                </div>
-
-                {% if form.non_field_errors %}
-                    <div class="field-hint danger" style="margin-top: 1rem;">{{ form.non_field_errors|striptags }}</div>
-                {% endif %}
-
-                <div class="form-actions" style="margin-top: 1.2rem;">
-                    <button class="btn small success" type="submit">Save Settings</button>
-                </div>
-            </form>
-        </main>
+{% block content %}
+<section class="admin-heading">
+    <div>
+        <h1>Settings</h1>
+        <p>Update global platform behavior and contact information.</p>
     </div>
-    <script src="{% static 'js/toast.js' %}"></script>
-    <script src="{% static 'js/animations.js' %}"></script>
-</body>
-</html>
+</section>
+
+<form method="post" class="admin-card">
+    {% csrf_token %}
+    <div class="card-header">
+        <h2>Admin Settings</h2>
+        <span class="card-meta">Platform configuration</span>
+    </div>
+
+    <div class="form-grid">
+        <div class="form-group">
+            <label for="{{ form.commission_percent.id_for_label }}">Commission Percent</label>
+            {{ form.commission_percent }}
+            {% if form.commission_percent.errors %}<small class="field-hint danger">{{ form.commission_percent.errors|striptags }}</small>{% endif %}
+        </div>
+    </div>
+
+    <div class="toggle-row" style="margin-top: 1rem;">
+        <div>
+            <strong>Enable Booking</strong>
+            <p>Allow travelers to create new bookings.</p>
+        </div>
+        <label class="toggle-switch" for="{{ form.enable_booking.id_for_label }}">
+            {{ form.enable_booking }}
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="toggle-row" style="margin-top: 0.8rem;">
+        <div>
+            <strong>Enable Community</strong>
+            <p>Allow community feed, posts, likes, and comments.</p>
+        </div>
+        <label class="toggle-switch" for="{{ form.enable_community.id_for_label }}">
+            {{ form.enable_community }}
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="form-grid" style="margin-top: 1rem;">
+        <div class="form-group">
+            <label for="{{ form.contact_email.id_for_label }}">Contact Email</label>
+            {{ form.contact_email }}
+            {% if form.contact_email.errors %}<small class="field-hint danger">{{ form.contact_email.errors|striptags }}</small>{% endif %}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.contact_phone.id_for_label }}">Contact Phone</label>
+            {{ form.contact_phone }}
+            {% if form.contact_phone.errors %}<small class="field-hint danger">{{ form.contact_phone.errors|striptags }}</small>{% endif %}
+        </div>
+    </div>
+
+    <div class="form-group" style="margin-top: 1rem;">
+        <label for="{{ form.instagram_link.id_for_label }}">Instagram Link</label>
+        {{ form.instagram_link }}
+        {% if form.instagram_link.errors %}<small class="field-hint danger">{{ form.instagram_link.errors|striptags }}</small>{% endif %}
+    </div>
+
+    <div class="form-group" style="margin-top: 1rem;">
+        <label for="{{ form.hero_title.id_for_label }}">Homepage Hero Title</label>
+        {{ form.hero_title }}
+        {% if form.hero_title.errors %}<small class="field-hint danger">{{ form.hero_title.errors|striptags }}</small>{% endif %}
+    </div>
+
+    <div class="form-group" style="margin-top: 1rem;">
+        <label for="{{ form.hero_subtitle.id_for_label }}">Homepage Hero Subtitle</label>
+        {{ form.hero_subtitle }}
+        {% if form.hero_subtitle.errors %}<small class="field-hint danger">{{ form.hero_subtitle.errors|striptags }}</small>{% endif %}
+    </div>
+
+    {% if form.non_field_errors %}
+        <div class="field-hint danger" style="margin-top: 1rem;">{{ form.non_field_errors|striptags }}</div>
+    {% endif %}
+
+    <div class="form-actions" style="margin-top: 1.2rem;">
+        <button class="btn small success" type="submit">Save Settings</button>
+    </div>
+</form>
+{% endblock %}

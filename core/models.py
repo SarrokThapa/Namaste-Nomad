@@ -57,9 +57,21 @@ class Package(models.Model):
         validators=[MinValueValidator(0)],
     )
     is_active = models.BooleanField(default=True)
-    is_featured = models.BooleanField(default=False)
     views_count = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def is_featured(self):
+        """Check if this package is currently featured via an active subscription."""
+        from django.utils import timezone as _tz
+        today = _tz.localdate()
+        return self.featured_entries.filter(
+            is_active=True,
+            subscription__is_active=True,
+            subscription__payment_status='paid',
+            subscription__start_date__lte=today,
+            subscription__end_date__gte=today,
+        ).exists()
 
     def __str__(self):
         return self.title
@@ -178,6 +190,29 @@ class Discount(models.Model):
         else:
             value = f"{self.percentage}%"
         return f"{self.user.username} - {value} ({self.source})"
+
+
+class SiteSetting(models.Model):
+    commission_percent = models.IntegerField(default=25)
+
+    enable_booking = models.BooleanField(default=True)
+    enable_community = models.BooleanField(default=True)
+
+    contact_email = models.EmailField(blank=True)
+    contact_phone = models.CharField(max_length=20, blank=True)
+    instagram_link = models.URLField(blank=True)
+
+    hero_title = models.CharField(max_length=255, blank=True)
+    hero_subtitle = models.TextField(blank=True)
+
+    def save(self, *args, **kwargs):
+        # Enforce singleton-style settings row with a stable primary key.
+        self.pk = 1
+        super().save(*args, **kwargs)
+        self.__class__.objects.exclude(pk=self.pk).delete()
+
+    def __str__(self):
+        return 'Site Settings'
 
 
 class Booking(models.Model):
@@ -348,10 +383,9 @@ class Booking(models.Model):
         if total_price is not None:
             if not isinstance(total_price, Decimal):
                 total_price = Decimal(str(total_price))
-            vendor_amount = (total_price * self.COMMISSION_VENDOR_RATE).quantize(Decimal('0.01'))
-            platform_fee = (total_price * self.COMMISSION_PLATFORM_RATE).quantize(Decimal('0.01'))
-            if vendor_amount + platform_fee != total_price:
-                platform_fee = total_price - vendor_amount
+            from .services.site_settings import calculate_commission_split
+
+            vendor_amount, platform_fee = calculate_commission_split(total_price)
             if self.vendor_amount != vendor_amount:
                 self.vendor_amount = vendor_amount
                 computed_fields.add('vendor_amount')
@@ -371,14 +405,63 @@ class Booking(models.Model):
         return f"{self.package.title} ({self.status})"
 
 
+class BookingTraveler(models.Model):
+    GENDER_MALE = 'male'
+    GENDER_FEMALE = 'female'
+    GENDER_OTHER = 'other'
+    GENDER_CHOICES = (
+        (GENDER_MALE, 'Male'),
+        (GENDER_FEMALE, 'Female'),
+        (GENDER_OTHER, 'Other'),
+    )
+
+    ID_TYPE_CITIZENSHIP = 'citizenship'
+    ID_TYPE_PASSPORT = 'passport'
+    ID_TYPE_NATIONAL_ID = 'national_id'
+    ID_TYPE_DRIVING_LICENSE = 'driving_license'
+    ID_TYPE_CHOICES = (
+        (ID_TYPE_CITIZENSHIP, 'Citizenship'),
+        (ID_TYPE_PASSPORT, 'Passport'),
+        (ID_TYPE_NATIONAL_ID, 'National ID'),
+        (ID_TYPE_DRIVING_LICENSE, 'Driving License'),
+    )
+
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.CASCADE,
+        related_name='booking_travelers',
+    )
+    traveler_index = models.PositiveSmallIntegerField(default=0)
+    full_name = models.CharField(max_length=200)
+    age = models.PositiveSmallIntegerField()
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True)
+    phone_number = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(blank=True)
+    nationality = models.CharField(max_length=80, default='Nepali')
+    id_type = models.CharField(max_length=30, choices=ID_TYPE_CHOICES, blank=True)
+    id_number = models.CharField(max_length=100)
+    medical_notes = models.TextField(blank=True)
+    emergency_contact_name = models.CharField(max_length=200, blank=True)
+    emergency_contact_phone = models.CharField(max_length=30, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('traveler_index',)
+
+    @property
+    def is_primary(self):
+        return self.traveler_index == 0
+
+    def __str__(self):
+        return f"Traveler {self.traveler_index + 1}: {self.full_name} (Booking #{self.booking_id})"
+
+
 class Transaction(models.Model):
     TYPE_BOOKING = 'booking'
-    TYPE_SUBSCRIPTION = 'subscription'
-    TYPE_FEATURE_SLOT = 'feature_slot'
+    TYPE_FEATURE_SUBSCRIPTION = 'feature_subscription'
     TRANSACTION_TYPE_CHOICES = (
         (TYPE_BOOKING, 'Booking'),
-        (TYPE_SUBSCRIPTION, 'Subscription'),
-        (TYPE_FEATURE_SLOT, 'Feature Slot'),
+        (TYPE_FEATURE_SUBSCRIPTION, 'Feature Subscription'),
     )
 
     transaction_id = models.CharField(max_length=32, unique=True, editable=False)
@@ -394,15 +477,8 @@ class Transaction(models.Model):
         null=True,
         blank=True,
     )
-    vendor_subscription = models.ForeignKey(
-        'accounts.VendorSubscription',
-        on_delete=models.SET_NULL,
-        related_name='transactions',
-        null=True,
-        blank=True,
-    )
-    vendor_feature = models.ForeignKey(
-        'accounts.VendorFeature',
+    feature_subscription = models.ForeignKey(
+        'accounts.VendorFeatureSubscription',
         on_delete=models.SET_NULL,
         related_name='transactions',
         null=True,
@@ -453,12 +529,18 @@ class Transaction(models.Model):
     @property
     def platform_fee(self):
         total = self.total_amount or Decimal('0')
-        return (total * Booking.COMMISSION_PLATFORM_RATE).quantize(Decimal('0.01'))
+        from .services.site_settings import calculate_commission_split
+
+        _vendor_amount, platform_fee = calculate_commission_split(total)
+        return platform_fee
 
     @property
     def vendor_earnings(self):
         total = self.total_amount or Decimal('0')
-        return (total * Booking.COMMISSION_VENDOR_RATE).quantize(Decimal('0.01'))
+        from .services.site_settings import calculate_commission_split
+
+        vendor_amount, _platform_fee = calculate_commission_split(total)
+        return vendor_amount
 
     def __str__(self):
         return self.transaction_id

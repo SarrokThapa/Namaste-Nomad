@@ -90,3 +90,25 @@ def send_vendor_rejected(user):
         context={'user': user},
         recipient_email=user.email,
     )
+
+
+def send_password_reset_otp(email, otp_code):
+    """Send a password reset OTP email."""
+    return _send_html_email(
+        subject='Namaste Nomad - Password Reset Code',
+        template_name='emails/password_reset_code.html',
+        context={'otp_code': otp_code, 'expiry_minutes': 10},
+        recipient_email=email,
+    )
+
+
+def send_password_changed_confirmation(user):
+    """Send a confirmation email after a successful password reset."""
+    from django.utils import timezone
+    changed_at = timezone.localtime(timezone.now()).strftime('%B %d, %Y at %I:%M %p')
+    return _send_html_email(
+        subject='Namaste Nomad - Password Changed Successfully',
+        template_name='emails/password_changed.html',
+        context={'user': user, 'changed_at': changed_at},
+        recipient_email=user.email,
+    )

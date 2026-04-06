@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vendor Login - Namaste Nomad</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="{% static 'css/auth_theme.css' %}?v=20260405a">
     <link rel="stylesheet" href="{% static 'css/animations.css' %}">
     <link rel="stylesheet" href="{% static 'css/toast.css' %}">
 </head>
@@ -52,6 +53,9 @@
                                 <circle cx="12" cy="12" r="3"/>
                             </svg>
                         </button>
+                    </div>
+                    <div style="text-align: right; margin-top: 6px;">
+                        <a href="{% url 'forgot_password' %}" class="link" style="font-size: 0.85rem;">Forgot Password?</a>
                     </div>
                 </div>
 

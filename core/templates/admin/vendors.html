@@ -1,0 +1,71 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Vendors{% endblock %}
+
+{% block content %}
+<section class="admin-heading">
+    <div>
+        <h1>Vendors</h1>
+        <p>Manage approvals, verification, and account status.</p>
+    </div>
+</section>
+
+<section class="admin-card">
+    <form method="get" class="admin-inline-filters">
+        <label for="status">Approval</label>
+        <select id="status" name="status" class="year-select">
+            <option value="">All</option>
+            <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="approved" {% if selected_status == 'approved' %}selected{% endif %}>Approved</option>
+        </select>
+        <button class="btn small secondary" type="submit">Filter</button>
+    </form>
+
+    {% if vendors %}
+        <div class="table-scroll-wrap">
+            <table class="activity-table">
+                <thead>
+                    <tr>
+                        <th>Business</th>
+                        <th>Email</th>
+                        <th>Packages</th>
+                        <th>Approval</th>
+                        <th>Verified</th>
+                        <th>Status</th>
+                        <th class="action-col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vendor in vendors %}
+                        <tr>
+                            <td>{{ vendor.vendor_profile.business_name|default:vendor.get_full_name|default:vendor.email }}</td>
+                            <td>{{ vendor.email }}</td>
+                            <td>{{ vendor.package_count }}</td>
+                            <td>{% if vendor.vendor_profile.is_approved %}Approved{% else %}Pending{% endif %}</td>
+                            <td>{% if vendor.vendor_profile.is_verified %}Yes{% else %}No{% endif %}</td>
+                            <td>{% if vendor.is_active %}Active{% else %}Suspended{% endif %}</td>
+                            <td class="action-cell">
+                                <div class="pending-actions">
+                                    <a class="btn small secondary" href="{% url 'admin_vendor_detail' vendor.id %}">View</a>
+                                    {% if vendor.is_active %}
+                                        <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'admin_vendors' %}"><input type="hidden" name="action" value="suspend"><button class="btn small danger" type="submit">Suspend</button></form>
+                                    {% else %}
+                                        <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'admin_vendors' %}"><input type="hidden" name="action" value="activate"><button class="btn small success" type="submit">Activate</button></form>
+                                    {% endif %}
+                                    {% if vendor.vendor_profile.is_verified %}
+                                        <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'admin_vendors' %}"><input type="hidden" name="action" value="unverify"><button class="btn small secondary" type="submit">Unverify</button></form>
+                                    {% else %}
+                                        <form method="POST" action="{% url 'admin_vendor_action' vendor.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'admin_vendors' %}"><input type="hidden" name="action" value="verify"><button class="btn small success" type="submit">Verify</button></form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">No vendors found.</div>
+    {% endif %}
+</section>
+{% endblock %}

@@ -3,8 +3,10 @@ from django.urls import path
 from .views.booking_views import (
     booking_checkout_cancel,
     booking_confirmation,
+    booking_detail,
     booking_invoice,
     booking_invoice_download,
+    booking_traveler_edit,
     package_book,
 )
 from .views.community_views import (
@@ -70,6 +72,8 @@ urlpatterns = [
     path('packages/<int:package_id>/', package_detail, name='package_detail'),
     path('bookings/<int:booking_id>/confirmation/', booking_confirmation, name='booking_confirmation'),
     path('bookings/<int:booking_id>/cancel/', booking_checkout_cancel, name='booking_checkout_cancel'),
+    path('bookings/<int:booking_id>/detail/', booking_detail, name='booking_detail'),
+    path('bookings/<int:booking_id>/travelers/edit/', booking_traveler_edit, name='booking_traveler_edit'),
     path('bookings/<int:booking_id>/stripe/checkout/', booking_stripe_checkout, name='booking_stripe_checkout'),
     path('bookings/<int:booking_id>/esewa/checkout/', booking_esewa_checkout, name='booking_esewa_checkout'),
     path('bookings/<int:booking_id>/esewa/success/', booking_esewa_success, name='booking_esewa_success'),

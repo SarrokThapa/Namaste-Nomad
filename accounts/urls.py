@@ -1,8 +1,15 @@
 from django.urls import path
-from core.views.admin.admin_settings import admin_settings
+from core.views.admin.booking_view import admin_bookings
+from core.views.admin.dashboard_view import admin_dashboard
+from core.views.admin.settings_view import admin_settings
+from core.views.admin.subscription_view import admin_subscriptions
+from core.views.admin.user_view import admin_users
+from core.views.admin.vendor_view import admin_vendors
+from core.views.admin.package_view import admin_packages
+from core.views.admin.review_view import admin_reviews
+from core.views.admin.report_view import admin_reports
 from .views.admin_views import (
     admin_analytics_api,
-    admin_dashboard,
     admin_feature_plan_create,
     admin_feature_toggle,
     admin_package_toggle,
@@ -19,6 +26,10 @@ from .views.auth_views import (
     account_login_choice,
     account_register_choice,
     admin_login,
+    forgot_password,
+    forgot_password_new_password,
+    forgot_password_resend,
+    forgot_password_verify,
     logout_view,
     oauth_post_login_redirect,
     oauth_role_selection,
@@ -117,6 +128,13 @@ urlpatterns = [
     path('admin/support/', admin_support_inbox, name='admin_support_inbox'),
     path('admin/support/<int:conversation_id>/', admin_support_chat, name='admin_support_chat'),
     path('admin/dashboard/', admin_dashboard, name='admin_dashboard'),
+    path('admin/subscriptions/', admin_subscriptions, name='admin_subscriptions'),
+    path('admin/users/', admin_users, name='admin_users'),
+    path('admin/bookings/', admin_bookings, name='admin_bookings'),
+    path('admin/vendors/', admin_vendors, name='admin_vendors'),
+    path('admin/packages/', admin_packages, name='admin_packages'),
+    path('admin/reviews/', admin_reviews, name='admin_reviews'),
+    path('admin/reports/', admin_reports, name='admin_reports'),
     path('admin/analytics/', admin_analytics_api, name='admin_analytics_api'),
     path('admin/transactions/', admin_transactions, name='admin_transactions'),
     path('admin/profile/', admin_profile, name='admin_profile'),
@@ -131,6 +149,10 @@ urlpatterns = [
 
     path('verify-otp/', verify_otp_view, name='verify_otp'),
     path('resend-otp/', resend_otp, name='resend_otp'),
+    path('forgot-password/', forgot_password, name='forgot_password'),
+    path('forgot-password/verify/', forgot_password_verify, name='forgot_password_verify'),
+    path('forgot-password/resend/', forgot_password_resend, name='forgot_password_resend'),
+    path('forgot-password/new-password/', forgot_password_new_password, name='forgot_password_new_password'),
     path('oauth/post-login/', oauth_post_login_redirect, name='oauth_post_login_redirect'),
     path('oauth/role-selection/', oauth_role_selection, name='oauth_role_selection'),
     

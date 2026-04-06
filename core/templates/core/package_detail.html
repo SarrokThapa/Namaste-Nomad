@@ -38,6 +38,13 @@
     </nav>
 
     <header class="detail-hero">
+        <div class="detail-breadcrumbs">
+            <a href="{% url 'home' %}">Home</a>
+            <span>/</span>
+            <a href="{% url 'package_list' %}">Packages</a>
+            <span>/</span>
+            <strong>{{ package.title }}</strong>
+        </div>
         <div class="detail-hero-content">
             <div>
                 <p class="detail-subtitle">{{ package.location_name|default:package.location|default:"Nepal Adventure" }}</p>
@@ -47,17 +54,29 @@
                     <span>{{ rating.avg|default:0|floatformat:1 }} ({{ rating.count }} reviews)</span>
                     <span class="detail-views">{{ package.views_count }} views</span>
                 </div>
+                <div class="detail-meta-pills">
+                    <span class="meta-pill">{{ package.get_category_display|default:"Adventure" }}</span>
+                    <span class="meta-pill">{{ package.get_difficulty_display|default:"Flexible Difficulty" }}</span>
+                    <span class="meta-pill">{{ package.duration_days|default:"Custom" }} day{{ package.duration_days|pluralize }}</span>
+                </div>
             </div>
             <div class="detail-host">
                 <span>Hosted by</span>
                 <div class="detail-host-name">
-                    <strong>{{ package.vendor.vendor_profile.business_name|default:package.vendor.get_full_name|default:package.vendor.username }}</strong>
+                    <strong>
+                        <a href="{% url 'vendor_public_profile' package.vendor.id %}">
+                            {{ package.vendor.vendor_profile.business_name|default:package.vendor.get_full_name|default:package.vendor.username }}
+                        </a>
+                    </strong>
                     {% if package.vendor.vendor_profile and package.vendor.vendor_profile.is_verified %}
                         <span class="verified-badge verified-badge--inline">
                             <span class="verified-badge-icon">✔</span>
                             <span>Verified</span>
                         </span>
                     {% endif %}
+                </div>
+                <div class="detail-host-actions">
+                    <a class="btn-outline-dark" href="{% url 'vendor_public_profile' package.vendor.id %}">View Vendor Profile</a>
                 </div>
             </div>
         </div>
@@ -81,7 +100,7 @@
         <section class="detail-content">
             <div class="detail-card">
                 <h2>About this package</h2>
-                <p>
+                <p class="detail-lead">
                     {{ package.description|default:"This Nepal trek package is crafted with local expertise. Contact the vendor for full itinerary and customization options." }}
                 </p>
             </div>
@@ -269,7 +288,7 @@
 
         <aside class="detail-sidebar">
             <div class="detail-price-card">
-                <h2>From</h2>
+                <h2>Reserve Your Spot</h2>
                 <div class="price-amount">Rs {{ package.price|floatformat:0 }}</div>
                 <p>Per traveler (estimate)</p>
                 <p>{{ package.available_slots }} slot{{ package.available_slots|pluralize }} left</p>
@@ -290,7 +309,7 @@
                 <div class="detail-action-row">
                     {% include "core/includes/wishlist_button.html" with package=package button_class="wishlist-btn--inline" button_label="Save" %}
                 </div>
-                <button class="btn-outline-dark">Contact Vendor</button>
+                <a class="btn-outline-dark" href="{% url 'vendor_public_profile' package.vendor.id %}">View Vendor Profile</a>
             </div>
 
             <div class="detail-price-card secondary">

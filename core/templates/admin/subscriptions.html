@@ -1,0 +1,163 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Subscriptions{% endblock %}
+
+{% block content %}
+<section class="admin-heading">
+    <div>
+        <h1>Vendor Subscriptions</h1>
+        <p>Manage feature plans, slot limits, and vendor subscriptions.</p>
+    </div>
+</section>
+
+<section class="admin-card">
+    <div class="card-header">
+        <h2>Feature Plans</h2>
+        <span class="card-meta">Set slots and plan pricing</span>
+    </div>
+
+    <form method="POST" action="{% url 'admin_feature_plan_create' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'admin_subscriptions' %}">
+        <div class="detail-grid">
+            <div>
+                <label>Plan Name</label>
+                <input class="form-control" type="text" name="name" required>
+            </div>
+            <div>
+                <label>Slots Included</label>
+                <input class="form-control" type="number" name="slots_count" min="1" required>
+            </div>
+            <div>
+                <label>Price (Rs)</label>
+                <input class="form-control" type="number" name="price" min="0" step="0.01" required>
+            </div>
+            <div>
+                <label>Duration (days)</label>
+                <input class="form-control" type="number" name="duration_days" min="1" required>
+            </div>
+            <div>
+                <label>Description</label>
+                <input class="form-control" type="text" name="description" placeholder="Optional">
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="btn small success" type="submit">Create Plan</button>
+        </div>
+    </form>
+
+    {% if feature_plans %}
+        <div class="table-scroll-wrap" style="margin-top: 1rem;">
+            <table class="activity-table">
+                <thead>
+                    <tr>
+                        <th>Plan</th>
+                        <th>Slots</th>
+                        <th>Price</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for plan in feature_plans %}
+                        <tr>
+                            <td>{{ plan.name }}</td>
+                            <td>{{ plan.slots_count }}</td>
+                            <td>Rs {{ plan.price|floatformat:0 }}</td>
+                            <td>{{ plan.duration_days }} days</td>
+                            <td>{% if plan.is_active %}Active{% else %}Inactive{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">No feature plans yet.</div>
+    {% endif %}
+</section>
+
+<section class="admin-card">
+    <div class="card-header">
+        <h2>Active Vendor Subscriptions</h2>
+        <span class="card-meta">{{ active_subscriptions|length }} active</span>
+    </div>
+
+    {% if active_subscriptions %}
+        <div class="table-scroll-wrap">
+            <table class="activity-table">
+                <thead>
+                    <tr>
+                        <th>Vendor</th>
+                        <th>Plan</th>
+                        <th>Slots</th>
+                        <th>Price</th>
+                        <th>Expires</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sub in active_subscriptions %}
+                        <tr>
+                            <td>{{ sub.vendor.get_full_name|default:sub.vendor.email }}</td>
+                            <td>{{ sub.plan_name }}</td>
+                            <td>{{ sub.slots_used }} / {{ sub.slots_total }}</td>
+                            <td>Rs {{ sub.price|floatformat:0 }}</td>
+                            <td>{{ sub.end_date|date:"M d, Y" }}</td>
+                            <td>
+                                <form method="POST" action="{% url 'admin_subscription_deactivate' sub.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{% url 'admin_subscriptions' %}">
+                                    <button class="btn small danger" type="submit" onclick="return confirm('Deactivate this subscription?')">Deactivate</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">No active vendor subscriptions.</div>
+    {% endif %}
+</section>
+
+<section class="admin-card">
+    <div class="card-header">
+        <h2>All Subscription Records</h2>
+    </div>
+
+    {% if subscriptions %}
+        <div class="table-scroll-wrap">
+            <table class="activity-table">
+                <thead>
+                    <tr>
+                        <th>Vendor</th>
+                        <th>Plan</th>
+                        <th>Slots</th>
+                        <th>Price</th>
+                        <th>Start</th>
+                        <th>Expiry</th>
+                        <th>Payment</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sub in subscriptions %}
+                        <tr>
+                            <td>{{ sub.vendor.get_full_name|default:sub.vendor.email }}</td>
+                            <td>{{ sub.plan_name }}</td>
+                            <td>{{ sub.slots_used }} / {{ sub.slots_total }}</td>
+                            <td>Rs {{ sub.price|floatformat:0 }}</td>
+                            <td>{{ sub.start_date|date:"M d, Y" }}</td>
+                            <td>{{ sub.end_date|date:"M d, Y" }}</td>
+                            <td>{{ sub.get_payment_status_display }}</td>
+                            <td>{% if sub.is_active %}Active{% else %}Inactive{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">No subscriptions found.</div>
+    {% endif %}
+</section>
+{% endblock %}

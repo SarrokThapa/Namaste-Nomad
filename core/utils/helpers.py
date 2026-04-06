@@ -39,13 +39,11 @@ from django.utils import timezone
 from django.utils.html import escape, mark_safe
 
 from accounts.models import (
-    FeatureSlot,
     Notification,
     RewardPoint,
     TravelerProfile,
     UserBadge,
-    VendorFeature,
-    VendorSubscription,
+    VendorFeatureSubscription,
 )
 
 from accounts.achievements import (
@@ -64,6 +62,7 @@ from ..invoices import generate_invoice_pdf, invoice_data_for_booking
 
 from ..models import (
     Booking,
+    BookingTraveler,
     Comment,
     Discount,
     Package,
@@ -535,7 +534,7 @@ def _wishlist_ids_for_user(user):
 
 
 def _render_package_list(request, category=None):
-    VendorSubscription.expire_overdue()
+    VendorFeatureSubscription.expire_overdue()
     wishlist_ids = _wishlist_ids_for_user(request.user)
     packages = _public_package_queryset()
     package_scope = 'all'
@@ -624,13 +623,11 @@ __all__ = [
     'timezone',
     'escape',
     'mark_safe',
-    'FeatureSlot',
     'Notification',
     'RewardPoint',
     'TravelerProfile',
     'UserBadge',
-    'VendorFeature',
-    'VendorSubscription',
+    'VendorFeatureSubscription',
     'add_points',
     'sync_badges_for_user',
     'total_points_for_user',
@@ -646,6 +643,7 @@ __all__ = [
     'generate_invoice_pdf',
     'invoice_data_for_booking',
     'Booking',
+    'BookingTraveler',
     'Comment',
     'Discount',
     'Package',

@@ -19,8 +19,8 @@
                         <span>{{ post.author_name }}</span>
                     {% endif %}
                     {% if post.author_is_verified_vendor %}
-                        <span class="verified-badge verified-badge--tiny">
-                            <span class="verified-badge-icon">✔</span>
+                        <span class="vendor-verified-pill" title="Verified vendor">
+                            <span class="vendor-verified-icon" aria-hidden="true">✓</span>
                             <span>Verified</span>
                         </span>
                     {% endif %}
@@ -36,22 +36,24 @@
             <div class="carousel-track">
                 {% for media in post.media_items %}
                     <div class="carousel-slide">
-                        {% if media.media_type == 'video' %}
-                            <video class="carousel-media" controls preload="metadata">
-                                <source src="{{ media.media_file.url }}">
-                                Your browser does not support the video tag.
-                            </video>
-                        {% else %}
-                            <img class="carousel-media" src="{{ media.media_file.url }}" alt="Post media by {{ post.author_name }}">
-                        {% endif %}
+                        <div class="post-image-container">
+                            {% if media.media_type == 'video' %}
+                                <video class="carousel-media" controls preload="metadata">
+                                    <source src="{{ media.media_file.url }}">
+                                    Your browser does not support the video tag.
+                                </video>
+                            {% else %}
+                                <img class="carousel-media" src="{{ media.media_file.url }}" alt="Post media by {{ post.author_name }}">
+                            {% endif %}
+                        </div>
                     </div>
                 {% endfor %}
             </div>
             {% if post.media_count|default:0 > 1 %}
-                <button class="carousel-btn prev" type="button" aria-label="Previous media">
+                <button class="carousel-btn prev prev-btn" type="button" aria-label="Previous media">
                     <span aria-hidden="true">&#10094;</span>
                 </button>
-                <button class="carousel-btn next" type="button" aria-label="Next media">
+                <button class="carousel-btn next next-btn" type="button" aria-label="Next media">
                     <span aria-hidden="true">&#10095;</span>
                 </button>
                 <div class="carousel-dots">

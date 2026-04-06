@@ -8,6 +8,7 @@
     align-items: flex-end;
     gap: 0.75rem;
     font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+    pointer-events: none;
 }
 
 .support-widget__toggle {
@@ -23,6 +24,7 @@
     cursor: pointer;
     box-shadow: 0 16px 30px rgba(29, 78, 216, 0.3);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    pointer-events: auto;
 }
 
 .support-widget__toggle:hover {
@@ -64,9 +66,11 @@
     transform: translateY(12px);
     pointer-events: none;
     transition: opacity 0.2s ease, transform 0.2s ease;
+    display: none;
 }
 
 .support-widget__panel.is-open {
+    display: flex;
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
