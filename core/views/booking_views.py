@@ -1,13 +1,64 @@
-"""Booking lifecycle and invoice views."""
+"""Booking lifecycle and invoice views.
+
+Handles the traveler-side booking flow: ``package_book`` (form +
+slot reservation + payment dispatch), ``booking_confirmation`` (Stripe
+return URL), ``booking_detail``, and the invoice view/PDF download endpoints.
+
+Payment-side helpers (``_complete_paid_booking``, ``_cancel_unpaid_booking``,
+``_render_esewa_checkout``, etc.) live in ``payment_views.py`` and are
+imported here so the booking flow can call them.
+"""
+
+# NOTE: file > 300 lines — split deferred. The traveler booking flow is
+# one coherent transaction (slot lock → form → payment dispatch); pulling
+# pieces out into separate modules would obscure the locking model.
 
 import json
 
 from ..services.booking_service import _parse_traveler_post_data, save_booking_travelers
-from ..utils.helpers import *
+from ..utils.helpers import (
+    Booking,
+    BookingForm,
+    Decimal,
+    EsewaError,
+    Http404,
+    HttpResponse,
+    Package,
+    StripeError,
+    _can_access_booking_invoice,
+    _safe_related,
+    create_checkout_session,
+    discount_for_points,
+    generate_invoice_pdf,
+    get_object_or_404,
+    invoice_data_for_booking,
+    login_required,
+    messages,
+    redirect,
+    render,
+    retrieve_checkout_session,
+    reverse,
+    timezone,
+    total_points_for_user,
+    transaction,
+)
 from ..services.site_settings import get_site_settings
-from .payment_views import *
+from .payment_views import (
+    _as_money_decimal,
+    _best_available_discount_for_user,
+    _booking_payment_expires_at,
+    _cancel_unpaid_booking,
+    _complete_paid_booking,
+    _expire_stale_pending_bookings,
+    _notify_booking_created,
+    _notify_booking_paid,
+    _render_esewa_checkout,
+)
 
 
+# Static dropdown options for the per-traveler nationality field on the
+# booking form. Kept inline (not in the DB) so non-technical edits can
+# happen here without a migration.
 NATIONALITY_CHOICES = [
     'Nepali', 'Indian', 'Chinese', 'American', 'British', 'Australian',
     'German', 'French', 'Japanese', 'South Korean', 'Canadian', 'Malaysian',
@@ -20,10 +71,18 @@ NATIONALITY_CHOICES = [
 
 @login_required(login_url='account_login_choice')
 def package_book(request, package_id):
+    """Traveler-only booking entry point.
+
+    Validates the booking form, parses per-person traveler details,
+    reserves slots under a row lock, creates (or reuses) a PENDING
+    booking, then dispatches to Stripe or eSewa. Reuses the existing
+    PENDING booking row if the traveler comes back to retry payment so
+    we don't double-decrement available slots.
+    """
     package = get_object_or_404(Package, id=package_id, is_active=True)
 
     if not get_site_settings().enable_booking:
-        messages.error(request, 'Booking is currently disabled by admin.')
+        messages.error(request, "You can't book right now. Booking is disabled by admin.")
         return redirect('package_detail', package_id=package.id)
 
     if getattr(request.user, 'user_type', '') != 'traveler':
@@ -145,7 +204,7 @@ def package_book(request, package_id):
                             + '?session_id={CHECKOUT_SESSION_ID}'
                         )
                         cancel_url = request.build_absolute_uri(
-                            reverse('booking_checkout_cancel', kwargs={'booking_id': booking.id}),
+                            reverse('booking_confirmation', kwargs={'booking_id': booking.id}),
                         )
                         try:
                             session_data = create_checkout_session(
@@ -240,11 +299,15 @@ def package_book(request, package_id):
 
 @login_required(login_url='account_login_choice')
 def booking_confirmation(request, booking_id):
-    booking = get_object_or_404(
-        Booking.objects.select_related('package', 'traveler'),
-        id=booking_id,
-        traveler=request.user,
+    """Show the booking summary; for Stripe returns, verify the session and finalize."""
+    booking = (
+        Booking.objects.select_related('package', 'traveler')
+        .filter(id=booking_id, traveler=request.user)
+        .first()
     )
+    if booking is None:
+        messages.error(request, 'This booking was not found or is no longer available.')
+        return redirect('traveler_bookings')
 
     if (
         booking.payment_method == Booking.PAYMENT_METHOD_STRIPE
@@ -319,45 +382,6 @@ def booking_confirmation(request, booking_id):
 
 
 @login_required(login_url='account_login_choice')
-def booking_checkout_cancel(request, booking_id):
-    booking = get_object_or_404(
-        Booking.objects.select_related('package'),
-        id=booking_id,
-        traveler=request.user,
-    )
-
-    if booking.payment_status == Booking.PAYMENT_STATUS_COMPLETED:
-        return redirect('booking_confirmation', booking_id=booking.id)
-
-    with transaction.atomic():
-        locked_booking = get_object_or_404(
-            Booking.objects.select_for_update().select_related('package'),
-            id=booking_id,
-            traveler=request.user,
-        )
-        if (
-            locked_booking.status == Booking.STATUS_PENDING
-            and locked_booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED
-        ):
-            _cancel_unpaid_booking(locked_booking, Booking.PAYMENT_STATUS_FAILED)
-
-    if (
-        booking.payment_method == Booking.PAYMENT_METHOD_STRIPE
-        and booking.stripe_checkout_session_id
-    ):
-        try:
-            expire_checkout_session(booking.stripe_checkout_session_id)
-        except StripeError:
-            pass
-
-    messages.info(
-        request,
-        'Payment was cancelled. Your reserved slots were released.',
-    )
-    return redirect('package_book', package_id=booking.package_id)
-
-
-@login_required(login_url='account_login_choice')
 def booking_detail(request, booking_id):
     """
     Detail view showing booking summary + all traveler details.
@@ -378,18 +402,11 @@ def booking_detail(request, booking_id):
     if not (is_owner_traveler or is_package_vendor or is_admin):
         raise Http404('Booking not found.')
 
-    can_edit_travelers = (
-        is_owner_traveler
-        and booking.status == Booking.STATUS_PENDING
-        and booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED
-    )
-
     travelers = list(booking.booking_travelers.order_by('traveler_index'))
 
     return render(request, 'core/booking_detail.html', {
         'booking': booking,
         'travelers': travelers,
-        'can_edit_travelers': can_edit_travelers,
         'is_owner_traveler': is_owner_traveler,
         'is_package_vendor': is_package_vendor,
         'is_admin': is_admin,
@@ -397,78 +414,8 @@ def booking_detail(request, booking_id):
 
 
 @login_required(login_url='account_login_choice')
-def booking_traveler_edit(request, booking_id):
-    """
-    Allow the primary traveler to edit traveler details while booking is still pending.
-    """
-    if getattr(request.user, 'user_type', '') != 'traveler':
-        raise Http404('Traveler access only.')
-
-    booking = get_object_or_404(
-        Booking.objects.select_related('package').prefetch_related('booking_travelers'),
-        id=booking_id,
-        traveler=request.user,
-    )
-
-    if booking.payment_status == Booking.PAYMENT_STATUS_COMPLETED:
-        messages.info(request, 'Traveler details are locked after payment is confirmed.')
-        return redirect('booking_detail', booking_id=booking.id)
-
-    existing_travelers = list(booking.booking_travelers.order_by('traveler_index'))
-
-    traveler_profile = _safe_related(request.user, 'traveler_profile')
-    primary_autofill = {
-        'full_name': request.user.get_full_name().strip() or '',
-        'email': request.user.email or '',
-        'phone_number': request.user.phone or '',
-        'gender': getattr(traveler_profile, 'gender', '') or '',
-        'nationality': getattr(traveler_profile, 'nationality', '') or 'Nepali',
-    }
-
-    # Seed posted_travelers from existing DB records.
-    posted_travelers = [
-        {
-            'full_name': t.full_name,
-            'age': t.age,
-            'gender': t.gender,
-            'phone_number': t.phone_number,
-            'email': t.email,
-            'nationality': t.nationality,
-            'id_type': t.id_type,
-            'id_number': t.id_number,
-            'medical_notes': t.medical_notes,
-            'emergency_contact_name': t.emergency_contact_name,
-            'emergency_contact_phone': t.emergency_contact_phone,
-        }
-        for t in existing_travelers
-    ]
-    # Pad to current number_of_people if records are fewer.
-    while len(posted_travelers) < booking.number_of_people:
-        posted_travelers.append({})
-
-    traveler_errors = {}
-
-    if request.method == 'POST':
-        travelers_data, traveler_errors = _parse_traveler_post_data(
-            request.POST, booking.number_of_people,
-        )
-        posted_travelers = travelers_data
-        if not traveler_errors:
-            save_booking_travelers(booking, travelers_data)
-            messages.success(request, 'Traveler details updated successfully.')
-            return redirect('booking_detail', booking_id=booking.id)
-
-    return render(request, 'core/booking_traveler_edit.html', {
-        'booking': booking,
-        'nationality_choices_json': json.dumps(NATIONALITY_CHOICES),
-        'primary_autofill_json': json.dumps(primary_autofill),
-        'posted_travelers_json': json.dumps(posted_travelers),
-        'traveler_errors_json': json.dumps({str(k): v for k, v in traveler_errors.items()}),
-    })
-
-
-@login_required(login_url='account_login_choice')
 def booking_invoice(request, booking_id):
+    """Render the HTML invoice page; only available after a confirmed payment."""
     booking = get_object_or_404(
         Booking.objects.select_related('package', 'traveler', 'vendor'),
         id=booking_id,
@@ -494,6 +441,7 @@ def booking_invoice(request, booking_id):
 
 @login_required(login_url='account_login_choice')
 def booking_invoice_download(request, booking_id):
+    """Stream the invoice as a generated PDF attachment."""
     booking = get_object_or_404(
         Booking.objects.select_related('package', 'traveler', 'vendor'),
         id=booking_id,

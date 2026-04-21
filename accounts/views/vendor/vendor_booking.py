@@ -1,35 +1,65 @@
 """Vendor booking and review views."""
 
-from ..common import *
+from ..common import (
+    Booking,
+    Notification,
+    Review,
+    _get_vendor_profile,
+    add_points,
+    create_notification,
+    csrf_protect,
+    get_object_or_404,
+    messages,
+    never_cache,
+    redirect,
+    render,
+    reverse,
+    sync_badges_for_user,
+    vendor_required,
+)
 
 @never_cache
-@login_required(login_url='account_login_choice')
+@vendor_required(login_url='account_login_choice')
 @csrf_protect
 
 def vendor_bookings(request):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
-
+    """List all bookings made against the current vendor's packages."""
     vendor_profile = _get_vendor_profile(request.user)
-    bookings = Booking.objects.filter(package__vendor=request.user).select_related(
+    status_filter = (request.GET.get('status') or '').strip().lower()
+    bookings = Booking.objects.filter(
+        package__vendor=request.user,
+        traveler__isnull=False,
+    ).select_related(
         'package',
         'traveler',
     ).order_by('-created_at')
+
+    allowed_statuses = {
+        'pending': Booking.STATUS_PENDING,
+        'completed': Booking.STATUS_CONFIRMED,
+        'cancelled': Booking.STATUS_CANCELLED,
+    }
+    if status_filter in allowed_statuses:
+        bookings = bookings.filter(status=allowed_statuses[status_filter])
+    else:
+        status_filter = ''
+
     return render(request, 'accounts/vendor_bookings.html', {
         'vendor_profile': vendor_profile,
         'active_page': 'bookings',
         'bookings': bookings,
+        'filters': {
+            'status': status_filter,
+        },
     })
 
 
 @never_cache
-@login_required(login_url='vendor_login')
+@vendor_required(login_url='vendor_login')
 @csrf_protect
 
 def vendor_booking_status_update(request, booking_id):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
-
+    """Confirm or cancel a booking; re-syncs available_slots and notifies the traveler."""
     next_url = request.POST.get('next') or reverse('vendor_bookings')
     if request.method != 'POST':
         return redirect(next_url)
@@ -48,6 +78,10 @@ def vendor_booking_status_update(request, booking_id):
     if booking.status == requested_status:
         return redirect(next_url)
 
+    if requested_status == Booking.STATUS_CONFIRMED and booking.status == Booking.STATUS_CANCELLED:
+        messages.error(request, 'Cancelled bookings cannot be confirmed.')
+        return redirect(next_url)
+
     if (
         requested_status == Booking.STATUS_CONFIRMED
         and booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED
@@ -59,16 +93,6 @@ def vendor_booking_status_update(request, booking_id):
 
     if requested_status == Booking.STATUS_CANCELLED and booking.status != Booking.STATUS_CANCELLED:
         package.available_slots += booking.number_of_people
-        package.save(update_fields=['available_slots'])
-
-    if requested_status == Booking.STATUS_CONFIRMED and booking.status == Booking.STATUS_CANCELLED:
-        if booking.number_of_people > package.available_slots:
-            messages.error(
-                request,
-                f'Cannot confirm booking. Only {package.available_slots} slot(s) are currently available.',
-            )
-            return redirect(next_url)
-        package.available_slots -= booking.number_of_people
         package.save(update_fields=['available_slots'])
 
     booking.status = requested_status
@@ -89,14 +113,15 @@ def vendor_booking_status_update(request, booking_id):
 
 
 @never_cache
-@login_required(login_url='vendor_login')
+@vendor_required(login_url='vendor_login')
 
 def vendor_reviews(request):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
-
+    """List all reviews left on the current vendor's packages."""
     vendor_profile = _get_vendor_profile(request.user)
-    reviews = Review.objects.filter(package__vendor=request.user).order_by('-created_at')
+    reviews = Review.objects.filter(
+        package__vendor=request.user,
+        traveler__isnull=False,
+    ).order_by('-created_at')
     return render(request, 'accounts/vendor_reviews.html', {
         'vendor_profile': vendor_profile,
         'active_page': 'reviews',

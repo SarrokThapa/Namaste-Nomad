@@ -12,13 +12,16 @@
     <div class="transactions-card transactions-header">
         <div>
             <h1 class="transactions-title">Vendor Transactions / Earnings</h1>
-            <p class="transactions-subtitle">See gross amount, platform fee, and your 75% share.</p>
+            <p class="transactions-subtitle">Showing Completed Transactions</p>
         </div>
-        <a class="btn-sm light" href="?date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&status={{ filters.status }}&export=csv">Download CSV</a>
+        <a class="btn-sm light" href="?date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&export=csv">Download CSV</a>
     </div>
 
     <div class="transactions-card">
         <form method="GET" class="filters-form">
+            {% if filters.date_error %}
+                <p class="filters-error">{{ filters.date_error }}</p>
+            {% endif %}
             <div>
                 <label for="date_from">From</label>
                 <input id="date_from" type="date" name="date_from" value="{{ filters.date_from }}">
@@ -26,15 +29,6 @@
             <div>
                 <label for="date_to">To</label>
                 <input id="date_to" type="date" name="date_to" value="{{ filters.date_to }}">
-            </div>
-            <div>
-                <label for="status">Status</label>
-                <select id="status" name="status">
-                    <option value="">All</option>
-                    <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Completed</option>
-                    <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
-                    <option value="failed" {% if filters.status == 'failed' %}selected{% endif %}>Failed</option>
-                </select>
             </div>
             <div class="filters-actions">
                 <button type="submit" class="btn-sm primary">Apply</button>
@@ -52,8 +46,8 @@
                         <th>Type</th>
                         <th>Package</th>
                         <th>Total Amount</th>
-                        <th>Platform Fee (25%)</th>
-                        <th>Vendor Earnings (75%)</th>
+                        <th>Platform Fee</th>
+                        <th>Vendor Earnings</th>
                         <th>Status</th>
                         <th>Date</th>
                     </tr>

@@ -21,6 +21,7 @@ PR_SESSION_RESEND_AT = '_pw_reset_resend_at'
 
 
 def _get_model():
+    """Lazy-import the PasswordResetOTP model to avoid an app-loading cycle."""
     from ..models import PasswordResetOTP
     return PasswordResetOTP
 
@@ -74,14 +75,17 @@ def store_email_only_session(request, email: str):
 
 
 def get_reset_email(request):
+    """Return the email currently in the password-reset session, or None."""
     return request.session.get(PR_SESSION_EMAIL)
 
 
 def get_reset_otp_id(request):
+    """Return the active PasswordResetOTP id stored in the session, or None."""
     return request.session.get(PR_SESSION_OTP_ID)
 
 
 def is_reset_verified(request) -> bool:
+    """Return True once the user has successfully entered the reset OTP for this session."""
     return bool(request.session.get(PR_SESSION_VERIFIED))
 
 

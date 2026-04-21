@@ -1,6 +1,25 @@
 """Vendor package management views."""
 
-from ..common import *
+from ..common import (
+    Count,
+    FeaturedPackage,
+    Notification,
+    Package,
+    PackageForm,
+    _append_package_images,
+    _get_active_subscription,
+    _get_vendor_profile,
+    _sync_package_images,
+    csrf_protect,
+    get_object_or_404,
+    messages,
+    never_cache,
+    notify_admins,
+    redirect,
+    render,
+    reverse,
+    vendor_required,
+)
 from core.services.subscription_service import (
     expire_overdue_subscriptions,
     feature_package,
@@ -11,12 +30,10 @@ from core.services.subscription_service import (
 
 
 @never_cache
-@login_required(login_url='account_login_choice')
+@vendor_required(login_url='account_login_choice')
 @csrf_protect
 def vendor_packages(request):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
-
+    """List the vendor's own packages with featured-slot status."""
     vendor_profile = _get_vendor_profile(request.user)
     packages = Package.objects.filter(vendor=request.user).annotate(
         booking_count=Count('bookings'),
@@ -39,10 +56,9 @@ def vendor_packages(request):
 
 
 @never_cache
-@login_required(login_url='vendor_login')
+@vendor_required(login_url='vendor_login')
 def vendor_feature_toggle(request, package_id):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
+    """Toggle a package's featured-slot status under the vendor's active subscription."""
     if request.method != 'POST':
         return redirect('vendor_packages')
 
@@ -75,18 +91,15 @@ def vendor_feature_toggle(request, package_id):
 
 
 @never_cache
-@login_required(login_url='vendor_login')
+@vendor_required(login_url='vendor_login')
 
 def vendor_package_create(request):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
-
+    """Create a new package owned by the vendor; notifies admins and limited-offer subscribers."""
     vendor_profile = _get_vendor_profile(request.user)
 
     if request.method == 'POST':
         form = PackageForm(request.POST, vendor=request.user)
         if form.is_valid():
-            limited_time_offer = bool(form.cleaned_data.get('limited_time_offer'))
             package = form.save(commit=False)
             package.vendor = request.user
             package.save()
@@ -96,13 +109,6 @@ def vendor_package_create(request):
                 Notification.TYPE_PACKAGE_SUBMISSION,
                 related_object_id=package.id,
             )
-            if limited_time_offer:
-                notified_count = _notify_opted_in_travelers_for_limited_package_offer(package)
-                if notified_count:
-                    messages.info(
-                        request,
-                        f'Limited-time offer notifications sent to {notified_count} opted-in traveler(s).',
-                    )
             messages.success(request, 'Package created successfully.')
             return redirect('vendor_packages')
     else:
@@ -119,12 +125,10 @@ def vendor_package_create(request):
 
 
 @never_cache
-@login_required(login_url='vendor_login')
+@vendor_required(login_url='vendor_login')
 
 def vendor_package_edit(request, package_id):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
-
+    """Edit one of the vendor's packages and reorder/replace its image set."""
     vendor_profile = _get_vendor_profile(request.user)
     package = get_object_or_404(
         Package.objects.prefetch_related('images'),
@@ -155,13 +159,11 @@ def vendor_package_edit(request, package_id):
 
 
 @never_cache
-@login_required(login_url='vendor_login')
+@vendor_required(login_url='vendor_login')
 @csrf_protect
 
 def vendor_package_delete(request, package_id):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
-
+    """Delete a package, but only if it has zero existing bookings."""
     next_url = request.POST.get('next') or reverse('vendor_packages')
     if request.method != 'POST':
         return redirect(next_url)

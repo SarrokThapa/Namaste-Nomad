@@ -9,6 +9,7 @@ from core.models import Package
 
 
 def _parse_int(value):
+    """Coerce *value* to int, returning None on failure."""
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -16,6 +17,7 @@ def _parse_int(value):
 
 
 def _parse_float(value):
+    """Coerce *value* to float, returning None on failure."""
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -23,6 +25,7 @@ def _parse_float(value):
 
 
 def _getlist(params, key):
+    """Read a multi-value query param, accepting both QueryDict and plain dict callers."""
     if hasattr(params, 'getlist'):
         return params.getlist(key)
     value = params.get(key)
@@ -34,6 +37,7 @@ def _getlist(params, key):
 
 
 def budget_threshold(queryset):
+    """Return the lower-quartile price across *queryset*, used as the "budget" cutoff."""
     prices = list(queryset.values_list('price', flat=True).order_by('price'))
     if not prices:
         return None
@@ -42,6 +46,7 @@ def budget_threshold(queryset):
 
 
 def trending_destinations():
+    """Return a hard-coded list of trending destination names for empty-state UIs."""
     return [
         'Kathmandu',
         'Pokhara',
@@ -51,6 +56,7 @@ def trending_destinations():
 
 
 def filter_packages(queryset, params, forced_category=None, budget_cutoff=None):
+    """Apply the public package-discovery filters/sort to *queryset* and return ``(qs, applied_params)``."""
     search_term = (params.get('q') or params.get('destination') or '').strip()
     single_date_raw = (params.get('date') or '').strip()
     date_from_raw = (params.get('date_from') or '').strip()

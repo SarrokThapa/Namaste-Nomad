@@ -1,3 +1,5 @@
+"""Admin dashboard landing view: KPIs, recent activity, pending vendor approvals."""
+
 from django.db.models import Avg, Sum
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -12,14 +14,23 @@ from core.services.subscription_service import expire_overdue_subscriptions
 @never_cache
 @admin_required
 def admin_dashboard(request):
+    """Render the admin landing page with platform KPIs and a recent-activity feed."""
     expire_overdue_subscriptions()
 
     admin_profile = _get_admin_profile(request.user)
     vendors = User.objects.filter(user_type='vendor').select_related('vendor_profile')
     pending_vendors = vendors.filter(vendor_profile__is_approved=False, is_active=True)
 
-    bookings = Booking.objects.select_related('package', 'traveler', 'vendor', 'package__vendor').order_by('-created_at')
-    reviews = Review.objects.select_related('traveler', 'package').order_by('-created_at')
+    bookings = Booking.objects.filter(traveler__isnull=False).select_related(
+        'package',
+        'traveler',
+        'vendor',
+        'package__vendor',
+    ).order_by('-created_at')
+    reviews = Review.objects.filter(traveler__isnull=False).select_related(
+        'traveler',
+        'package',
+    ).order_by('-created_at')
 
     paid_subscriptions = VendorFeatureSubscription.objects.filter(
         payment_status=VendorFeatureSubscription.PAYMENT_STATUS_PAID,

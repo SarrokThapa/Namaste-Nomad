@@ -38,6 +38,14 @@
     align-items: end;
 }
 
+.filters-error {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #b91c1c;
+    grid-column: 1 / -1;
+}
+
 .filters-form label {
     display: block;
     font-size: 0.8rem;

@@ -1,10 +1,48 @@
-"""Payment helper and gateway views (Stripe/eSewa)."""
+"""Payment helper and gateway views (Stripe/eSewa).
 
-from ..services.booking_service import *
-from ..services.discount_service import *
-from ..services.notification_service import *
-from ..services.payment_service import *
-from ..utils.helpers import *
+Owns the booking payment lifecycle: expiring stale pending bookings,
+cancelling unpaid ones, completing paid ones (and writing the matching
+``Transaction`` row), Stripe Checkout, and eSewa V2 redirect/success/
+failure handlers. The lifecycle helpers (``_expire_stale_pending_bookings``,
+``_cancel_unpaid_booking``, ``_complete_paid_booking``, etc.) are also
+imported by ``booking_views.py`` and by ``core/tests.py``.
+"""
+
+# NOTE: file > 300 lines — split deferred. Splitting payment helpers from
+# the gateway views would force every test and view that imports the
+# lifecycle helpers to update its import path; staying in one module is
+# the safer option.
+
+from ..utils.helpers import (
+    Booking,
+    Decimal,
+    Discount,
+    EsewaError,
+    F,
+    InvalidOperation,
+    Notification,
+    Package,
+    StripeError,
+    SupportConversation,
+    SupportMessage,
+    Transaction,
+    build_esewa_payment_payload,
+    create_checkout_session,
+    create_notification,
+    esewa_process_success_callback,
+    get_esewa_payment_url,
+    get_object_or_404,
+    login_required,
+    messages,
+    notify_admins,
+    redirect,
+    render,
+    reverse,
+    settings,
+    timedelta,
+    timezone,
+    transaction,
+)
 
 
 
@@ -12,6 +50,7 @@ from ..utils.helpers import *
 
 
 def _stripe_checkout_ttl_minutes():
+    """Minimum 30 minutes; overridable via ``settings.STRIPE_CHECKOUT_TTL_MINUTES``."""
     try:
         minutes = int(getattr(settings, 'STRIPE_CHECKOUT_TTL_MINUTES', 30))
     except (TypeError, ValueError):
@@ -20,10 +59,17 @@ def _stripe_checkout_ttl_minutes():
 
 
 def _booking_payment_expires_at():
+    """Deadline after which an unpaid PENDING booking is considered stale."""
     return timezone.now() + timedelta(minutes=_stripe_checkout_ttl_minutes())
 
 
 def _expire_stale_pending_bookings(package_id=None):
+    """Cancel pending bookings whose payment window has elapsed and free their slots.
+
+    Called before any new booking attempt so the slot count reflects only
+    bookings that are still actively reserving capacity. Optionally scoped
+    to a single package.
+    """
     stale_bookings = Booking.objects.select_for_update().filter(
         status=Booking.STATUS_PENDING,
         payment_status__in=[
@@ -47,6 +93,7 @@ def _expire_stale_pending_bookings(package_id=None):
 
 
 def _cancel_unpaid_booking(booking, payment_status):
+    """Mark a booking CANCELLED and return its reserved slots back to the package."""
     if (
         booking.status == Booking.STATUS_PENDING
         and booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED
@@ -68,6 +115,14 @@ def _complete_paid_booking(
     esewa_transaction_id='',
     paid_amount=None,
 ):
+    """Finalize a paid booking: confirm it, write Transaction, mark discount used, notify.
+
+    Single source of truth for "this booking is now paid" — called from the
+    Stripe success-callback and the eSewa success handler. Also exposed via
+    ``core/views/__init__.py`` for the test suite. The discount lookup is
+    locked with ``select_for_update`` so two concurrent webhooks cannot
+    each consume the same one-shot discount.
+    """
     booking.status = Booking.STATUS_CONFIRMED
     booking.payment_status = Booking.PAYMENT_STATUS_COMPLETED
     if payment_reference:
@@ -141,6 +196,7 @@ def _complete_paid_booking(
 
 
 def _mark_payment_failed(booking):
+    """Idempotently flip a non-completed booking's payment_status to FAILED."""
     if booking.payment_status == Booking.PAYMENT_STATUS_COMPLETED:
         return
     booking.payment_status = Booking.PAYMENT_STATUS_FAILED
@@ -148,6 +204,7 @@ def _mark_payment_failed(booking):
 
 
 def _as_money_decimal(value):
+    """Coerce a number-ish value to a 2-decimal Decimal, or ``None`` on failure."""
     try:
         return Decimal(str(value)).quantize(Decimal('0.01'))
     except (InvalidOperation, TypeError, ValueError):
@@ -155,6 +212,7 @@ def _as_money_decimal(value):
 
 
 def _best_available_discount_for_user(user, original_total):
+    """Pick the achievement-based discount that yields the largest saving on ``original_total``."""
     if not user.is_authenticated or getattr(user, 'user_type', '') != 'traveler':
         return None, Decimal('0.00')
 
@@ -177,6 +235,7 @@ def _best_available_discount_for_user(user, original_total):
 
 
 def _notify_booking_created(booking):
+    """Notify the vendor and all admins that a new booking has been created."""
     if booking.vendor:
         create_notification(
             booking.vendor,
@@ -192,6 +251,7 @@ def _notify_booking_created(booking):
 
 
 def _notify_booking_paid(booking):
+    """Notify the vendor and all admins that a booking has been paid."""
     if booking.vendor:
         create_notification(
             booking.vendor,
@@ -207,6 +267,7 @@ def _notify_booking_paid(booking):
 
 
 def _get_or_create_open_support_conversation_for_user(user):
+    """Reuse the user's most recent OPEN support thread, or start a new one."""
     conversation = (
         SupportConversation.objects.filter(
             user=user,
@@ -221,6 +282,7 @@ def _get_or_create_open_support_conversation_for_user(user):
 
 
 def _vendor_display_for_auto_message(vendor):
+    """Pick a vendor signature for the auto-generated post-booking message."""
     if vendor is None:
         return 'Vendor Team'
     full_name = vendor.get_full_name().strip()
@@ -230,6 +292,12 @@ def _vendor_display_for_auto_message(vendor):
 
 
 def _send_post_booking_vendor_message(booking):
+    """Drop a system-generated thank-you SupportMessage from the vendor to the traveler.
+
+    Idempotent: skips if a system-generated message from this vendor for
+    this booking already exists, so retried payment callbacks do not spam.
+    Also fires the matching booking notifications for both sides.
+    """
     traveler = booking.traveler
     vendor = booking.vendor or booking.package.vendor
     if traveler is None or vendor is None:
@@ -288,6 +356,11 @@ def _send_post_booking_vendor_message(booking):
 
 
 def _render_esewa_checkout(request, booking):
+    """Build the eSewa V2 payload and render the auto-submit redirect form.
+
+    Persists the generated ``transaction_uuid`` on the booking so the
+    success handler can verify the eSewa callback against the same UUID.
+    """
     success_url = request.build_absolute_uri(
         reverse('booking_esewa_success', kwargs={'booking_id': booking.id}),
     )
@@ -321,6 +394,7 @@ _esewa_logger = logging.getLogger('core.services.esewa_service')
 
 @login_required(login_url='account_login_choice')
 def booking_stripe_checkout(request, booking_id):
+    """Create a Stripe Checkout Session for ``booking_id`` and redirect the traveler."""
     booking = get_object_or_404(
         Booking.objects.select_related('package', 'traveler'),
         id=booking_id,
@@ -341,7 +415,7 @@ def booking_stripe_checkout(request, booking_id):
         + '?session_id={CHECKOUT_SESSION_ID}'
     )
     cancel_url = request.build_absolute_uri(
-        reverse('booking_checkout_cancel', kwargs={'booking_id': booking.id}),
+        reverse('booking_confirmation', kwargs={'booking_id': booking.id}),
     )
 
     try:
@@ -393,6 +467,7 @@ def booking_stripe_checkout(request, booking_id):
 
 @login_required(login_url='account_login_choice')
 def booking_esewa_checkout(request, booking_id):
+    """Switch a booking to eSewa, refresh its expiry, and render the redirect form."""
     booking = get_object_or_404(
         Booking.objects.select_related('package', 'traveler'),
         id=booking_id,
@@ -439,6 +514,13 @@ def booking_esewa_checkout(request, booking_id):
 
 @login_required(login_url='account_login_choice')
 def booking_esewa_success(request, booking_id):
+    """Verify the eSewa V2 success callback and finalize the booking if it checks out.
+
+    eSewa V2 redirects with a base64-encoded JSON ``?data=`` payload that
+    is HMAC-SHA256 signed. We decode + verify the signature, then confirm
+    the amount and ``transaction_uuid`` match what we stored at checkout.
+    Anything failing those checks marks the booking payment FAILED.
+    """
     booking = get_object_or_404(
         Booking.objects.select_related('package', 'traveler'),
         id=booking_id,
@@ -508,6 +590,7 @@ def booking_esewa_success(request, booking_id):
 
 @login_required(login_url='account_login_choice')
 def booking_esewa_failure(request, booking_id):
+    """Mark the booking payment FAILED and redirect back to the confirmation page."""
     booking = get_object_or_404(
         Booking.objects.select_related('package', 'traveler'),
         id=booking_id,

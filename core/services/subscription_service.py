@@ -224,3 +224,21 @@ def deactivate_subscription(subscription):
     ).update(is_active=False)
     subscription.is_active = False
     subscription.save(update_fields=['is_active'])
+
+
+def reactivate_subscription(subscription):
+    """Admin reactivates an eligible vendor subscription."""
+    today = timezone.localdate()
+
+    if subscription.payment_status != VendorFeatureSubscription.PAYMENT_STATUS_PAID:
+        return False, 'Only paid subscriptions can be activated.'
+
+    if subscription.end_date < today:
+        return False, 'This subscription is expired and cannot be activated.'
+
+    if subscription.is_active:
+        return False, 'Subscription is already active.'
+
+    subscription.is_active = True
+    subscription.save(update_fields=['is_active'])
+    return True, ''

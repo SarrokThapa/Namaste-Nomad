@@ -36,10 +36,26 @@
     gap: 0.2rem;
 }
 
+.admin-sidebar .nav-section-label {
+    margin-top: 0.75rem;
+    margin-bottom: 0.25rem;
+    padding: 0 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
 .admin-sidebar .nav-item {
     border-radius: 0.6rem;
     font-weight: 500;
     gap: 0.7rem;
+}
+
+.admin-sidebar .nav-item-finance {
+    background: #f7fbff;
+    border: 1px solid #dbeafe;
 }
 
 .admin-sidebar .nav-item.active {

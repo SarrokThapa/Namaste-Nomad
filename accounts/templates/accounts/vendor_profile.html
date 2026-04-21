@@ -4,7 +4,7 @@
 {% block title %}Vendor Profile - Namaste Nomad{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/vendor_profile.css' %}?v=20260226b">
+<link rel="stylesheet" href="{% static 'css/vendor_profile.css' %}?v=20260409a">
 {% endblock %}
 
 {% block content %}
@@ -66,26 +66,15 @@
             </div>
             <div class="form-group">
                 <label>Email Address</label>
-                <input class="form-control" type="email" name="email" value="{{ request.user.email }}">
+                <p class="readonly-value">{{ request.user.email }}</p>
             </div>
             <div class="form-group">
                 <label>Phone Number</label>
                 <input class="form-control" type="text" name="phone" value="{{ request.user.phone|default:'' }}">
             </div>
             <div class="form-group">
-                <label>Website</label>
-                {{ form.website }}
-            </div>
-            <div class="form-group">
                 <label>License Number</label>
                 {{ form.license_number }}
-            </div>
-            <div class="form-group">
-                <label>Verification Document</label>
-                {{ form.document }}
-                {% if vendor_profile.document %}
-                    <small><a href="{{ vendor_profile.document.url }}" target="_blank" rel="noopener">View current document</a></small>
-                {% endif %}
             </div>
             <div class="form-group span-2">
                 <label>Business Address</label>
@@ -94,40 +83,6 @@
             <div class="form-group span-2">
                 <label>About Us / Description</label>
                 {{ form.description }}
-            </div>
-        </div>
-    </section>
-
-    <section class="card vendor-section">
-        <h2>Bank &amp; Payment Details</h2>
-        <div class="form-grid">
-            <div class="form-group">
-                <label>Bank Name</label>
-                {{ form.bank_name }}
-            </div>
-            <div class="form-group">
-                <label>Account Number</label>
-                {{ form.account_number }}
-            </div>
-            <div class="form-group">
-                <label>Routing Number</label>
-                {{ form.routing_number }}
-            </div>
-            <div class="form-group">
-                <label>PayPal Email</label>
-                {{ form.paypal_email }}
-            </div>
-        </div>
-    </section>
-
-    <section class="card vendor-section">
-        <h2>Communication Preferences</h2>
-        <div class="form-grid">
-            <div class="form-group span-2">
-                <label class="check-row">
-                    <input type="checkbox" name="wants_promotions" {% if request.user.wants_promotions %}checked{% endif %}>
-                    Receive limited-time special offers
-                </label>
             </div>
         </div>
     </section>

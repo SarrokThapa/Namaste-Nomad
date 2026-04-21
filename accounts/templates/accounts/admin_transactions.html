@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>All Transactions - Namaste Nomad</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/vendor_dashboard.css' %}?v=20260226b">
     <link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'css/transactions.css' %}">
 </head>
@@ -18,7 +22,7 @@
                 </div>
                 <div class="filters-actions">
                     <a class="btn-sm light" href="{% url 'admin_dashboard' %}">Back to Dashboard</a>
-                    <a class="btn-sm light" href="?date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&status={{ filters.status }}&vendor={{ filters.vendor }}&export=csv">Download CSV</a>
+                    <a class="btn-sm light" href="?date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&vendor={{ filters.vendor }}&export=csv">Download CSV</a>
                 </div>
             </div>
 
@@ -33,20 +37,11 @@
                         <input id="date_to" type="date" name="date_to" value="{{ filters.date_to }}">
                     </div>
                     <div>
-                        <label for="status">Status</label>
-                        <select id="status" name="status">
-                            <option value="">All</option>
-                            <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Completed</option>
-                            <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
-                            <option value="failed" {% if filters.status == 'failed' %}selected{% endif %}>Failed</option>
-                        </select>
-                    </div>
-                    <div>
                         <label for="vendor">Vendor</label>
                         <select id="vendor" name="vendor">
                             <option value="">All vendors</option>
                             {% for vendor in vendor_choices %}
-                                <option value="{{ vendor.id }}" {% if filters.vendor == vendor.id|stringformat:"s" %}selected{% endif %}>{{ vendor.email }}</option>
+                                <option value="{{ vendor.id }}" {% if filters.vendor == vendor.id|stringformat:"s" %}selected{% endif %}>{{ vendor.vendor_profile.business_name|default:vendor.get_full_name|default:"Vendor" }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -81,7 +76,7 @@
                                     <td>{{ tx.transaction_id }}</td>
                                     <td>{{ tx.get_transaction_type_display }}</td>
                                     <td>{{ tx.traveler.email|default:"-" }}</td>
-                                    <td>{{ tx.vendor.email|default:"-" }}</td>
+                                    <td>{{ tx.vendor_display_name }}</td>
                                     <td>{% if tx.booking and tx.booking.package %}{{ tx.booking.package.title }}{% elif tx.vendor_subscription %}{{ tx.vendor_subscription.plan_name }}{% else %}-{% endif %}</td>
                                     <td>Rs {{ tx.total_amount|floatformat:2 }}</td>
                                     <td>Rs {{ tx.platform_fee|floatformat:2 }}</td>

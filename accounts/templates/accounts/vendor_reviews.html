@@ -26,7 +26,11 @@
                     <div class="review-info">
                         <div class="review-title">{{ review.package.title }}</div>
                         <div class="review-meta">
-                            {{ review.traveler.get_full_name|default:"Traveler" }} - {{ review.created_at|date:"M d, Y" }}
+                            {% if review.traveler %}
+                                {{ review.traveler.get_full_name|default:"Traveler" }} - {{ review.created_at|date:"M d, Y" }}
+                            {% else %}
+                                Deleted User - {{ review.created_at|date:"M d, Y" }}
+                            {% endif %}
                         </div>
                         {% if review.comment %}
                             <div class="review-comment">{{ review.comment }}</div>

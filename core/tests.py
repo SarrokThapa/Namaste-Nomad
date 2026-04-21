@@ -1,3 +1,9 @@
+"""Tests for the core app: bookings, payments, packages, community, support."""
+
+# NOTE: file > 300 lines — split deferred. Splitting Django test modules
+# is risky because the test runner discovers tests by module path, and
+# any rename would change ``manage.py test`` invocations and CI configs.
+
 from datetime import timedelta
 from decimal import Decimal
 from tempfile import TemporaryDirectory
@@ -11,6 +17,7 @@ from django.utils import timezone
 from accounts.models import Badge, Notification, RewardPoint, TravelerProfile, User, UserBadge, VendorProfile
 from .models import Booking, ContactMessage, Discount, Package, PackageImage, Post, Review, SupportConversation, SupportMessage
 from .payments import StripeError
+from .services.booking_service import _parse_traveler_post_data
 from .views import _complete_paid_booking
 
 
@@ -263,6 +270,12 @@ class BookingStripeFlowTests(TestCase):
             email='vendor@example.com',
             user_type='vendor',
         )
+        VendorProfile.objects.create(
+            user=self.vendor,
+            business_name='Everest Adventures Pvt. Ltd.',
+            owner_name='Vendor Owner',
+            is_approved=True,
+        )
         self.admin = User.objects.create_user(
             username='admin_user',
             password='admin-pass-123',
@@ -430,22 +443,6 @@ class BookingStripeFlowTests(TestCase):
         self.assertEqual(booking.payment_reference, 'pi_test_123')
         self.assertIsNotNone(booking.paid_at)
 
-    @patch('core.views.booking_views.expire_checkout_session')
-    def test_booking_checkout_cancel_releases_slots(self, mock_expire_checkout_session):
-        booking = self._create_pending_booking()
-        self.client.force_login(self.traveler)
-
-        response = self.client.get(reverse('booking_checkout_cancel', args=[booking.id]))
-
-        booking.refresh_from_db()
-        self.package.refresh_from_db()
-
-        self.assertRedirects(response, reverse('package_book', args=[self.package.id]))
-        self.assertEqual(booking.status, Booking.STATUS_CANCELLED)
-        self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_FAILED)
-        self.assertEqual(self.package.available_slots, 5)
-        mock_expire_checkout_session.assert_called_once_with('cs_test_123')
-
     def test_vendor_cannot_confirm_unpaid_booking(self):
         booking = self._create_pending_booking()
         self.client.force_login(self.vendor)
@@ -460,6 +457,34 @@ class BookingStripeFlowTests(TestCase):
         self.assertRedirects(response, reverse('vendor_bookings'))
         self.assertEqual(booking.status, Booking.STATUS_PENDING)
         self.assertEqual(booking.payment_status, Booking.PAYMENT_STATUS_PENDING)
+
+    def test_vendor_cannot_reconfirm_cancelled_booking(self):
+        booking = self._create_paid_booking()
+        booking.status = Booking.STATUS_CANCELLED
+        booking.save(update_fields=['status'])
+        self.client.force_login(self.vendor)
+
+        response = self.client.post(
+            reverse('vendor_booking_status_update', args=[booking.id]),
+            data={'status': 'confirmed'},
+        )
+
+        booking.refresh_from_db()
+
+        self.assertRedirects(response, reverse('vendor_bookings'))
+        self.assertEqual(booking.status, Booking.STATUS_CANCELLED)
+        self.assertEqual(
+            RewardPoint.objects.filter(user=self.traveler, action_type='booking_confirmed').count(),
+            0,
+        )
+        self.assertEqual(
+            Notification.objects.filter(
+                user=self.traveler,
+                related_object_id=booking.id,
+                type=Notification.TYPE_BOOKING,
+            ).count(),
+            0,
+        )
 
     def test_package_book_renders_esewa_checkout_form(self):
         self.client.force_login(self.traveler)
@@ -543,6 +568,13 @@ class BookingStripeFlowTests(TestCase):
         self.assertContains(response, reverse('booking_esewa_checkout', args=[booking.id]))
         self.assertContains(response, 'Pay via Stripe')
         self.assertContains(response, 'Pay via eSewa')
+
+    def test_booking_confirmation_redirects_when_booking_not_found(self):
+        self.client.force_login(self.traveler)
+
+        response = self.client.get(reverse('booking_confirmation', args=[999999]))
+
+        self.assertRedirects(response, reverse('traveler_bookings'))
 
     @patch('core.views.payment_views.create_checkout_session')
     def test_booking_stripe_checkout_redirects_to_gateway(self, mock_create_checkout_session):
@@ -737,8 +769,28 @@ class BookingStripeFlowTests(TestCase):
         self.assertContains(response, 'Booking Invoice')
         self.assertContains(response, booking.package.title)
         self.assertContains(response, 'Payment Method')
+        self.assertContains(response, self.vendor.vendor_profile.business_name)
         self.assertNotContains(response, 'Platform Fee')
         self.assertNotContains(response, 'Vendor Share')
+
+    def test_booking_detail_shows_vendor_name(self):
+        booking = self._create_paid_booking()
+        self.client.force_login(self.traveler)
+
+        response = self.client.get(reverse('booking_detail', args=[booking.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.vendor.vendor_profile.business_name)
+
+    def test_invoice_view_uses_package_vendor_when_booking_vendor_missing(self):
+        booking = self._create_paid_booking()
+        Booking.objects.filter(id=booking.id).update(vendor=None)
+        self.client.force_login(self.traveler)
+
+        response = self.client.get(reverse('booking_invoice', args=[booking.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.vendor.vendor_profile.business_name)
 
     def test_other_traveler_cannot_access_invoice(self):
         booking = self._create_paid_booking()
@@ -756,6 +808,43 @@ class BookingStripeFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/pdf')
+
+
+class TravelerDetailsValidationTests(TestCase):
+    def _base_traveler_post(self):
+        return {
+            't_0_full_name': 'Ram Kumar',
+            't_0_age': '30',
+            't_0_gender': 'male',
+            't_0_phone_number': '+9779800000000',
+            't_0_email': 'ram@example.com',
+            't_0_nationality': 'Nepali',
+            't_0_id_type': 'passport',
+            't_0_id_number': 'P12345678',
+            't_0_medical_notes': '',
+            't_0_emergency_contact_name': 'Sita Kumari',
+            't_0_emergency_contact_phone': '+9779811111111',
+        }
+
+    def test_parse_traveler_post_data_rejects_age_out_of_range(self):
+        for invalid_age in ('0', '121'):
+            with self.subTest(invalid_age=invalid_age):
+                post_data = self._base_traveler_post()
+                post_data['t_0_age'] = invalid_age
+
+                _travelers, errors = _parse_traveler_post_data(post_data, 1)
+
+                self.assertIn(0, errors)
+                self.assertIn('age', errors[0])
+
+    def test_parse_traveler_post_data_accepts_custom_nationality(self):
+        post_data = self._base_traveler_post()
+        post_data['t_0_nationality'] = 'Bhutanese'
+
+        travelers, errors = _parse_traveler_post_data(post_data, 1)
+
+        self.assertEqual(errors, {})
+        self.assertEqual(travelers[0]['nationality'], 'Bhutanese')
 
 
 class AchievementDiscountFlowTests(TestCase):
@@ -932,75 +1021,6 @@ class PostBookingAutoMessageTests(TestCase):
                 related_object_id=booking.id,
             ).exists()
         )
-
-
-class HomePromotionsPersonalizationTests(TestCase):
-    def setUp(self):
-        self.vendor = User.objects.create_user(
-            username='promo_home_vendor',
-            password='vendor-pass-123',
-            email='promo-home-vendor@example.com',
-            user_type='vendor',
-        )
-        self.package = Package.objects.create(
-            vendor=self.vendor,
-            title='Promo Home Trek',
-            category=Package.CATEGORY_TREK,
-            location='Annapurna',
-            location_name='Annapurna',
-            price='12000.00',
-            available_slots=6,
-            available_from=timezone.localdate() - timedelta(days=1),
-            available_until=timezone.localdate() + timedelta(days=10),
-            is_active=True,
-        )
-
-    def test_home_shows_promotions_for_opted_in_traveler(self):
-        from .models import SpecialOffer, TravelTip, Wishlist
-
-        traveler = User.objects.create_user(
-            username='promo_home_traveler',
-            password='traveler-pass-123',
-            email='promo-home-traveler@example.com',
-            user_type='traveler',
-            wants_promotions=True,
-        )
-        Wishlist.objects.create(traveler=traveler, package=self.package)
-        TravelTip.objects.create(
-            title='Pack Better for High Altitude',
-            summary='Layering and hydration essentials.',
-            content='Bring layers, keep water intake steady, and pace your ascent.',
-            is_active=True,
-        )
-        SpecialOffer.objects.create(
-            title='Spring Trek Discount',
-            summary='Save on selected departures.',
-            content='Book this month and receive a special package discount.',
-            is_active=True,
-        )
-
-        self.client.force_login(traveler)
-        response = self.client.get(reverse('home'))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Recommended for You')
-        self.assertContains(response, 'Special Offers')
-        self.assertContains(response, 'Travel Tips')
-
-    def test_home_shows_opt_in_hint_for_non_opted_traveler(self):
-        traveler = User.objects.create_user(
-            username='no_promo_home_traveler',
-            password='traveler-pass-123',
-            email='no-promo-home-traveler@example.com',
-            user_type='traveler',
-            wants_promotions=False,
-        )
-        self.client.force_login(traveler)
-
-        response = self.client.get(reverse('home'))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'travel tips and special offers')
 
 
 class PublicTravelerProfileTests(TestCase):

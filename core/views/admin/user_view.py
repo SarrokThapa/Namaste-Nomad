@@ -1,3 +1,5 @@
+"""Admin: list traveler and vendor users with optional role filter."""
+
 from django.db.models import Count
 from django.shortcuts import render
 
@@ -7,6 +9,7 @@ from accounts.views.common import _get_admin_profile, admin_required
 
 @admin_required
 def admin_users(request):
+    """Admin users list with optional traveler/vendor role filter."""
     role = (request.GET.get('role') or '').strip().lower()
 
     users = User.objects.filter(user_type__in=['traveler', 'vendor']).select_related('vendor_profile').annotate(

@@ -1,6 +1,55 @@
-"""Vendor dashboard and support/notification views."""
+"""Vendor dashboard and support/notification views.
 
-from ..common import *
+Owns the vendor analytics dashboard, the vendor settings page, the
+vendor transactions list, and the shared traveler+vendor support chat
+and notifications endpoints (both full-page and AJAX widget variants).
+"""
+
+# NOTE: file > 300 lines — split deferred. Support, notifications and
+# vendor dashboard share the same `from ..common import (...)` bundle
+# and are tightly coupled to vendor session/role checks; splitting
+# would duplicate the import bundle in 3 separate files.
+
+from ..common import (
+    Avg,
+    Booking,
+    Count,
+    Decimal,
+    JsonResponse,
+    Notification,
+    Package,
+    Q,
+    Review,
+    Sum,
+    SupportConversation,
+    SupportMessage,
+    Transaction,
+    TravelerProfile,
+    _apply_transaction_filters,
+    _get_admin_profile,
+    _get_or_create_support_conversation,
+    _get_traveler_profile,
+    _get_vendor_profile,
+    _serialize_support_message,
+    _transaction_csv_response,
+    csrf_protect,
+    csv,
+    date,
+    login_required,
+    messages,
+    monthrange,
+    never_cache,
+    notification_link,
+    notify_admins,
+    redirect,
+    render,
+    reverse,
+    serialize_notification,
+    settings,
+    timedelta,
+    timezone,
+    vendor_required,
+)
 from core.services.subscription_service import (
     expire_overdue_subscriptions,
     get_active_subscription as get_active_sub,
@@ -13,6 +62,7 @@ from core.services.subscription_service import (
 @csrf_protect
 
 def support_chat(request):
+    """Full-page support chat for travelers and vendors; posts a new message."""
     if getattr(request.user, 'user_type', '') not in {'traveler', 'vendor'}:
         messages.error(request, 'Traveler or Vendor access only.')
         return redirect('home')
@@ -53,7 +103,7 @@ def support_chat(request):
 
     support_messages = (
         SupportMessage.objects.filter(conversation=conversation)
-        .select_related('sender')
+        .select_related('sender', 'sender__vendor_profile')
         .order_by('created_at')
     )
     base_template = (
@@ -81,13 +131,14 @@ def support_chat(request):
 @login_required(login_url='account_login_choice')
 
 def support_widget_data(request):
+    """JSON feed of the user's open support conversation for the floating widget."""
     if getattr(request.user, 'user_type', '') not in {'traveler', 'vendor'}:
         return JsonResponse({'error': 'Forbidden'}, status=403)
 
     conversation = _get_or_create_support_conversation(request.user)
     support_messages = SupportMessage.objects.filter(
         conversation=conversation,
-    ).select_related('sender').order_by('created_at')
+    ).select_related('sender', 'sender__vendor_profile').order_by('created_at')
 
     return JsonResponse({
         'conversation_id': conversation.id,
@@ -101,6 +152,7 @@ def support_widget_data(request):
 @csrf_protect
 
 def support_widget_send(request):
+    """AJAX endpoint to post a new support message from the floating widget."""
     if getattr(request.user, 'user_type', '') not in {'traveler', 'vendor'}:
         return JsonResponse({'error': 'Forbidden'}, status=403)
     if request.method != 'POST':
@@ -135,6 +187,7 @@ def support_widget_send(request):
 @login_required(login_url='account_login_choice')
 
 def notifications_data(request):
+    """JSON feed of the 20 most recent notifications for the bell-icon dropdown."""
     notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:20]
     unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
     return JsonResponse({
@@ -148,6 +201,7 @@ def notifications_data(request):
 @csrf_protect
 
 def notifications_mark_read(request):
+    """Mark a single notification (or all notifications) as read."""
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
@@ -173,6 +227,7 @@ def notifications_mark_read(request):
 @login_required(login_url='account_login_choice')
 
 def notifications_list(request):
+    """Full-page list of the user's 50 most recent notifications, role-aware template."""
     notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:50]
     unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
     for notification in notifications:
@@ -209,15 +264,16 @@ def notifications_list(request):
 
 
 @never_cache
-@login_required(login_url='vendor_login')
+@vendor_required(login_url='vendor_login')
 
 def vendor_dashboard(request):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
-
+    """Main vendor dashboard: KPIs, revenue, monthly trends, recent bookings, featured slots."""
     vendor_profile = _get_vendor_profile(request.user)
     vendor_packages = Package.objects.filter(vendor=request.user)
-    vendor_bookings = Booking.objects.filter(package__vendor=request.user)
+    vendor_bookings = Booking.objects.filter(
+        package__vendor=request.user,
+        traveler__isnull=False,
+    )
     completed_vendor_bookings = vendor_bookings.filter(
         payment_status=Booking.PAYMENT_STATUS_COMPLETED,
     )
@@ -234,7 +290,10 @@ def vendor_dashboard(request):
     active_packages = vendor_packages.filter(is_active=True).count()
     total_bookings = vendor_bookings.count()
     pending_bookings = vendor_bookings.filter(status='pending').count()
-    average_rating = Review.objects.filter(package__vendor=request.user).aggregate(
+    average_rating = Review.objects.filter(
+        package__vendor=request.user,
+        traveler__isnull=False,
+    ).aggregate(
         avg=Avg('rating')
     )['avg'] or 0
 
@@ -353,12 +412,10 @@ def vendor_dashboard(request):
 
 
 @never_cache
-@login_required(login_url='vendor_login')
+@vendor_required(login_url='vendor_login')
 
 def vendor_settings(request):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
-
+    """Vendor settings page: subscription, feature plans, and featured-package slot UI."""
     vendor_profile = _get_vendor_profile(request.user)
     subscription = get_active_sub(request.user)
     feature_plans = get_available_plans()
@@ -387,23 +444,21 @@ def vendor_settings(request):
 
 
 @never_cache
-@login_required(login_url='vendor_login')
+@vendor_required(login_url='vendor_login')
 @csrf_protect
 
 def vendor_transactions(request):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
-
+    """List the vendor's payment transactions with filters and CSV export."""
     vendor_profile = _get_vendor_profile(request.user)
     transactions = Transaction.objects.filter(vendor=request.user).select_related(
         'booking',
         'booking__package',
         'traveler',
     )
-    transactions, filters = _apply_transaction_filters(transactions, request)
+    transactions, filters = _apply_transaction_filters(transactions, request, allow_status=False)
     transactions = transactions.order_by('-created_at')
 
-    if request.GET.get('export') == 'csv':
+    if request.GET.get('export') == 'csv' and not filters.get('date_error'):
         return _transaction_csv_response(transactions, 'vendor-transactions.csv')
 
     return render(request, 'accounts/vendor_transactions.html', {

@@ -1,4 +1,10 @@
-"""Notification and support-message service helpers."""
+"""Notification and support-message service helpers.
+
+Bundles the booking-related notification side-effects (vendor + admin
+pings on booking creation and payment, plus the auto-generated vendor
+"thank you" support message). Re-exports its names through ``__all__``
+so payment_views.py can pull the whole bundle.
+"""
 
 from django.utils import timezone
 
@@ -9,6 +15,7 @@ from ..models import Booking, SupportConversation, SupportMessage
 
 
 def _notify_booking_created(booking):
+    """Ping the vendor and the admin team that a new booking has been created."""
     if booking.vendor:
         create_notification(
             booking.vendor,
@@ -24,6 +31,7 @@ def _notify_booking_created(booking):
 
 
 def _notify_booking_paid(booking):
+    """Ping the vendor and the admin team that a booking has been paid for."""
     if booking.vendor:
         create_notification(
             booking.vendor,
@@ -39,6 +47,7 @@ def _notify_booking_paid(booking):
 
 
 def _get_or_create_open_support_conversation_for_user(user):
+    """Return the user's most recent OPEN support conversation, creating one if missing."""
     conversation = (
         SupportConversation.objects.filter(
             user=user,
@@ -53,6 +62,7 @@ def _get_or_create_open_support_conversation_for_user(user):
 
 
 def _vendor_display_for_auto_message(vendor):
+    """Return a friendly display name for the vendor used in the auto-generated message."""
     if vendor is None:
         return 'Vendor Team'
     full_name = vendor.get_full_name().strip()
@@ -62,6 +72,7 @@ def _vendor_display_for_auto_message(vendor):
 
 
 def _send_post_booking_vendor_message(booking):
+    """Auto-post a vendor "thank you" support message to the traveler after a paid booking."""
     traveler = booking.traveler
     vendor = booking.vendor or booking.package.vendor
     if traveler is None or vendor is None:

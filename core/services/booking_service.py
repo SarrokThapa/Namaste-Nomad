@@ -1,4 +1,15 @@
-"""Booking lifecycle service helpers."""
+"""Booking lifecycle service helpers.
+
+Owns the lower-level pieces of the booking flow: expiring stale pending
+bookings, cancelling unpaid bookings, finalising a paid booking, parsing
+the per-person traveler form-data block, and persisting BookingTraveler
+rows. The view-layer helpers in core/views/payment_views.py wrap these.
+
+NOTE: this module re-exports its names from a single ``__all__`` list so
+that core/views/payment_views.py can pull the whole bundle through
+``from core.services.booking_service import (...)``. Treat ``__all__``
+as part of this module's public API.
+"""
 
 import re
 from decimal import Decimal
@@ -14,6 +25,7 @@ from .notification_service import _send_post_booking_vendor_message
 
 
 def _expire_stale_pending_bookings(package_id=None):
+    """Cancel pending bookings whose payment_expires_at has passed and return their slots."""
     stale_bookings = Booking.objects.select_for_update().filter(
         status=Booking.STATUS_PENDING,
         payment_status__in=[
@@ -37,6 +49,7 @@ def _expire_stale_pending_bookings(package_id=None):
 
 
 def _cancel_unpaid_booking(booking, payment_status):
+    """Cancel a still-unpaid booking, releasing its reserved package slots."""
     if (
         booking.status == Booking.STATUS_PENDING
         and booking.payment_status != Booking.PAYMENT_STATUS_COMPLETED
@@ -58,6 +71,7 @@ def _complete_paid_booking(
     esewa_transaction_id='',
     paid_amount=None,
 ):
+    """Mark a booking as paid, write the Transaction row, consume any discount, and notify."""
     booking.status = Booking.STATUS_CONFIRMED
     booking.payment_status = Booking.PAYMENT_STATUS_COMPLETED
     if payment_reference:
@@ -147,7 +161,7 @@ def _parse_traveler_post_data(post, number_of_people):
         gender = (post.get(f'{prefix}gender') or '').strip()
         phone_number = (post.get(f'{prefix}phone_number') or '').strip()
         email = (post.get(f'{prefix}email') or '').strip()
-        nationality = (post.get(f'{prefix}nationality') or 'Nepali').strip()
+        nationality = (post.get(f'{prefix}nationality') or '').strip()
         id_type = (post.get(f'{prefix}id_type') or '').strip()
         id_number = (post.get(f'{prefix}id_number') or '').strip()
         medical_notes = (post.get(f'{prefix}medical_notes') or '').strip()
@@ -172,6 +186,12 @@ def _parse_traveler_post_data(post, number_of_people):
 
         if not id_number:
             traveler_errors['id_number'] = 'ID number is required.'
+
+        if len(nationality) > 80:
+            traveler_errors['nationality'] = 'Nationality must be 80 characters or fewer.'
+
+        if not nationality:
+            nationality = 'Nepali'
 
         if is_primary:
             if not phone_number:

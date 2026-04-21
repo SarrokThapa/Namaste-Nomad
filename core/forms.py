@@ -229,17 +229,11 @@ class SiteSettingForm(forms.ModelForm):
             'commission_percent',
             'enable_booking',
             'enable_community',
-            'contact_email',
-            'contact_phone',
-            'instagram_link',
             'hero_title',
             'hero_subtitle',
         ]
         widgets = {
             'commission_percent': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
-            'contact_email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'support@example.com'}),
-            'contact_phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+977 ...'}),
-            'instagram_link': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://instagram.com/...'}),
             'hero_title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Find Your Perfect Nepal Trek'}),
             'hero_subtitle': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }

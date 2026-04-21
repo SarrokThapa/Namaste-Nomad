@@ -61,6 +61,18 @@
                     </span>
                     Support Inbox{% if support_inbox_unread_count %} ({{ support_inbox_unread_count }} new){% endif %}
                 </a>
+                <div class="nav-section-label">Finance</div>
+                <a class="nav-item nav-item-finance {% if active_page == 'transactions' %}active{% endif %}" href="{% url 'admin_transactions' %}">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="5" width="18" height="14" rx="2"/>
+                            <path d="M3 10h18"/>
+                            <path d="M7 15h4"/>
+                        </svg>
+                    </span>
+                    Admin Transactions
+                </a>
+                <div class="nav-section-label">Management</div>
                 <a class="nav-item" href="#users">
                     <span class="nav-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -401,6 +413,7 @@
                 <div class="action-buttons">
                     <a class="action-btn primary" href="#pending-approvals">Approve Vendors</a>
                     <a class="action-btn dark" href="#recent-activity">View Reports</a>
+                    <a class="action-btn dark" href="{% url 'admin_transactions' %}">View Transactions</a>
                     <a class="action-btn success" href="#users">Manage Users</a>
                 </div>
             </section>
@@ -426,8 +439,13 @@
                             <tbody>
                                 {% for review in reviews %}
                                     <tr>
-                                        <td>{% firstof review.traveler.get_full_name review.traveler.username "Traveler" %}</td>
-                                        <td>{{ review.traveler.email|default:"-" }}</td>
+                                        {% if review.traveler %}
+                                            <td>{% firstof review.traveler.get_full_name review.traveler.username "Traveler" %}</td>
+                                            <td>{{ review.traveler.email|default:"-" }}</td>
+                                        {% else %}
+                                            <td>Deleted User</td>
+                                            <td>-</td>
+                                        {% endif %}
                                         <td>{{ review.package.title }}</td>
                                         <td>{{ review.rating }}/5</td>
                                         <td>{{ review.comment|default:"-"|truncatechars:120 }}</td>
@@ -464,9 +482,13 @@
                             <tbody>
                                 {% for booking in bookings %}
                                     <tr>
-                                        <td>{{ booking.traveler.get_full_name|default:"Traveler" }}</td>
+                                        {% if booking.traveler %}
+                                            <td>{{ booking.traveler.get_full_name|default:"Traveler" }}</td>
+                                        {% else %}
+                                            <td>Deleted User</td>
+                                        {% endif %}
                                         <td>{{ booking.package.title }}</td>
-                                        <td>{{ booking.vendor.get_full_name|default:booking.package.vendor.get_full_name|default:booking.package.vendor.email|default:"Vendor" }}</td>
+                                        <td>{{ booking.vendor.get_full_name|default:booking.package.vendor.get_full_name|default:booking.package.vendor.username|default:"Vendor" }}</td>
                                         <td>{{ booking.number_of_people }}</td>
                                         <td>Rs {{ booking.total_price|floatformat:0 }}</td>
                                         <td>Rs {{ booking.vendor_amount|floatformat:0 }}</td>
@@ -562,7 +584,7 @@
                         <tbody>
                             {% for sub in active_subscriptions %}
                                 <tr>
-                                    <td>{{ sub.vendor.get_full_name|default:sub.vendor.email }}</td>
+                                    <td>{{ sub.vendor.get_full_name|default:sub.vendor.username|default:"Vendor" }}</td>
                                     <td>{{ sub.plan_name }}</td>
                                     <td>{{ sub.slots_used }} / {{ sub.slots_total }}</td>
                                     <td>Rs {{ sub.price|floatformat:0 }}</td>
@@ -594,7 +616,7 @@
                                 <div>
                                     <div class="package-name">{{ package.title }}</div>
                                     <div class="package-meta">
-                                        {{ package.vendor.get_full_name|default:package.vendor.email }} -
+                                        {{ package.vendor.get_full_name|default:package.vendor.username|default:"Vendor" }} -
                                         Rs {{ package.price|floatformat:0 }}
                                     </div>
                                 </div>
@@ -621,9 +643,9 @@
                             {% for vendor in vendors %}
                                 <div class="package-item">
                                     <div>
-                                        <div class="package-name">{{ vendor.vendor_profile.business_name|default:vendor.email }}</div>
+                                        <div class="package-name">{{ vendor.vendor_profile.business_name|default:vendor.get_full_name|default:vendor.username|default:"Vendor" }}</div>
                                         <div class="package-meta">
-                                            {{ vendor.email }} - Packages {{ vendor.package_count }} -
+                                            {{ vendor.vendor_profile.business_name|default:vendor.get_full_name|default:vendor.username|default:"Vendor" }} - Packages {{ vendor.package_count }} -
                                             {% if vendor.vendor_profile.is_approved %}Approved{% else %}Pending{% endif %} -
                                             {% if vendor.vendor_profile.is_verified %}Verified{% else %}Unverified{% endif %} -
                                             {% if vendor.is_active %}Active{% else %}Suspended{% endif %}

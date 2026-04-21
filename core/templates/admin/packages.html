@@ -38,7 +38,7 @@
                     {% for package in packages %}
                         <tr>
                             <td>{{ package.title }}</td>
-                            <td>{{ package.vendor.get_full_name|default:package.vendor.email }}</td>
+                            <td>{{ package.vendor.get_full_name|default:package.vendor.username|default:"Vendor" }}</td>
                             <td>Rs {{ package.price|floatformat:0 }}</td>
                             <td>{% if package.is_active %}Active{% else %}Hidden{% endif %}</td>
                             <td>{{ package.created_at|date:"M d, Y" }}</td>

@@ -16,6 +16,7 @@ from .esewa_service import (
 
 
 def _stripe_checkout_ttl_minutes():
+    """Return the Stripe checkout session TTL in minutes (clamped to a 30-minute minimum)."""
     try:
         minutes = int(getattr(settings, 'STRIPE_CHECKOUT_TTL_MINUTES', 30))
     except (TypeError, ValueError):
@@ -24,10 +25,12 @@ def _stripe_checkout_ttl_minutes():
 
 
 def _booking_payment_expires_at():
+    """Return the wall-clock cutoff after which a pending booking should be auto-cancelled."""
     return timezone.now() + timedelta(minutes=_stripe_checkout_ttl_minutes())
 
 
 def _mark_payment_failed(booking):
+    """Flag a booking's payment as failed unless it has already been completed."""
     if booking.payment_status == Booking.PAYMENT_STATUS_COMPLETED:
         return
     booking.payment_status = Booking.PAYMENT_STATUS_FAILED
@@ -35,6 +38,7 @@ def _mark_payment_failed(booking):
 
 
 def _as_money_decimal(value):
+    """Coerce *value* to a 2-decimal Decimal, returning None if it can't be parsed."""
     try:
         return Decimal(str(value)).quantize(Decimal('0.01'))
     except (InvalidOperation, TypeError, ValueError):
@@ -42,6 +46,7 @@ def _as_money_decimal(value):
 
 
 def _render_esewa_checkout(request, booking):
+    """Build the eSewa V2 redirect form payload, persist the txn UUID, and render the redirect page."""
     success_url = request.build_absolute_uri(
         reverse('booking_esewa_success', kwargs={'booking_id': booking.id}),
     )

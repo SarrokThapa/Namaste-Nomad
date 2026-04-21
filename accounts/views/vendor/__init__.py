@@ -1,7 +1,3 @@
-"""Vendor view modules."""
+"""Vendor views package."""
 
-from .vendor_dashboard import *
-from .vendor_package import *
-from .vendor_booking import *
-from .vendor_subscription import *
-from .vendor_profile import *
+__all__ = []

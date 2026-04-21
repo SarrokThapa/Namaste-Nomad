@@ -1,3 +1,10 @@
+"""Traveler reward points, badge unlock detection, and achievement-driven discounts.
+
+Awards points for traveler actions, awards badges based on cumulative
+stats (posts, wishlists, confirmed bookings, post likes, reviews, treks),
+and creates a one-shot discount when a new badge is earned.
+"""
+
 from datetime import timedelta
 
 from django.db.models import Count, Sum
@@ -9,6 +16,7 @@ from .notifications import create_notification
 
 
 def add_points(user, action_type, points):
+    """Award reward points to a traveler for a named action; no-op for non-travelers."""
     if not getattr(user, 'is_authenticated', False):
         return None
     if getattr(user, 'user_type', '') != 'traveler':
@@ -21,6 +29,7 @@ def add_points(user, action_type, points):
 
 
 def _confirmed_booking_count(user):
+    """Return the user's confirmed booking count (used by booking-related badges)."""
     return Booking.objects.filter(
         traveler=user,
         status=Booking.STATUS_CONFIRMED,
@@ -28,6 +37,7 @@ def _confirmed_booking_count(user):
 
 
 def _confirmed_trek_booking_count(user):
+    """Return the user's confirmed trek booking count (used by trek-specific badges)."""
     return Booking.objects.filter(
         traveler=user,
         status=Booking.STATUS_CONFIRMED,
@@ -36,6 +46,7 @@ def _confirmed_trek_booking_count(user):
 
 
 def _post_like_total(user):
+    """Return the total likes received across all of the user's community posts."""
     return (
         Post.objects.filter(user=user)
         .aggregate(total=Count('likes'))
@@ -45,6 +56,7 @@ def _post_like_total(user):
 
 
 def _collect_badge_stats(user):
+    """Return the {condition_type: current_value} stats dict used for badge unlocks."""
     return {
         Badge.CONDITION_FIRST_POST: Post.objects.filter(user=user).count(),
         Badge.CONDITION_FIRST_WISHLIST: Wishlist.objects.filter(traveler=user).count(),
@@ -56,6 +68,7 @@ def _collect_badge_stats(user):
 
 
 def sync_badges_for_user(user):
+    """Re-evaluate all badges for a traveler; awards new badges and creates a discount on unlock."""
     if not getattr(user, 'is_authenticated', False):
         return []
     if getattr(user, 'user_type', '') != 'traveler':
@@ -95,6 +108,7 @@ def sync_badges_for_user(user):
 
 
 def total_points_for_user(user):
+    """Return the lifetime sum of reward points for a traveler (0 for non-travelers)."""
     if not getattr(user, 'is_authenticated', False):
         return 0
     if getattr(user, 'user_type', '') != 'traveler':
@@ -108,6 +122,7 @@ def total_points_for_user(user):
 
 
 def discount_for_points(points):
+    """Return ``(discount_pct, next_threshold)`` for the given points balance."""
     if points >= 500:
         return 15, None
     if points >= 200:
@@ -118,6 +133,7 @@ def discount_for_points(points):
 
 
 def badge_progress_for_user(user):
+    """Return ``(badges, summary, next_badge)`` annotated with progress for the achievements page."""
     if not getattr(user, 'is_authenticated', False):
         return [], {}, None
     if getattr(user, 'user_type', '') != 'traveler':

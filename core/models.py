@@ -1,3 +1,17 @@
+"""Database models for the core app.
+
+Owns the booking/payment domain (Package, Booking, BookingTraveler,
+Transaction, Discount), the community feed (Post, PostMedia, Comment),
+support chat (SupportConversation, SupportMessage), public content
+(TravelTip, SpecialOffer, ContactMessage), and site-wide settings
+(SiteSetting). The 75/25 vendor/platform commission split lives on
+``Booking`` (``COMMISSION_VENDOR_RATE`` / ``COMMISSION_PLATFORM_RATE``).
+"""
+
+# NOTE: file > 300 lines — split deferred. Splitting Django models across
+# multiple files in the same app is a known source of migration / app-label
+# bugs and the project's safety rules forbid migration changes.
+
 from datetime import date
 from decimal import Decimal
 import uuid
@@ -526,20 +540,24 @@ class Transaction(models.Model):
             self.transaction_id = f"TXN-{timezone.localdate():%Y%m%d}-{uuid.uuid4().hex[:8].upper()}"
         super().save(*args, **kwargs)
 
-    @property
-    def platform_fee(self):
+    def _earning_split(self):
+        """Return ``(vendor_amount, platform_fee)`` based on transaction type."""
         total = self.total_amount or Decimal('0')
+        if self.transaction_type == self.TYPE_FEATURE_SUBSCRIPTION:
+            return Decimal('0.00'), total
+
         from .services.site_settings import calculate_commission_split
 
-        _vendor_amount, platform_fee = calculate_commission_split(total)
+        return calculate_commission_split(total)
+
+    @property
+    def platform_fee(self):
+        _vendor_amount, platform_fee = self._earning_split()
         return platform_fee
 
     @property
     def vendor_earnings(self):
-        total = self.total_amount or Decimal('0')
-        from .services.site_settings import calculate_commission_split
-
-        vendor_amount, _platform_fee = calculate_commission_split(total)
+        vendor_amount, _platform_fee = self._earning_split()
         return vendor_amount
 
     def __str__(self):

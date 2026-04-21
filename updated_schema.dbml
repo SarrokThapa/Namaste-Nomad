@@ -1,0 +1,540 @@
+// Auto-generated from live SQLite schema: db.sqlite3
+// Project: Namaste Nomad
+
+Table accounts_adminprofile {
+  id INTEGER [pk, not null]
+  bio TEXT [not null]
+  created_at datetime [not null]
+  user_id bigint [not null, unique, ref: > accounts_user.id]
+  avatar varchar(100)
+}
+
+Table accounts_badge {
+  id INTEGER [pk, not null]
+  name varchar(120) [not null, unique]
+  description TEXT [not null]
+  icon varchar(20) [not null]
+  condition_type varchar(40) [not null]
+  condition_value integer unsigned [not null]
+}
+
+Table accounts_featuredpackage {
+  id INTEGER [pk, not null]
+  featured_date datetime [not null]
+  is_active bool [not null]
+  package_id bigint [not null, ref: > core_package.id]
+  subscription_id bigint [not null, ref: > accounts_vendorfeaturesubscription.id]
+
+  Indexes {
+    (subscription_id, package_id) [unique]
+  }
+}
+
+Table accounts_featureplan {
+  id INTEGER [pk, not null]
+  name varchar(100) [not null, unique]
+  slots_count integer unsigned [not null]
+  price decimal [not null]
+  duration_days integer unsigned [not null]
+  description TEXT [not null]
+  is_active bool [not null]
+  created_at datetime [not null]
+}
+
+Table accounts_notification {
+  id INTEGER [pk, not null]
+  message TEXT [not null]
+  type varchar(40) [not null]
+  related_object_id integer unsigned
+  is_read bool [not null]
+  created_at datetime [not null]
+  user_id bigint [not null, ref: > accounts_user.id]
+}
+
+Table accounts_otp {
+  id INTEGER [pk, not null]
+  otp_code varchar(6) [not null]
+  created_at datetime [not null]
+  expires_at datetime [not null]
+  is_used bool [not null]
+  user_id bigint [not null, ref: > accounts_user.id]
+}
+
+Table accounts_passwordresetotp {
+  id INTEGER [pk, not null]
+  email varchar(254) [not null]
+  otp_hash varchar(128) [not null]
+  created_at datetime [not null]
+  expires_at datetime [not null]
+  attempts smallint unsigned [not null]
+  is_used bool [not null]
+  verified bool [not null]
+  blocked_until datetime
+}
+
+Table accounts_rewardpoint {
+  id INTEGER [pk, not null]
+  points INTEGER [not null]
+  action_type varchar(40) [not null]
+  created_at datetime [not null]
+  user_id bigint [not null, ref: > accounts_user.id]
+}
+
+Table accounts_travelerprofile {
+  id INTEGER [pk, not null]
+  date_of_birth date
+  gender varchar(20) [not null]
+  nationality varchar(80) [not null]
+  bio TEXT [not null]
+  created_at datetime [not null]
+  user_id bigint [not null, unique, ref: > accounts_user.id]
+  avatar varchar(100)
+}
+
+Table accounts_user {
+  id INTEGER [pk, not null]
+  password varchar(128) [not null]
+  last_login datetime
+  is_superuser bool [not null]
+  username varchar(150) [not null, unique]
+  first_name varchar(150) [not null]
+  last_name varchar(150) [not null]
+  email varchar(254) [not null]
+  is_staff bool [not null]
+  is_active bool [not null]
+  date_joined datetime [not null]
+  user_type varchar(10) [not null]
+  phone varchar(20)
+  is_verified bool [not null]
+}
+
+Table accounts_user_groups {
+  id INTEGER [pk, not null]
+  user_id bigint [not null, ref: > accounts_user.id]
+  group_id INTEGER [not null, ref: > auth_group.id]
+
+  Indexes {
+    (user_id, group_id) [unique]
+  }
+}
+
+Table accounts_user_user_permissions {
+  id INTEGER [pk, not null]
+  user_id bigint [not null, ref: > accounts_user.id]
+  permission_id INTEGER [not null, ref: > auth_permission.id]
+
+  Indexes {
+    (user_id, permission_id) [unique]
+  }
+}
+
+Table accounts_userbadge {
+  id INTEGER [pk, not null]
+  earned_at datetime [not null]
+  badge_id bigint [not null, ref: > accounts_badge.id]
+  user_id bigint [not null, ref: > accounts_user.id]
+
+  Indexes {
+    (user_id, badge_id) [unique]
+  }
+}
+
+Table accounts_vendorfeaturesubscription {
+  id INTEGER [pk, not null]
+  plan_name varchar(100) [not null]
+  slots_total integer unsigned [not null]
+  price decimal [not null]
+  start_date date [not null]
+  end_date date [not null]
+  payment_status varchar(20) [not null]
+  payment_method varchar(20) [not null]
+  transaction_id varchar(255) [not null]
+  is_active bool [not null]
+  created_at datetime [not null]
+  plan_id bigint [ref: > accounts_featureplan.id]
+  vendor_id bigint [not null, ref: > accounts_user.id]
+}
+
+Table accounts_vendorprofile {
+  id INTEGER [pk, not null]
+  business_name varchar(255) [not null]
+  owner_name varchar(255) [not null]
+  business_license varchar(100)
+  is_approved bool [not null]
+  created_at datetime [not null]
+  user_id bigint [not null, unique, ref: > accounts_user.id]
+  tagline varchar(255) [not null]
+  website varchar(200) [not null]
+  license_number varchar(100) [not null]
+  business_address TEXT [not null]
+  description TEXT [not null]
+  bank_name varchar(120) [not null]
+  account_number varchar(120) [not null]
+  routing_number varchar(120) [not null]
+  paypal_email varchar(254) [not null]
+  logo varchar(100)
+  cover_image varchar(100)
+  is_verified bool [not null]
+  document varchar(100)
+}
+
+Table auth_group {
+  id INTEGER [pk, not null]
+  name varchar(150) [not null, unique]
+}
+
+Table auth_group_permissions {
+  id INTEGER [pk, not null]
+  group_id INTEGER [not null, ref: > auth_group.id]
+  permission_id INTEGER [not null, ref: > auth_permission.id]
+
+  Indexes {
+    (group_id, permission_id) [unique]
+  }
+}
+
+Table auth_permission {
+  id INTEGER [pk, not null]
+  content_type_id INTEGER [not null, ref: > django_content_type.id]
+  codename varchar(100) [not null]
+  name varchar(255) [not null]
+
+  Indexes {
+    (content_type_id, codename) [unique]
+  }
+}
+
+Table core_booking {
+  id INTEGER [pk, not null]
+  start_date date
+  end_date date
+  status varchar(20) [not null]
+  source varchar(20) [not null]
+  total_price decimal [not null]
+  created_at datetime [not null]
+  package_id bigint [not null, ref: > core_package.id]
+  traveler_id bigint [ref: > accounts_user.id]
+  number_of_people integer unsigned [not null]
+  special_notes TEXT [not null]
+  travel_date date [not null]
+  paid_at datetime
+  payment_expires_at datetime
+  payment_method varchar(20) [not null]
+  payment_reference varchar(255) [not null]
+  payment_status varchar(20) [not null]
+  stripe_checkout_session_id varchar(255) [not null]
+  vendor_id bigint [ref: > accounts_user.id]
+  vendor_amount decimal [not null]
+  platform_fee decimal [not null]
+  esewa_transaction_id varchar(255) [not null]
+  paid_amount decimal
+  discount_amount decimal [not null]
+  original_total_price decimal [not null]
+  discount_id bigint [ref: > core_discount.id]
+}
+
+Table core_bookingtraveler {
+  id INTEGER [pk, not null]
+  traveler_index smallint unsigned [not null]
+  full_name varchar(200) [not null]
+  age smallint unsigned [not null]
+  gender varchar(10) [not null]
+  phone_number varchar(30) [not null]
+  email varchar(254) [not null]
+  nationality varchar(80) [not null]
+  id_type varchar(30) [not null]
+  id_number varchar(100) [not null]
+  medical_notes TEXT [not null]
+  emergency_contact_name varchar(200) [not null]
+  emergency_contact_phone varchar(30) [not null]
+  created_at datetime [not null]
+  booking_id bigint [not null, ref: > core_booking.id]
+}
+
+Table core_comment {
+  id INTEGER [pk, not null]
+  body TEXT [not null]
+  created_at datetime [not null]
+  user_id bigint [not null, ref: > accounts_user.id]
+  post_id bigint [not null, ref: > core_post.id]
+  parent_id bigint [ref: > core_comment.id]
+}
+
+Table core_contactmessage {
+  id INTEGER [pk, not null]
+  full_name varchar(120) [not null]
+  email varchar(254) [not null]
+  subject varchar(180) [not null]
+  message TEXT [not null]
+  created_at datetime [not null]
+  is_resolved bool [not null]
+  user_id bigint [ref: > accounts_user.id]
+}
+
+Table core_discount {
+  id INTEGER [pk, not null]
+  percentage decimal
+  fixed_amount decimal
+  max_discount_cap decimal
+  is_used bool [not null]
+  used_at datetime
+  expires_at datetime [not null]
+  source varchar(40) [not null]
+  created_at datetime [not null]
+  user_id bigint [not null, ref: > accounts_user.id]
+}
+
+Table core_package {
+  id INTEGER [pk, not null]
+  title varchar(200) [not null]
+  description TEXT [not null]
+  price decimal [not null]
+  is_active bool [not null]
+  views_count integer unsigned [not null]
+  created_at datetime [not null]
+  vendor_id bigint [not null, ref: > accounts_user.id]
+  location varchar(120) [not null]
+  itinerary TEXT [not null]
+  inclusions TEXT [not null]
+  exclusions TEXT [not null]
+  duration_days smallint unsigned
+  difficulty varchar(20) [not null]
+  group_size smallint unsigned
+  best_season varchar(100) [not null]
+  image_url varchar(200) [not null]
+  category varchar(10) [not null]
+  available_slots integer unsigned [not null]
+  available_from date
+  available_until date
+  location_name varchar(255) [not null]
+  latitude REAL
+  longitude REAL
+  has_guide bool [not null]
+  includes_meals bool [not null]
+  includes_accommodation bool [not null]
+  includes_transport bool [not null]
+  includes_permits bool [not null]
+}
+
+Table core_packageimage {
+  id INTEGER [pk, not null]
+  image varchar(100) [not null]
+  created_at datetime [not null]
+  package_id bigint [not null, ref: > core_package.id]
+  order integer unsigned [not null]
+}
+
+Table core_post {
+  id INTEGER [pk, not null]
+  caption TEXT [not null]
+  created_at datetime [not null]
+  user_id bigint [not null, ref: > accounts_user.id]
+  image varchar(100)
+}
+
+Table core_post_likes {
+  id INTEGER [pk, not null]
+  post_id bigint [not null, ref: > core_post.id]
+  user_id bigint [not null, ref: > accounts_user.id]
+
+  Indexes {
+    (post_id, user_id) [unique]
+  }
+}
+
+Table core_post_tagged_vendors {
+  id INTEGER [pk, not null]
+  post_id bigint [not null, ref: > core_post.id]
+  user_id bigint [not null, ref: > accounts_user.id]
+
+  Indexes {
+    (post_id, user_id) [unique]
+  }
+}
+
+Table core_postmedia {
+  id INTEGER [pk, not null]
+  media_file varchar(100) [not null]
+  media_type varchar(10) [not null]
+  order smallint unsigned [not null]
+  created_at datetime [not null]
+  post_id bigint [not null, ref: > core_post.id]
+}
+
+Table core_review {
+  id INTEGER [pk, not null]
+  rating smallint unsigned [not null]
+  comment TEXT [not null]
+  created_at datetime [not null]
+  package_id bigint [not null, ref: > core_package.id]
+  traveler_id bigint [ref: > accounts_user.id]
+}
+
+Table core_sitesetting {
+  id INTEGER [pk, not null]
+  commission_percent INTEGER [not null]
+  enable_booking bool [not null]
+  enable_community bool [not null]
+  contact_email varchar(254) [not null]
+  contact_phone varchar(20) [not null]
+  instagram_link varchar(200) [not null]
+  hero_title varchar(255) [not null]
+  hero_subtitle TEXT [not null]
+}
+
+Table core_specialoffer {
+  id INTEGER [pk, not null]
+  title varchar(180) [not null]
+  summary varchar(300) [not null]
+  content TEXT [not null]
+  cta_url varchar(200) [not null]
+  valid_until date
+  is_active bool [not null]
+  created_at datetime [not null]
+}
+
+Table core_supportconversation {
+  id INTEGER [pk, not null]
+  created_at datetime [not null]
+  status varchar(10) [not null]
+  user_id bigint [not null, ref: > accounts_user.id]
+}
+
+Table core_supportmessage {
+  id INTEGER [pk, not null]
+  message TEXT [not null]
+  created_at datetime [not null]
+  is_admin_reply bool [not null]
+  conversation_id bigint [not null, ref: > core_supportconversation.id]
+  sender_id bigint [not null, ref: > accounts_user.id]
+  is_system_generated bool [not null]
+  related_booking_id bigint [ref: > core_booking.id]
+}
+
+Table core_transaction {
+  id INTEGER [pk, not null]
+  transaction_id varchar(32) [not null, unique]
+  total_amount decimal [not null]
+  payment_method varchar(20) [not null]
+  payment_status varchar(20) [not null]
+  created_at datetime [not null]
+  booking_id bigint [unique, ref: > core_booking.id]
+  traveler_id bigint [ref: > accounts_user.id]
+  vendor_id bigint [ref: > accounts_user.id]
+  transaction_type varchar(20) [not null]
+  feature_subscription_id bigint [ref: > accounts_vendorfeaturesubscription.id]
+}
+
+Table core_traveltip {
+  id INTEGER [pk, not null]
+  title varchar(180) [not null]
+  summary varchar(300) [not null]
+  content TEXT [not null]
+  is_active bool [not null]
+  created_at datetime [not null]
+}
+
+Table core_wishlist {
+  id INTEGER [pk, not null]
+  created_at datetime [not null]
+  package_id bigint [not null, ref: > core_package.id]
+  traveler_id bigint [not null, ref: > accounts_user.id]
+
+  Indexes {
+    (traveler_id, package_id) [unique]
+  }
+}
+
+Table django_admin_log {
+  id INTEGER [pk, not null]
+  object_id TEXT
+  object_repr varchar(200) [not null]
+  action_flag smallint unsigned [not null]
+  change_message TEXT [not null]
+  content_type_id INTEGER [ref: > django_content_type.id]
+  user_id bigint [not null, ref: > accounts_user.id]
+  action_time datetime [not null]
+}
+
+Table django_content_type {
+  id INTEGER [pk, not null]
+  app_label varchar(100) [not null]
+  model varchar(100) [not null]
+
+  Indexes {
+    (app_label, model) [unique]
+  }
+}
+
+Table django_migrations {
+  id INTEGER [pk, not null]
+  app varchar(255) [not null]
+  name varchar(255) [not null]
+  applied datetime [not null]
+}
+
+Table django_session {
+  session_key varchar(40) [pk, not null]
+  session_data TEXT [not null]
+  expire_date datetime [not null]
+}
+
+Table social_auth_association {
+  id INTEGER [pk, not null]
+  server_url varchar(255) [not null]
+  handle varchar(255) [not null]
+  secret varchar(255) [not null]
+  issued INTEGER [not null]
+  lifetime INTEGER [not null]
+  assoc_type varchar(64) [not null]
+
+  Indexes {
+    (server_url, handle) [unique]
+  }
+}
+
+Table social_auth_code {
+  id INTEGER [pk, not null]
+  email varchar(254) [not null]
+  code varchar(32) [not null]
+  verified bool [not null]
+  timestamp datetime [not null]
+
+  Indexes {
+    (email, code) [unique]
+  }
+}
+
+Table social_auth_nonce {
+  id INTEGER [pk, not null]
+  server_url varchar(255) [not null]
+  timestamp INTEGER [not null]
+  salt varchar(65) [not null]
+
+  Indexes {
+    (server_url, timestamp, salt) [unique]
+  }
+}
+
+Table social_auth_partial {
+  id INTEGER [pk, not null]
+  token varchar(32) [not null]
+  next_step smallint unsigned [not null]
+  backend varchar(32) [not null]
+  timestamp datetime [not null]
+  data TEXT [not null]
+}
+
+Table social_auth_usersocialauth {
+  id INTEGER [pk, not null]
+  provider varchar(32) [not null]
+  uid varchar(255) [not null]
+  user_id bigint [not null, ref: > accounts_user.id]
+  created datetime [not null]
+  modified datetime [not null]
+  extra_data TEXT [not null]
+
+  Indexes {
+    (provider, uid) [unique]
+  }
+}

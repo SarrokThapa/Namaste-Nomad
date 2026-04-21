@@ -1,15 +1,37 @@
+"""Tests for the accounts app: auth, OTP, vendor approval, feature plans, achievements."""
+
+# NOTE: file > 300 lines — split deferred. Same reasoning as core/tests.py:
+# splitting Django test modules changes test discovery paths.
+
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import FeaturedPackage, FeaturePlan, Notification, TravelerProfile, User, VendorFeatureSubscription, VendorProfile
-from core.models import Booking, Package, Review, SpecialOffer
+from .models import AdminProfile, FeaturedPackage, FeaturePlan, Notification, TravelerProfile, User, VendorFeatureSubscription, VendorProfile
+from core.models import Booking, Package, Review, Transaction
 
 
 class VendorApprovalFlowTests(TestCase):
+    def _valid_vendor_package_payload(self, **overrides):
+        payload = {
+            'title': 'Coordinate Validation Trek',
+            'category': Package.CATEGORY_TREK,
+            'location_name': 'Mustang',
+            'latitude': '28.2096',
+            'longitude': '83.9856',
+            'price': '12000',
+            'available_slots': '10',
+            'available_from': str(timezone.localdate() + timedelta(days=1)),
+            'available_until': str(timezone.localdate() + timedelta(days=7)),
+            'is_active': 'on',
+        }
+        payload.update(overrides)
+        return payload
+
     def test_vendor_registration_requires_document(self):
         response = self.client.post(
             reverse('vendor_register'),
@@ -55,6 +77,43 @@ class VendorApprovalFlowTests(TestCase):
         self.assertFalse(profile.is_approved)
         self.assertTrue(bool(profile.document))
 
+    def test_verify_otp_creates_vendor_without_promotions_field(self):
+        document = SimpleUploadedFile(
+            'verification.pdf',
+            b'fake verification payload',
+            content_type='application/pdf',
+        )
+
+        response = self.client.post(
+            reverse('vendor_register'),
+            data={
+                'business_name': 'OTP Treks',
+                'owner_name': 'Gita Rai',
+                'email': 'vendor-otp@example.com',
+                'phone': '+9779800000003',
+                'password': 'strong-pass-123',
+                'confirm_password': 'strong-pass-123',
+                'document': document,
+            },
+        )
+
+        self.assertRedirects(response, reverse('verify_otp'))
+
+        session = self.client.session
+        otp_code = session['_reg_otp_code']
+
+        with self.settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend'):
+            verify_response = self.client.post(
+                reverse('verify_otp'),
+                data={'otp_code': otp_code},
+            )
+
+        user = User.objects.get(email='vendor-otp@example.com')
+
+        self.assertEqual(verify_response.status_code, 302)
+        self.assertEqual(user.user_type, 'vendor')
+        self.assertTrue(user.is_verified)
+
     def test_vendor_registration_rejects_invalid_document_type(self):
         document = SimpleUploadedFile(
             'verification.txt',
@@ -99,6 +158,47 @@ class VendorApprovalFlowTests(TestCase):
         self.assertTrue(any(reverse('vendor_login') in url for url, _code in response.redirect_chain))
         self.assertTrue(any(reverse('vendor_profile') in url for url, _code in response.redirect_chain))
 
+    def test_vendor_profile_post_does_not_change_email(self):
+        vendor = User.objects.create_user(
+            username='profile-vendor@example.com',
+            email='profile-vendor@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            is_verified=True,
+        )
+        VendorProfile.objects.create(
+            user=vendor,
+            business_name='Profile Treks',
+            owner_name='Profile Owner',
+            is_approved=True,
+        )
+        self.client.force_login(vendor)
+
+        response = self.client.post(
+            reverse('vendor_profile'),
+            data={
+                'business_name': 'Profile Treks Updated',
+                'owner_name': 'Profile Owner',
+                'tagline': 'Updated tagline',
+                'license_number': '',
+                'business_address': '',
+                'description': '',
+                'phone': '9800000000',
+                'email': 'changed-email@example.com',
+            },
+            follow=True,
+        )
+
+        vendor.refresh_from_db()
+        vendor.vendor_profile.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Profile updated successfully.')
+        self.assertEqual(vendor.email, 'profile-vendor@example.com')
+        self.assertEqual(vendor.username, 'profile-vendor@example.com')
+        self.assertEqual(vendor.phone, '9800000000')
+        self.assertEqual(vendor.vendor_profile.business_name, 'Profile Treks Updated')
+
     def test_pending_vendor_login_redirects_to_profile_with_notice(self):
         vendor = User.objects.create_user(
             username='pending-login@example.com',
@@ -123,7 +223,163 @@ class VendorApprovalFlowTests(TestCase):
             follow=True,
         )
 
-        self.assertTrue(any(reverse('vendor_profile') in url for url, _code in response.redirect_chain))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Your account has not been Approved yet')
+
+    def test_suspended_vendor_login_shows_suspended_message(self):
+        vendor = User.objects.create_user(
+            username='suspended-login@example.com',
+            email='suspended-login@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            is_verified=True,
+            is_active=False,
+        )
+        VendorProfile.objects.create(
+            user=vendor,
+            business_name='Suspended Login Treks',
+            owner_name='Owner Suspended Login',
+            is_approved=True,
+        )
+
+        response = self.client.post(
+            reverse('vendor_login'),
+            data={
+                'email': 'suspended-login@example.com',
+                'password': 'vendor-pass-123',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Your account has been suspend')
+
+    def test_vendor_booking_status_filter_uses_completed_mapping(self):
+        vendor = User.objects.create_user(
+            username='booking-filter-vendor@example.com',
+            email='booking-filter-vendor@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            is_verified=True,
+        )
+        VendorProfile.objects.create(
+            user=vendor,
+            business_name='Filter Treks',
+            owner_name='Owner Filter',
+            is_approved=True,
+        )
+        traveler = User.objects.create_user(
+            username='booking-filter-traveler@example.com',
+            email='booking-filter-traveler@example.com',
+            password='traveler-pass-123',
+            user_type='traveler',
+            is_verified=True,
+        )
+        pending_package = Package.objects.create(vendor=vendor, title='Pending Filter Package', available_slots=5, price=1000)
+        confirmed_package = Package.objects.create(vendor=vendor, title='Completed Filter Package', available_slots=5, price=1000)
+        Booking.objects.create(
+            package=pending_package,
+            traveler=traveler,
+            vendor=vendor,
+            number_of_people=2,
+            travel_date='2026-04-20',
+            status=Booking.STATUS_PENDING,
+            payment_status=Booking.PAYMENT_STATUS_PENDING,
+        )
+        Booking.objects.create(
+            package=confirmed_package,
+            traveler=traveler,
+            vendor=vendor,
+            number_of_people=2,
+            travel_date='2026-04-21',
+            status=Booking.STATUS_CONFIRMED,
+            payment_status=Booking.PAYMENT_STATUS_COMPLETED,
+        )
+        self.client.force_login(vendor)
+
+        response = self.client.get(reverse('vendor_bookings'), data={'status': 'completed'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Completed Filter Package')
+        self.assertNotContains(response, 'Pending Filter Package')
+
+    def test_vendor_package_create_rejects_latitude_out_of_range(self):
+        vendor = User.objects.create_user(
+            username='lat-vendor@example.com',
+            email='lat-vendor@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            is_verified=True,
+        )
+        VendorProfile.objects.create(
+            user=vendor,
+            business_name='Lat Guard Treks',
+            owner_name='Owner Lat Guard',
+            is_approved=True,
+        )
+        self.client.force_login(vendor)
+
+        response = self.client.post(
+            reverse('vendor_package_create'),
+            data=self._valid_vendor_package_payload(latitude='95'),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Latitude must be between -90 and 90.')
+        self.assertFalse(Package.objects.filter(vendor=vendor, title='Coordinate Validation Trek').exists())
+
+    def test_vendor_package_create_rejects_longitude_out_of_range(self):
+        vendor = User.objects.create_user(
+            username='lng-vendor@example.com',
+            email='lng-vendor@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            is_verified=True,
+        )
+        VendorProfile.objects.create(
+            user=vendor,
+            business_name='Lng Guard Treks',
+            owner_name='Owner Lng Guard',
+            is_approved=True,
+        )
+        self.client.force_login(vendor)
+
+        response = self.client.post(
+            reverse('vendor_package_create'),
+            data=self._valid_vendor_package_payload(longitude='195'),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Longitude must be between -180 and 180.')
+        self.assertFalse(Package.objects.filter(vendor=vendor, title='Coordinate Validation Trek').exists())
+
+    def test_vendor_package_create_rejects_available_from_after_available_until(self):
+        vendor = User.objects.create_user(
+            username='date-vendor@example.com',
+            email='date-vendor@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            is_verified=True,
+        )
+        VendorProfile.objects.create(
+            user=vendor,
+            business_name='Date Guard Treks',
+            owner_name='Owner Date Guard',
+            is_approved=True,
+        )
+        self.client.force_login(vendor)
+
+        response = self.client.post(
+            reverse('vendor_package_create'),
+            data=self._valid_vendor_package_payload(
+                available_from=str(timezone.localdate() + timedelta(days=8)),
+                available_until=str(timezone.localdate() + timedelta(days=2)),
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Available from date cannot be later than available until date.')
+        self.assertFalse(Package.objects.filter(vendor=vendor, title='Coordinate Validation Trek').exists())
 
     def test_admin_can_approve_vendor_from_detail_page(self):
         admin = User.objects.create_user(
@@ -501,215 +757,6 @@ class AdminAnalyticsApiTests(TestCase):
         self.assertEqual(payload['bookings']['values'][2], 0)  # Mar
 
 
-class PromotionsPreferenceTests(TestCase):
-    def test_traveler_registration_saves_promotions_preference(self):
-        response = self.client.post(
-            reverse('traveler_register'),
-            data={
-                'first_name': 'Promo',
-                'last_name': 'Traveler',
-                'email': 'promo-traveler@example.com',
-                'phone': '+9779800001234',
-                'password': 'strong-pass-123',
-                'confirm_password': 'strong-pass-123',
-                'wants_promotions': 'on',
-            },
-        )
-
-        self.assertRedirects(response, reverse('verify_otp'))
-        user = User.objects.get(email='promo-traveler@example.com')
-        self.assertTrue(user.wants_promotions)
-
-    def test_vendor_registration_saves_promotions_preference(self):
-        document = SimpleUploadedFile(
-            'verification.pdf',
-            b'fake verification payload',
-            content_type='application/pdf',
-        )
-        response = self.client.post(
-            reverse('vendor_register'),
-            data={
-                'business_name': 'Offer Trails',
-                'owner_name': 'Offer Owner',
-                'email': 'promo-vendor@example.com',
-                'phone': '+9779800005678',
-                'password': 'strong-pass-123',
-                'confirm_password': 'strong-pass-123',
-                'document': document,
-                'wants_promotions': 'on',
-            },
-        )
-
-        self.assertRedirects(response, reverse('verify_otp'))
-        user = User.objects.get(email='promo-vendor@example.com')
-        self.assertTrue(user.wants_promotions)
-
-    def test_traveler_profile_updates_promotions_preference(self):
-        user = User.objects.create_user(
-            username='profile-traveler',
-            email='profile-traveler@example.com',
-            password='traveler-pass-123',
-            user_type='traveler',
-            wants_promotions=False,
-        )
-        TravelerProfile.objects.create(user=user)
-        self.client.force_login(user)
-
-        response = self.client.post(
-            reverse('traveler_profile'),
-            data={
-                'full_name': 'Profile Traveler',
-                'email': 'profile-traveler@example.com',
-                'phone': '+9779800012345',
-                'gender': 'male',
-                'nationality': 'Nepali',
-                'bio': 'Test bio',
-                'wants_promotions': 'on',
-            },
-        )
-
-        self.assertRedirects(response, reverse('traveler_profile'))
-        user.refresh_from_db()
-        self.assertTrue(user.wants_promotions)
-
-    def test_vendor_profile_enabling_promotions_adds_active_offer_notification(self):
-        vendor = User.objects.create_user(
-            username='profile-vendor@example.com',
-            email='profile-vendor@example.com',
-            password='vendor-pass-123',
-            user_type='vendor',
-            wants_promotions=False,
-            is_active=True,
-        )
-        VendorProfile.objects.create(
-            user=vendor,
-            business_name='Offer Vendor',
-            owner_name='Vendor Owner',
-            is_approved=True,
-        )
-        SpecialOffer.objects.create(
-            title='Weekend Escape Deal',
-            summary='Limited-time package discount.',
-            content='Save more when you book this weekend.',
-            is_active=True,
-        )
-        self.client.force_login(vendor)
-
-        response = self.client.post(
-            reverse('vendor_profile'),
-            data={
-                'business_name': 'Offer Vendor',
-                'owner_name': 'Vendor Owner',
-                'email': 'profile-vendor@example.com',
-                'phone': '+9779800099999',
-                'tagline': '',
-                'website': '',
-                'license_number': '',
-                'business_address': '',
-                'description': '',
-                'bank_name': '',
-                'account_number': '',
-                'routing_number': '',
-                'paypal_email': '',
-                'wants_promotions': 'on',
-            },
-        )
-
-        self.assertRedirects(response, reverse('vendor_profile'))
-        vendor.refresh_from_db()
-        self.assertTrue(vendor.wants_promotions)
-        self.assertTrue(
-            Notification.objects.filter(
-                user=vendor,
-                type=Notification.TYPE_PROMOTION,
-                message__contains='Special offer available',
-            ).exists()
-        )
-
-    def test_vendor_package_limited_offer_notifies_only_opted_in_travelers(self):
-        vendor = User.objects.create_user(
-            username='limited-offer-vendor@example.com',
-            email='limited-offer-vendor@example.com',
-            password='vendor-pass-123',
-            user_type='vendor',
-            is_active=True,
-        )
-        VendorProfile.objects.create(
-            user=vendor,
-            business_name='Limited Offer Treks',
-            owner_name='Offer Owner',
-            is_approved=True,
-        )
-        opted_in_traveler = User.objects.create_user(
-            username='opted-in-traveler@example.com',
-            email='opted-in-traveler@example.com',
-            password='traveler-pass-123',
-            user_type='traveler',
-            wants_promotions=True,
-            is_active=True,
-        )
-        opted_out_traveler = User.objects.create_user(
-            username='opted-out-traveler@example.com',
-            email='opted-out-traveler@example.com',
-            password='traveler-pass-123',
-            user_type='traveler',
-            wants_promotions=False,
-            is_active=True,
-        )
-
-        self.client.force_login(vendor)
-        response = self.client.post(
-            reverse('vendor_package_create'),
-            data={
-                'title': 'Limited Spring Trek',
-                'category': Package.CATEGORY_TREK,
-                'location_name': 'Manang',
-                'latitude': '28.669',
-                'longitude': '84.021',
-                'price': '14999.00',
-                'duration_days': '8',
-                'available_slots': '12',
-                'available_from': timezone.localdate().isoformat(),
-                'available_until': (timezone.localdate() + timedelta(days=30)).isoformat(),
-                'difficulty': 'moderate',
-                'group_size': '10',
-                'best_season': 'Spring',
-                'image_url': '',
-                'description': 'Limited offer package.',
-                'itinerary': 'Day 1\nDay 2',
-                'inclusions': 'Guide',
-                'exclusions': 'Flights',
-                'has_guide': 'on',
-                'includes_meals': 'on',
-                'includes_accommodation': 'on',
-                'includes_transport': 'on',
-                'includes_permits': 'on',
-                'is_active': 'on',
-                'is_featured': '',
-                'limited_time_offer': 'on',
-            },
-        )
-
-        self.assertRedirects(response, reverse('vendor_packages'))
-        package = Package.objects.get(title='Limited Spring Trek')
-        self.assertTrue(
-            Notification.objects.filter(
-                user=opted_in_traveler,
-                type=Notification.TYPE_PROMOTION,
-                related_object_id=package.id,
-                message__contains='Limited-time package offer',
-            ).exists()
-        )
-        self.assertFalse(
-            Notification.objects.filter(
-                user=opted_out_traveler,
-                type=Notification.TYPE_PROMOTION,
-                related_object_id=package.id,
-                message__contains='Limited-time package offer',
-            ).exists()
-        )
-
-
 class FeaturePlanEnforcementTests(TestCase):
     def setUp(self):
         self.vendor = User.objects.create_user(
@@ -801,3 +848,323 @@ class FeaturePlanEnforcementTests(TestCase):
         self.assertFalse(self.package_two.is_featured)
         self.assertContains(first, 'featured')
         self.assertContains(second, 'slots are in use')
+
+    def test_expired_subscription_creates_vendor_notification_once(self):
+        plan = FeaturePlan.objects.create(
+            name='Starter',
+            slots_count=1,
+            price='2500.00',
+            duration_days=7,
+            is_active=True,
+        )
+        subscription = VendorFeatureSubscription.objects.create(
+            vendor=self.vendor,
+            plan=plan,
+            plan_name=plan.name,
+            slots_total=plan.slots_count,
+            price=plan.price,
+            start_date=timezone.localdate() - timedelta(days=10),
+            end_date=timezone.localdate() - timedelta(days=1),
+            payment_status=VendorFeatureSubscription.PAYMENT_STATUS_PAID,
+            payment_method=VendorFeatureSubscription.PAYMENT_METHOD_ESEWA,
+            is_active=True,
+        )
+
+        expired_ids = VendorFeatureSubscription.expire_overdue(vendor=self.vendor)
+        self.assertIn(subscription.id, expired_ids)
+
+        subscription.refresh_from_db()
+        self.assertFalse(subscription.is_active)
+
+        notifications = Notification.objects.filter(
+            user=self.vendor,
+            type=Notification.TYPE_SUBSCRIPTION,
+            related_object_id=subscription.id,
+        )
+        self.assertEqual(notifications.count(), 1)
+        self.assertIn('has expired', notifications.first().message)
+
+        # Re-running should not duplicate since subscription is already inactive.
+        VendorFeatureSubscription.expire_overdue(vendor=self.vendor)
+        self.assertEqual(
+            Notification.objects.filter(
+                user=self.vendor,
+                type=Notification.TYPE_SUBSCRIPTION,
+                related_object_id=subscription.id,
+            ).count(),
+            1,
+        )
+
+
+class TransactionCommissionSplitTests(TestCase):
+    def setUp(self):
+        self.vendor = User.objects.create_user(
+            username='commission-vendor@example.com',
+            email='commission-vendor@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            is_verified=True,
+        )
+        VendorProfile.objects.create(
+            user=self.vendor,
+            business_name='Commission Vendor',
+            owner_name='Commission Owner',
+            is_approved=True,
+        )
+        self.traveler = User.objects.create_user(
+            username='commission-traveler@example.com',
+            email='commission-traveler@example.com',
+            password='traveler-pass-123',
+            user_type='traveler',
+            is_verified=True,
+        )
+        TravelerProfile.objects.create(user=self.traveler)
+        self.package = Package.objects.create(
+            vendor=self.vendor,
+            title='Commission Check Package',
+            available_slots=10,
+            price='8000.00',
+            is_active=True,
+        )
+
+    def test_booking_transaction_keeps_configured_commission_split(self):
+        from core.services.site_settings import calculate_commission_split
+
+        booking = Booking.objects.create(
+            package=self.package,
+            traveler=self.traveler,
+            vendor=self.vendor,
+            number_of_people=1,
+            travel_date=timezone.localdate() + timedelta(days=7),
+            status=Booking.STATUS_CONFIRMED,
+            payment_method=Booking.PAYMENT_METHOD_ESEWA,
+            payment_status=Booking.PAYMENT_STATUS_COMPLETED,
+            total_price='0',
+        )
+        transaction = Transaction.objects.create(
+            transaction_type=Transaction.TYPE_BOOKING,
+            booking=booking,
+            traveler=self.traveler,
+            vendor=self.vendor,
+            total_amount=booking.total_price,
+            payment_method=Booking.PAYMENT_METHOD_ESEWA,
+            payment_status=Booking.PAYMENT_STATUS_COMPLETED,
+        )
+
+        expected_vendor, expected_platform = calculate_commission_split(transaction.total_amount)
+
+        self.assertEqual(transaction.vendor_earnings, expected_vendor)
+        self.assertEqual(transaction.platform_fee, expected_platform)
+
+    def test_feature_subscription_transaction_routes_full_amount_to_admin(self):
+        plan = FeaturePlan.objects.create(
+            name='Commission Plan',
+            slots_count=3,
+            price='2500.00',
+            duration_days=30,
+            is_active=True,
+        )
+        subscription = VendorFeatureSubscription.objects.create(
+            vendor=self.vendor,
+            plan=plan,
+            plan_name=plan.name,
+            slots_total=plan.slots_count,
+            price=plan.price,
+            start_date=timezone.localdate(),
+            end_date=timezone.localdate() + timedelta(days=29),
+            payment_status=VendorFeatureSubscription.PAYMENT_STATUS_PAID,
+            payment_method=VendorFeatureSubscription.PAYMENT_METHOD_ESEWA,
+            is_active=True,
+        )
+        transaction = Transaction.objects.create(
+            transaction_type=Transaction.TYPE_FEATURE_SUBSCRIPTION,
+            feature_subscription=subscription,
+            vendor=self.vendor,
+            total_amount=plan.price,
+            payment_method=Booking.PAYMENT_METHOD_ESEWA,
+            payment_status=Booking.PAYMENT_STATUS_COMPLETED,
+        )
+
+        self.assertEqual(transaction.vendor_earnings, Decimal('0.00'))
+        self.assertEqual(transaction.platform_fee, transaction.total_amount)
+
+
+class TransactionFiltersTests(TestCase):
+    def setUp(self):
+        self.vendor = User.objects.create_user(
+            username='tx-vendor@example.com',
+            email='tx-vendor@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            is_verified=True,
+        )
+        VendorProfile.objects.create(
+            user=self.vendor,
+            business_name='Transaction Vendor',
+            owner_name='Tx Owner',
+            is_approved=True,
+        )
+        self.traveler = User.objects.create_user(
+            username='tx-traveler@example.com',
+            email='tx-traveler@example.com',
+            password='traveler-pass-123',
+            user_type='traveler',
+            is_verified=True,
+        )
+        TravelerProfile.objects.create(user=self.traveler)
+        self.package = Package.objects.create(
+            vendor=self.vendor,
+            title='Transaction Filter Package',
+            available_slots=10,
+            price='4500.00',
+            is_active=True,
+        )
+
+    def _create_transaction(self, payment_status):
+        booking_status = (
+            Booking.STATUS_CONFIRMED
+            if payment_status == Booking.PAYMENT_STATUS_COMPLETED
+            else Booking.STATUS_PENDING
+        )
+        booking = Booking.objects.create(
+            package=self.package,
+            traveler=self.traveler,
+            vendor=self.vendor,
+            number_of_people=1,
+            travel_date=timezone.localdate() + timedelta(days=5),
+            status=booking_status,
+            payment_method=Booking.PAYMENT_METHOD_ESEWA,
+            payment_status=payment_status,
+            total_price='0',
+        )
+        return Transaction.objects.create(
+            booking=booking,
+            traveler=self.traveler,
+            vendor=self.vendor,
+            total_amount='4500.00',
+            payment_method=Booking.PAYMENT_METHOD_ESEWA,
+            payment_status=payment_status,
+        )
+
+    def test_traveler_transactions_show_completed_only_and_hide_status_filter(self):
+        completed_tx = self._create_transaction(Booking.PAYMENT_STATUS_COMPLETED)
+        self._create_transaction(Booking.PAYMENT_STATUS_PENDING)
+
+        self.client.force_login(self.traveler)
+        response = self.client.get(reverse('traveler_transactions'), data={'status': 'pending'})
+
+        self.assertEqual(response.status_code, 200)
+        transactions = list(response.context['transactions'])
+        self.assertEqual([tx.id for tx in transactions], [completed_tx.id])
+        self.assertEqual(response.context['filters']['status'], '')
+        self.assertNotContains(response, 'name="status"')
+
+    def test_traveler_transactions_invalid_date_filter_shows_error(self):
+        self._create_transaction(Booking.PAYMENT_STATUS_COMPLETED)
+
+        self.client.force_login(self.traveler)
+        response = self.client.get(
+            reverse('traveler_transactions'),
+            data={
+                'date_from': (timezone.localdate() + timedelta(days=2)).isoformat(),
+                'date_to': (timezone.localdate() - timedelta(days=2)).isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['filters']['date_error'], 'From date cannot be in the future.')
+        self.assertContains(response, 'From date cannot be in the future.')
+
+    def test_vendor_transactions_invalid_date_filter_shows_error(self):
+        self._create_transaction(Booking.PAYMENT_STATUS_COMPLETED)
+
+        self.client.force_login(self.vendor)
+        response = self.client.get(
+            reverse('vendor_transactions'),
+            data={
+                'date_from': (timezone.localdate() + timedelta(days=2)).isoformat(),
+                'date_to': (timezone.localdate() - timedelta(days=2)).isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['filters']['date_error'], 'From date cannot be in the future.')
+        self.assertContains(response, 'From date cannot be in the future.')
+
+
+class RoleRouteAccessControlTests(TestCase):
+    def setUp(self):
+        self.traveler = User.objects.create_user(
+            username='role-traveler@example.com',
+            email='role-traveler@example.com',
+            password='traveler-pass-123',
+            user_type='traveler',
+            is_verified=True,
+        )
+        TravelerProfile.objects.create(user=self.traveler)
+
+        self.vendor = User.objects.create_user(
+            username='role-vendor@example.com',
+            email='role-vendor@example.com',
+            password='vendor-pass-123',
+            user_type='vendor',
+            is_verified=True,
+        )
+        VendorProfile.objects.create(
+            user=self.vendor,
+            business_name='Role Vendor',
+            owner_name='Role Owner',
+            is_approved=True,
+        )
+
+        self.admin = User.objects.create_user(
+            username='role-admin@example.com',
+            email='role-admin@example.com',
+            password='admin-pass-123',
+            user_type='admin',
+            is_staff=True,
+            is_superuser=True,
+            is_verified=True,
+        )
+        AdminProfile.objects.create(user=self.admin)
+
+    def test_anonymous_users_are_redirected_to_role_login_pages(self):
+        traveler_response = self.client.get(reverse('traveler_home'))
+        vendor_response = self.client.get(reverse('vendor_dashboard'))
+        admin_response = self.client.get(reverse('admin_dashboard'))
+
+        self.assertEqual(traveler_response.status_code, 302)
+        self.assertIn(reverse('traveler_login'), traveler_response.url)
+
+        self.assertEqual(vendor_response.status_code, 302)
+        self.assertIn(reverse('vendor_login'), vendor_response.url)
+
+        self.assertEqual(admin_response.status_code, 302)
+        self.assertEqual(admin_response.url, reverse('admin_login'))
+
+    def test_traveler_cannot_access_vendor_or_admin_pages(self):
+        self.client.force_login(self.traveler)
+
+        vendor_response = self.client.get(reverse('vendor_dashboard'))
+        admin_response = self.client.get(reverse('admin_dashboard'))
+
+        self.assertEqual(vendor_response.status_code, 403)
+        self.assertEqual(admin_response.status_code, 403)
+
+    def test_vendor_cannot_access_traveler_or_admin_pages(self):
+        self.client.force_login(self.vendor)
+
+        traveler_response = self.client.get(reverse('traveler_home'))
+        admin_response = self.client.get(reverse('admin_dashboard'))
+
+        self.assertEqual(traveler_response.status_code, 403)
+        self.assertEqual(admin_response.status_code, 403)
+
+    def test_admin_cannot_access_vendor_or_traveler_restricted_pages(self):
+        self.client.force_login(self.admin)
+
+        traveler_response = self.client.get(reverse('traveler_home'))
+        vendor_response = self.client.get(reverse('vendor_dashboard'))
+
+        self.assertEqual(traveler_response.status_code, 403)
+        self.assertEqual(vendor_response.status_code, 403)

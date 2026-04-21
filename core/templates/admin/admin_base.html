@@ -75,6 +75,11 @@
                     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v7"/><path d="M8 21V9"/><path d="M16 21V9"/></svg></span>
                     Reports
                 </a>
+                <div class="nav-section-label">Finance</div>
+                <a class="nav-item nav-item-finance {% if active_page == 'transactions' %}active{% endif %}" href="{% url 'admin_transactions' %}">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M7 15h4"/></svg></span>
+                    Admin Transactions
+                </a>
                 <a class="nav-item {% if active_page == 'settings' %}active{% endif %}" href="{% url 'admin_settings' %}">
                     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z"/><path d="M12 14v-4"/><path d="M12 8h.01"/></svg></span>
                     Settings

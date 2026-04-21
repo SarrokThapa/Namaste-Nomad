@@ -12,7 +12,7 @@
         <div class="explore-hero-header">
             <div>
                 <h1>Explore Your Next Journey</h1>
-                <p>Search destinations, browse by category, and discover the best tours from local operators.</p>
+                <p>Search destinations and discover the best tours from local operators.</p>
             </div>
             <a class="btn-outline" href="{% url 'package_list' %}">All Public Packages</a>
         </div>
@@ -41,30 +41,16 @@
                     {% endif %}
                 </div>
             </div>
-
-            <div class="category-filter-row">
-                {% for category in category_filters %}
-                    <button
-                        type="submit"
-                        name="category"
-                        value="{{ category.slug }}"
-                        class="category-filter {% if selected_category == category.slug %}active{% endif %}"
-                    >
-                        <span>{{ category.label }}</span>
-                        <strong>{{ category.count }}</strong>
-                    </button>
-                {% endfor %}
-            </div>
         </form>
 
         <div class="explore-summary">
-            Showing {{ result_count }} package{{ result_count|pluralize }}{% if selected_category != 'all' %} in {{ selected_category|title }}{% endif %}.
+            Showing {{ result_count }} package{{ result_count|pluralize }}.
         </div>
     </section>
 
     <section class="explore-section">
         <div class="section-head">
-            <h2>Featured Tour Packages</h2>
+            <h2>Recommended for You</h2>
             <a href="{% url 'package_list' %}">View all</a>
         </div>
         <div class="package-grid">
@@ -74,7 +60,7 @@
                         {% with cover=package.images.all|first %}
                             <div class="explore-package-media" {% if cover %}style="background-image: url('{{ cover.image.url }}');"{% elif package.image_url %}style="background-image: url('{{ package.image_url }}');"{% endif %}>
                                 <a class="explore-package-media-link" href="{% url 'package_detail' package.id %}" aria-label="{{ package.title }}"></a>
-                                <span class="package-tag">{{ package.category_label }}</span>
+                                <span class="package-tag">{{ package.get_category_display }}</span>
                                 {% if package.is_featured %}
                                     <span class="package-tag featured-tag">Featured</span>
                                 {% endif %}
@@ -108,84 +94,7 @@
                     </article>
                 {% endfor %}
             {% else %}
-                <div class="empty-state">No featured packages match your filters right now.</div>
-            {% endif %}
-        </div>
-    </section>
-
-    <section class="explore-section">
-        <div class="section-head">
-            <h2>Recommended for You</h2>
-        </div>
-        <div class="package-grid">
-            {% if recommended_packages %}
-                {% for package in recommended_packages %}
-                    <article class="explore-package-card compact">
-                        <div class="explore-package-body">
-                            <div class="explore-package-top">
-                                <h3><a href="{% url 'package_detail' package.id %}">{{ package.title }}</a></h3>
-                                <div class="package-price">Rs {{ package.price|floatformat:0 }}</div>
-                            </div>
-                            <div class="wishlist-inline">
-                                {% include "core/includes/wishlist_button.html" with package=package button_class="wishlist-btn--compact" %}
-                            </div>
-                            <p class="package-meta">{{ package.category_label }} · {{ package.location|default:"Nepal" }}</p>
-                            <p class="package-meta">
-                                Available {{ package.available_from|date:"M d, Y"|default:"Not set" }} -
-                                {{ package.available_until|date:"M d, Y"|default:"Not set" }}
-                            </p>
-                            {% if package.is_featured %}
-                                <span class="featured-pill">Featured</span>
-                            {% endif %}
-                            {% if package.season_badge %}
-                                <span class="season-pill">{{ package.season_badge }}</span>
-                            {% endif %}
-                            <div class="package-rating">
-                                <span>{{ package.avg_rating|default:0|floatformat:1 }}</span>
-                                <span>{{ package.booking_count }} booking{{ package.booking_count|pluralize }}</span>
-                            </div>
-                        </div>
-                    </article>
-                {% endfor %}
-            {% else %}
-                <div class="empty-state">No recommendations available yet.</div>
-            {% endif %}
-        </div>
-    </section>
-
-    <section class="explore-section">
-        <div class="section-head">
-            <h2>Recently Added Packages</h2>
-        </div>
-        <div class="package-grid">
-            {% if recently_added_packages %}
-                {% for package in recently_added_packages %}
-                    <article class="explore-package-card compact">
-                        <div class="explore-package-body">
-                            <div class="explore-package-top">
-                                <h3><a href="{% url 'package_detail' package.id %}">{{ package.title }}</a></h3>
-                                <div class="package-price">Rs {{ package.price|floatformat:0 }}</div>
-                            </div>
-                            <div class="wishlist-inline">
-                                {% include "core/includes/wishlist_button.html" with package=package button_class="wishlist-btn--compact" %}
-                            </div>
-                            <p class="package-meta">{{ package.location|default:"Nepal" }} · Added {{ package.created_at|date:"M d, Y" }}</p>
-                            <p class="package-meta">
-                                Available {{ package.available_from|date:"M d, Y"|default:"Not set" }} -
-                                {{ package.available_until|date:"M d, Y"|default:"Not set" }}
-                            </p>
-                            {% if package.is_featured %}
-                                <span class="featured-pill">Featured</span>
-                            {% endif %}
-                            {% if package.season_badge %}
-                                <span class="season-pill">{{ package.season_badge }}</span>
-                            {% endif %}
-                            <a class="package-link" href="{% url 'package_detail' package.id %}">View details</a>
-                        </div>
-                    </article>
-                {% endfor %}
-            {% else %}
-                <div class="empty-state">No recently added packages for this filter.</div>
+                <div class="empty-state">No recommended packages match your filters right now.</div>
             {% endif %}
         </div>
     </section>
@@ -198,7 +107,7 @@
         <div class="traveler-review-grid">
             {% if recent_reviews %}
                 {% for review in recent_reviews %}
-                    {% firstof review.traveler.get_full_name review.traveler.username "Traveler" as reviewer_name %}
+                    {% firstof review.traveler.get_full_name review.traveler.username "Deleted User" as reviewer_name %}
                     <article class="traveler-review-card">
                         <div class="traveler-review-head">
                             <div class="traveler-review-avatar">{{ reviewer_name|slice:":1"|upper }}</div>

@@ -38,7 +38,7 @@
                 <tbody>
                     {% for vendor in vendors %}
                         <tr>
-                            <td>{{ vendor.vendor_profile.business_name|default:vendor.get_full_name|default:vendor.email }}</td>
+                            <td>{{ vendor.vendor_profile.business_name|default:vendor.get_full_name|default:vendor.username|default:"Vendor" }}</td>
                             <td>{{ vendor.email }}</td>
                             <td>{{ vendor.package_count }}</td>
                             <td>{% if vendor.vendor_profile.is_approved %}Approved{% else %}Pending{% endif %}</td>

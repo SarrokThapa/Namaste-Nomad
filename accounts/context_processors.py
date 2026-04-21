@@ -13,9 +13,29 @@ def _safe_related(instance, relation_name):
         return None
 
 
-def _display_name(user):
+def _display_name(user, user_type):
+    if user_type == 'vendor':
+        profile = _safe_related(user, 'vendor_profile')
+        business_name = (getattr(profile, 'business_name', '') or '').strip()
+        if business_name:
+            return business_name
+
+        owner_name = (getattr(profile, 'owner_name', '') or '').strip()
+        if owner_name:
+            return owner_name
+
     full_name = user.get_full_name().strip()
-    return full_name or user.username or user.email or 'Account'
+    if full_name:
+        return full_name
+
+    username = (getattr(user, 'username', '') or '').strip()
+    if username and '@' not in username:
+        return username
+
+    if user_type == 'vendor':
+        return 'Vendor'
+
+    return user.email or 'Account'
 
 
 def _avatar_url(user, user_type):
@@ -68,7 +88,7 @@ def _navbar_context(user):
     user_type = getattr(user, 'user_type', '')
     return {
         'nav_user_type': user_type,
-        'nav_display_name': _display_name(user),
+        'nav_display_name': _display_name(user, user_type),
         'nav_avatar_url': _avatar_url(user, user_type),
         'nav_dashboard_url': _dashboard_url(user_type),
         'nav_profile_url': _profile_url(user_type),

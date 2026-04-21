@@ -27,8 +27,13 @@
                 <tbody>
                     {% for review in reviews %}
                         <tr>
-                            <td>{% firstof review.traveler.get_full_name review.traveler.username "Traveler" %}</td>
-                            <td>{{ review.traveler.email|default:"-" }}</td>
+                            {% if review.traveler %}
+                                <td>{% firstof review.traveler.get_full_name review.traveler.username "Traveler" %}</td>
+                                <td>{{ review.traveler.email|default:"-" }}</td>
+                            {% else %}
+                                <td>Deleted User</td>
+                                <td>-</td>
+                            {% endif %}
                             <td>{{ review.package.title }}</td>
                             <td>{{ review.rating }}/5</td>
                             <td>{{ review.comment|default:"-"|truncatechars:120 }}</td>

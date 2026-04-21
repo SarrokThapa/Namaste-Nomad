@@ -13,6 +13,28 @@
     </a>
 </section>
 
+<section class="card list-card bookings-filter-card">
+    <div class="card-header">
+        <h3>Filter Bookings</h3>
+        <span class="card-meta">Status</span>
+    </div>
+    <form method="GET" class="bookings-filter-form">
+        <div class="bookings-filter-field">
+            <label for="status">Booking Status</label>
+            <select id="status" name="status">
+                <option value="" {% if not filters.status %}selected{% endif %}>All</option>
+                <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Completed</option>
+                <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+            </select>
+        </div>
+        <div class="bookings-filter-actions">
+            <button type="submit" class="btn small success">Apply</button>
+            <a class="btn small secondary" href="{% url 'vendor_bookings' %}">Reset</a>
+        </div>
+    </form>
+</section>
+
 <section class="card list-card">
     <div class="card-header">
         <h3>Recent Bookings</h3>
@@ -23,11 +45,19 @@
             {% for booking in bookings %}
                 <div class="booking-item">
                     <div class="booking-avatar">
-                        {{ booking.traveler.first_name|default:"T"|slice:":1" }}{{ booking.traveler.last_name|default:""|slice:":1" }}
+                        {% if booking.traveler %}
+                            {{ booking.traveler.first_name|default:"T"|slice:":1" }}{{ booking.traveler.last_name|default:""|slice:":1" }}
+                        {% else %}
+                            DU
+                        {% endif %}
                     </div>
                     <div class="booking-info">
                         <div class="booking-name">
-                            {{ booking.traveler.get_full_name|default:"Traveler" }}
+                            {% if booking.traveler %}
+                                {{ booking.traveler.get_full_name|default:"Traveler" }}
+                            {% else %}
+                                Deleted User
+                            {% endif %}
                         </div>
                         <div class="booking-meta">
                             {{ booking.package.title }} -
@@ -41,7 +71,7 @@
                     <div class="booking-actions">
                         <span class="status {{ booking.status }}">{{ booking.get_status_display }}</span>
                         <a href="{% url 'booking_detail' booking.id %}" class="btn small">View Details</a>
-                        {% if booking.status != 'confirmed' and booking.payment_status == 'completed' %}
+                        {% if booking.status != 'confirmed' and booking.status != 'cancelled' and booking.payment_status == 'completed' %}
                             <form method="POST" action="{% url 'vendor_booking_status_update' booking.id %}">
                                 {% csrf_token %}
                                 <input type="hidden" name="next" value="{{ request.path }}">

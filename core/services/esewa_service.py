@@ -12,6 +12,11 @@ V2 endpoints:
     Prod verification:  https://esewa.com.np/api/epay/transaction/status/
 """
 
+# NOTE: file > 300 lines — split deferred. eSewa payload building, HMAC
+# signing, response decoding and server-side verification are all part
+# of the same V2 protocol flow and share the secret-key/merchant-code
+# helpers; splitting would make the verification chain harder to follow.
+
 import base64
 import hashlib
 import hmac
@@ -36,10 +41,12 @@ class EsewaError(Exception):
 # ---------------------------------------------------------------------------
 
 def _is_test_mode():
+    """Return True if ESEWA_TEST_MODE is enabled (default: True for safety)."""
     return getattr(settings, 'ESEWA_TEST_MODE', True)
 
 
 def _get_secret_key():
+    """Return the configured eSewa HMAC secret key, raising EsewaError if missing."""
     key = getattr(settings, 'ESEWA_SECRET_KEY', '')
     if not key:
         raise EsewaError('eSewa is not configured. Add ESEWA_SECRET_KEY to your .env file.')
@@ -47,6 +54,7 @@ def _get_secret_key():
 
 
 def _get_merchant_code():
+    """Return the configured eSewa merchant code (product_code), raising EsewaError if missing."""
     code = getattr(settings, 'ESEWA_MERCHANT_CODE', '')
     if not code:
         raise EsewaError('eSewa is not configured. Add ESEWA_MERCHANT_CODE to your .env file.')
@@ -61,6 +69,7 @@ def get_esewa_payment_url():
 
 
 def _get_verification_url():
+    """Return the V2 server-to-server transaction status URL based on test/production mode."""
     if _is_test_mode():
         return 'https://rc.esewa.com.np/api/epay/transaction/status/'
     return 'https://esewa.com.np/api/epay/transaction/status/'
@@ -82,6 +91,7 @@ def _generate_signature(message):
 
 
 def _build_signature_message(total_amount, transaction_uuid, product_code):
+    """Build the canonical comma-joined signing message used by the eSewa V2 HMAC scheme."""
     return f'total_amount={total_amount},transaction_uuid={transaction_uuid},product_code={product_code}'
 
 
@@ -90,11 +100,17 @@ def _build_signature_message(total_amount, transaction_uuid, product_code):
 # ---------------------------------------------------------------------------
 
 def _format_amount(amount):
-    """Format *amount* to a string with exactly 2 decimal places."""
-    return format(
-        Decimal(str(amount)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
-        'f',
-    )
+    """Format *amount* for eSewa payload/signature fields.
+
+    eSewa examples use whole numbers without a trailing ``.00`` in signed
+    fields (for example ``110`` instead of ``110.00``). We keep 2-decimal
+    precision internally, but trim only a terminal ``.00`` for transport.
+    """
+    value = Decimal(str(amount)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    text = format(value, 'f')
+    if text.endswith('.00'):
+        return text[:-3]
+    return text
 
 
 # ---------------------------------------------------------------------------

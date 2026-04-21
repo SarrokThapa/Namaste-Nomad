@@ -32,8 +32,8 @@
                             {% endif %}
                             <strong>Total paid: Rs {{ booking.total_price|floatformat:0 }}</strong>
                             <span>Booked {{ booking.created_at|date:"M d, Y" }}</span>
-                            <a href="{% url 'booking_detail' booking.id %}" class="booking-payment-action">View Details</a>
                             {% if booking.payment_status == 'completed' %}
+                                <a href="{% url 'booking_detail' booking.id %}" class="booking-payment-action">View Details</a>
                                 <a href="{% url 'booking_invoice_download' booking.id %}" class="booking-payment-action">Download Invoice</a>
                             {% elif booking.status != 'cancelled' %}
                                 <a href="{% url 'booking_confirmation' booking.id %}" class="booking-payment-action">Continue Payment</a>

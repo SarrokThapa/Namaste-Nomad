@@ -1,4 +1,23 @@
-"""Shared accounts view helpers and dependencies."""
+"""Shared accounts view helpers and dependencies.
+
+This is a "hub" module: every view file in ``accounts/views/`` (and the
+admin views in ``core/views/admin/``) imports the names it needs from
+here instead of pulling them straight from Django, the models, the
+forms, or the services. The benefits are:
+
+* one place to update an import path when something is renamed,
+* sibling view files stay short and focused,
+* small cross-cutting helpers (role guards, profile lookups, transaction
+  filters, admin analytics, etc.) live here so they are not duplicated.
+
+The bottom of the file exposes everything via ``__all__`` so the imports
+in sibling files keep working. Do not flatten this hub: 17 files import
+from it.
+"""
+
+# NOTE: file > 300 lines — split deferred. This is a hub re-export module
+# consumed by 17 sibling view files; splitting would force edits across
+# every one of them and is forbidden by the project's safety rules.
 
 from calendar import monthrange
 
@@ -24,6 +43,8 @@ from django.contrib.auth import authenticate, login, logout, update_session_auth
 
 from django.contrib.auth.decorators import login_required
 
+from django.core.exceptions import PermissionDenied
+
 from django.core.files.images import get_image_dimensions
 
 from django.db import IntegrityError, transaction
@@ -31,8 +52,6 @@ from django.db import IntegrityError, transaction
 from django.db.models import (
     Avg,
     BooleanField,
-    Case,
-    CharField,
     Count,
     DateTimeField,
     Max,
@@ -41,8 +60,6 @@ from django.db.models import (
     Subquery,
     Sum,
     TextField,
-    Value,
-    When,
 )
 
 from django.http import HttpResponse, JsonResponse
@@ -63,10 +80,12 @@ from django.views.decorators.csrf import csrf_protect
 
 from django.views.decorators.http import require_POST
 
+# --- Cross-app model re-exports ---------------------------------------------
+# Pulled from the core app so accounts views can refer to bookings,
+# packages, reviews, support chat, etc., without importing core directly.
 from core.models import (
     Booking,
     Package,
-    SpecialOffer,
     Review,
     PackageImage,
     SupportConversation,
@@ -75,11 +94,14 @@ from core.models import (
     Wishlist,
 )
 
+# --- Payment gateway re-exports ---------------------------------------------
+# Stripe wrapper used for international card payments and feature plans.
 from core.payments import (
     StripeError,
     create_checkout_session_for_item,
     retrieve_checkout_session,
 )
+# eSewa V2 (HMAC-SHA256, NPR) used for Nepal-side payments.
 from core.services.esewa_service import (
     EsewaError,
     get_esewa_payment_url,
@@ -87,6 +109,9 @@ from core.services.esewa_service import (
     process_success_callback as esewa_process_success_callback,
 )
 
+# --- Accounts app re-exports ------------------------------------------------
+# Models, forms, notification helpers, selectors, and reward/badge logic
+# used by the accounts views.
 from ..models import (
     AdminProfile,
     FeaturedPackage,
@@ -108,8 +133,12 @@ from ..notifications import (
     notification_link,
     serialize_notification,
 )
-
-from ..utils import create_otp, verify_otp as verify_otp_util
+from ..selectors import (
+    get_active_subscription,
+    get_admin_profile,
+    get_traveler_profile,
+    get_vendor_profile,
+)
 
 from ..achievements import (
     add_points,
@@ -118,90 +147,32 @@ from ..achievements import (
     badge_progress_for_user,
 )
 
-TRAVELER_CATEGORY_LABELS = {
-    'adventure': 'Adventure',
-    'cultural': 'Cultural',
-    'trekking': 'Trekking',
-}
-
-TRAVELER_CATEGORY_SLUGS = tuple(TRAVELER_CATEGORY_LABELS.keys())
+# --- Profile lookup helpers -------------------------------------------------
+# Thin wrappers around the selector layer. Kept under their old underscore
+# names so existing view code does not need to change.
 
 def _get_vendor_profile(user):
-    try:
-        return user.vendor_profile
-    except VendorProfile.DoesNotExist:
-        return None
+    """Return the VendorProfile attached to ``user``, or ``None``."""
+    return get_vendor_profile(user)
 
 
 def _get_admin_profile(user):
-    try:
-        return user.admin_profile
-    except AdminProfile.DoesNotExist:
-        return None
+    """Return the AdminProfile attached to ``user``, or ``None``."""
+    return get_admin_profile(user)
 
 
 def _get_traveler_profile(user):
-    try:
-        return user.traveler_profile
-    except TravelerProfile.DoesNotExist:
-        return None
+    """Return the TravelerProfile attached to ``user``, or ``None``."""
+    return get_traveler_profile(user)
 
 
 def _get_active_subscription(vendor):
-    return VendorFeatureSubscription.active_for_vendor(vendor)
-
-
-def _sync_active_special_offers_for_user(user):
-    if not user or not user.is_active:
-        return 0
-
-    today = timezone.localdate()
-    offers = SpecialOffer.objects.filter(is_active=True).filter(
-        Q(valid_until__isnull=True) | Q(valid_until__gte=today)
-    )
-
-    created_count = 0
-    for offer in offers:
-        message_text = f'Special offer available: {offer.title}'
-        exists = Notification.objects.filter(
-            user=user,
-            type=Notification.TYPE_PROMOTION,
-            message=message_text,
-            related_object_id=offer.id,
-        ).exists()
-        if not exists:
-            create_notification(
-                user,
-                message_text,
-                Notification.TYPE_PROMOTION,
-                related_object_id=offer.id,
-            )
-            created_count += 1
-    return created_count
-
-
-def _notify_opted_in_travelers_for_limited_package_offer(package):
-    if package is None:
-        return 0
-
-    travelers = User.objects.filter(
-        user_type='traveler',
-        is_active=True,
-        wants_promotions=True,
-    )
-    notified = 0
-    for traveler in travelers:
-        create_notification(
-            traveler,
-            f'Limited-time package offer: {package.title}',
-            Notification.TYPE_PROMOTION,
-            related_object_id=package.id,
-        )
-        notified += 1
-    return notified
+    """Return the vendor's currently active feature subscription, if any."""
+    return get_active_subscription(vendor)
 
 
 def _delete_stored_file(instance, field_name, file_name):
+    """Remove a previously-stored file from the model field's storage backend."""
     if not file_name:
         return
     storage = instance._meta.get_field(field_name).storage
@@ -210,6 +181,7 @@ def _delete_stored_file(instance, field_name, file_name):
 
 
 def _is_valid_uploaded_image(uploaded_file):
+    """Return True if Django can read image dimensions from ``uploaded_file``."""
     if uploaded_file is None:
         return False
     try:
@@ -220,7 +192,12 @@ def _is_valid_uploaded_image(uploaded_file):
     return True
 
 
+# --- Role guards ------------------------------------------------------------
+# Lightweight checks used at the top of view functions. They flash an error
+# message and return False so the caller can early-redirect.
+
 def _ensure_vendor(request):
+    """Vendor-only AND must be admin-approved."""
     if getattr(request.user, 'user_type', '') != 'vendor':
         messages.error(request, 'Vendor access only.')
         return False
@@ -232,6 +209,7 @@ def _ensure_vendor(request):
 
 
 def _ensure_vendor_account(request):
+    """Vendor-only check that does NOT require approval (registration flow)."""
     if getattr(request.user, 'user_type', '') != 'vendor':
         messages.error(request, 'Vendor access only.')
         return False
@@ -239,13 +217,77 @@ def _ensure_vendor_account(request):
 
 
 def _ensure_traveler(request):
+    """Traveler-only access guard."""
     if getattr(request.user, 'user_type', '') != 'traveler':
         messages.error(request, 'Traveler access only.')
         return False
     return True
 
 
+def traveler_required(view_func=None, *, login_url='traveler_login'):
+    """Decorator: authenticated travelers only."""
+
+    def decorator(func):
+        @login_required(login_url=login_url)
+        @wraps(func)
+        def _wrapped(request, *args, **kwargs):
+            if getattr(request.user, 'user_type', '') != 'traveler':
+                raise PermissionDenied('Traveler access only.')
+            return func(request, *args, **kwargs)
+
+        return _wrapped
+
+    if view_func is None:
+        return decorator
+    return decorator(view_func)
+
+
+def vendor_required(view_func=None, *, login_url='vendor_login', require_approved=True):
+    """Decorator: authenticated vendors only.
+
+    ``require_approved=True`` additionally blocks vendors whose profile has not
+    yet been approved by an admin.
+    """
+
+    def decorator(func):
+        @login_required(login_url=login_url)
+        @wraps(func)
+        def _wrapped(request, *args, **kwargs):
+            if getattr(request.user, 'user_type', '') != 'vendor':
+                raise PermissionDenied('Vendor access only.')
+
+            if require_approved:
+                vendor_profile = _get_vendor_profile(request.user)
+                if vendor_profile and not vendor_profile.is_approved:
+                    messages.error(request, 'Your account is pending admin approval.')
+                    return redirect('vendor_login')
+
+            return func(request, *args, **kwargs)
+
+        return _wrapped
+
+    if view_func is None:
+        return decorator
+    return decorator(view_func)
+
+
+def vendor_account_required(view_func=None, *, login_url='vendor_login'):
+    """Decorator: authenticated vendor-only check without approval requirement."""
+
+    def decorator(func):
+        return vendor_required(
+            func,
+            login_url=login_url,
+            require_approved=False,
+        )
+
+    if view_func is None:
+        return decorator
+    return decorator(view_func)
+
+
 def _safe_next_url(request, fallback_name):
+    """Validate a ``?next=`` parameter against open-redirect attacks."""
     candidate = (request.POST.get('next') or request.GET.get('next') or '').strip()
     if candidate and url_has_allowed_host_and_scheme(
         url=candidate,
@@ -267,10 +309,15 @@ def _plan_esewa_payload(*, amount, pid, success_url, failure_url):
 
 
 def _plan_payment_session_key(vendor_id):
+    """Session key under which an in-flight feature-plan checkout is stored."""
     return f'feature_plan_payment_{vendor_id}'
 
 
+# --- Transaction filtering helpers ------------------------------------------
+# Shared by the admin transactions screen and the vendor transactions screen.
+
 def _parse_filter_date(raw_value):
+    """Safely parse an ISO date string from a query parameter."""
     if not raw_value:
         return None
     try:
@@ -279,7 +326,13 @@ def _parse_filter_date(raw_value):
         return None
 
 
-def _apply_transaction_filters(queryset, request, *, allow_vendor=False):
+def _apply_transaction_filters(queryset, request, *, allow_vendor=False, allow_status=True):
+    """Apply ``date_from``/``date_to``/``status``/``vendor`` GET filters.
+
+    Returns the filtered queryset and an echo dict so the template can
+    repopulate the filter form. ``allow_vendor=True`` is used by the
+    admin view, which can scope to a single vendor.
+    """
     date_from_raw = (request.GET.get('date_from') or '').strip()
     date_to_raw = (request.GET.get('date_to') or '').strip()
     status = (request.GET.get('status') or '').strip().lower()
@@ -287,18 +340,36 @@ def _apply_transaction_filters(queryset, request, *, allow_vendor=False):
 
     date_from = _parse_filter_date(date_from_raw)
     date_to = _parse_filter_date(date_to_raw)
-    if date_from:
-        queryset = queryset.filter(created_at__date__gte=date_from)
-    if date_to:
-        queryset = queryset.filter(created_at__date__lte=date_to)
+    date_error = ''
+    today = timezone.localdate()
 
-    allowed_statuses = {
-        Booking.PAYMENT_STATUS_PENDING,
-        Booking.PAYMENT_STATUS_COMPLETED,
-        Booking.PAYMENT_STATUS_FAILED,
-    }
-    if status in allowed_statuses:
-        queryset = queryset.filter(payment_status=status)
+    if date_from_raw and not date_from:
+        date_error = 'Please enter a valid From date.'
+    elif date_to_raw and not date_to:
+        date_error = 'Please enter a valid To date.'
+    elif date_from and date_from > today:
+        date_error = 'From date cannot be in the future.'
+    elif date_from and date_to and date_from > date_to:
+        date_error = 'From date cannot be later than To date.'
+
+    if date_error:
+        messages.error(request, date_error)
+    else:
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
+
+    if allow_status:
+        allowed_statuses = {
+            Booking.PAYMENT_STATUS_PENDING,
+            Booking.PAYMENT_STATUS_COMPLETED,
+            Booking.PAYMENT_STATUS_FAILED,
+        }
+        if status in allowed_statuses:
+            queryset = queryset.filter(payment_status=status)
+        else:
+            status = ''
     else:
         status = ''
 
@@ -314,12 +385,14 @@ def _apply_transaction_filters(queryset, request, *, allow_vendor=False):
     return queryset, {
         'date_from': date_from_raw,
         'date_to': date_to_raw,
+        'date_error': date_error,
         'status': status,
         'vendor': selected_vendor,
     }
 
 
 def _transaction_csv_response(rows, filename):
+    """Stream a list of Transaction rows back to the user as a CSV download."""
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     writer = csv.writer(response)
@@ -356,6 +429,7 @@ def _transaction_csv_response(rows, filename):
 
 
 def _dashboard_route_name(user):
+    """Pick the post-login landing page based on user_type and approval state."""
     user_type = getattr(user, 'user_type', '')
     if user_type == 'traveler':
         return 'traveler_home'
@@ -369,36 +443,8 @@ def _dashboard_route_name(user):
     return 'home'
 
 
-def _traveler_category_expression():
-    trekking_match = (
-        Q(title__icontains='trek')
-        | Q(description__icontains='trek')
-        | Q(itinerary__icontains='trek')
-        | Q(title__icontains='base camp')
-        | Q(description__icontains='base camp')
-        | Q(title__icontains='hike')
-        | Q(description__icontains='hike')
-    )
-    cultural_match = (
-        Q(title__icontains='cultural')
-        | Q(description__icontains='cultural')
-        | Q(itinerary__icontains='cultural')
-        | Q(title__icontains='heritage')
-        | Q(description__icontains='heritage')
-        | Q(title__icontains='temple')
-        | Q(description__icontains='temple')
-        | Q(title__icontains='monastery')
-        | Q(description__icontains='monastery')
-    )
-    return Case(
-        When(trekking_match, then=Value('trekking')),
-        When(cultural_match, then=Value('cultural')),
-        default=Value('adventure'),
-        output_field=CharField(),
-    )
-
-
 def _traveler_package_queryset():
+    """Active packages annotated with traveler-facing ranking metrics."""
     return (
         Package.objects.filter(is_active=True)
         .select_related('vendor')
@@ -411,20 +457,15 @@ def _traveler_package_queryset():
                 filter=Q(bookings__status='confirmed'),
                 distinct=True,
             ),
-            category_slug=_traveler_category_expression(),
         )
     )
 
 
-def _add_category_labels(packages):
-    for package in packages:
-        package.category_label = TRAVELER_CATEGORY_LABELS.get(
-            getattr(package, 'category_slug', 'adventure'),
-            'Adventure',
-        )
-
+# --- Package image management -----------------------------------------------
+# Used by vendor_package create/edit views to manage the per-package gallery.
 
 def _append_package_images(package, uploaded_images):
+    """Append newly uploaded images at the end of the existing gallery order."""
     if not uploaded_images:
         return
 
@@ -438,6 +479,7 @@ def _append_package_images(package, uploaded_images):
 
 
 def _reorder_package_images(package, post_data):
+    """Re-number existing images using the ``image_order_<id>`` POST fields."""
     remaining_images = list(package.images.all())
     if not remaining_images:
         return
@@ -458,6 +500,7 @@ def _reorder_package_images(package, post_data):
 
 
 def _sync_package_images(package, post_data, files_data):
+    """Apply delete/reorder/append in one call from a single form submission."""
     delete_ids = []
     for raw_id in post_data.getlist('delete_images'):
         try:
@@ -473,22 +516,27 @@ def _sync_package_images(package, post_data, files_data):
 
 
 def admin_required(view_func):
+    """Decorator: only authenticated admin/staff users may call ``view_func``."""
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('admin_login')
         if getattr(request.user, 'user_type', '') != 'admin' or not request.user.is_staff:
-            messages.error(request, 'Admin access only.')
-            return redirect('home')
+            raise PermissionDenied('Admin access only.')
         return view_func(request, *args, **kwargs)
     return never_cache(_wrapped)
 
 
+# --- Support chat helpers ---------------------------------------------------
+# Used by the admin support inbox and the in-page chat widget.
+
 def _get_latest_support_conversation(user):
+    """Most recent support thread for ``user`` (any status), or ``None``."""
     return SupportConversation.objects.filter(user=user).order_by('-created_at').first()
 
 
 def _get_or_create_support_conversation(user):
+    """Reuse the latest thread or open a new one."""
     conversation = _get_latest_support_conversation(user)
     if conversation is None:
         conversation = SupportConversation.objects.create(user=user)
@@ -496,6 +544,7 @@ def _get_or_create_support_conversation(user):
 
 
 def _serialize_support_message(message):
+    """Convert a SupportMessage to the JSON shape consumed by the chat widget."""
     sender = message.sender
     sender_label = 'You'
     if message.is_system_generated:
@@ -503,7 +552,7 @@ def _serialize_support_message(message):
     elif message.is_admin_reply:
         sender_label = 'Admin'
     elif sender and sender.user_type == 'vendor':
-        sender_label = sender.get_full_name().strip() or sender.username or sender.email
+        sender_label = _vendor_display_label(sender)
 
     return {
         'id': message.id,
@@ -516,12 +565,19 @@ def _serialize_support_message(message):
     }
 
 
+# --- Admin analytics helpers ------------------------------------------------
+# Powers the dashboard charts: revenue trend, signups, package mix, top
+# vendors. Kept here so admin_views.py and the analytics JSON API share
+# the same math.
+
 def _admin_analytics_year_options():
+    """Three-year window (current and two previous) shown in the year picker."""
     current_year = timezone.localdate().year
     return [current_year - 2, current_year - 1, current_year]
 
 
 def _parse_admin_analytics_year(raw_year, year_options):
+    """Validate the ``?year=`` query parameter; fall back to the latest year."""
     try:
         parsed = int(raw_year)
     except (TypeError, ValueError):
@@ -532,16 +588,19 @@ def _parse_admin_analytics_year(raw_year, year_options):
 
 
 def _month_labels():
+    """Twelve short month labels (Jan..Dec) for chart x-axes."""
     return [date(2000, month, 1).strftime('%b') for month in range(1, 13)]
 
 
 def _month_range_dates(year, month):
+    """Inclusive (first_day, last_day) tuple for the given calendar month."""
     start = date(year, month, 1)
     end = date(year, month, monthrange(year, month)[1])
     return start, end
 
 
 def _monthly_sum_for_bookings(bookings_queryset, year, field_name, *, confirmed_only=False):
+    """Sum ``field_name`` per month for the year; optionally only CONFIRMED bookings."""
     values = []
     for month in range(1, 13):
         start, end = _month_range_dates(year, month)
@@ -554,6 +613,7 @@ def _monthly_sum_for_bookings(bookings_queryset, year, field_name, *, confirmed_
 
 
 def _monthly_count_for_queryset(queryset, year, date_field):
+    """Count rows per month for the given year (e.g. signups, new packages)."""
     values = []
     for month in range(1, 13):
         start, end = _month_range_dates(year, month)
@@ -565,6 +625,12 @@ def _monthly_count_for_queryset(queryset, year, date_field):
 
 
 def _monthly_growth(values, year):
+    """Compute month-over-month % growth from a 12-element series.
+
+    Returns a dict with current/previous values, their month labels, and a
+    percent change. ``percent`` is ``None`` when there is no comparable
+    previous month or when the previous month was zero and current is too.
+    """
     if not values:
         return {
             'percent': None,
@@ -600,27 +666,8 @@ def _monthly_growth(values, year):
     }
 
 
-def _is_cultural_package(package):
-    keywords = (
-        'cultural',
-        'culture',
-        'heritage',
-        'temple',
-        'monastery',
-        'pilgrimage',
-        'museum',
-    )
-    searchable_text = ' '.join([
-        package.title or '',
-        package.description or '',
-        package.itinerary or '',
-        package.location_name or '',
-        package.location or '',
-    ]).lower()
-    return any(keyword in searchable_text for keyword in keywords)
-
-
 def _package_category_breakdown_for_year(year):
+    """Return ``{labels, values}`` for the Trek vs Tour donut chart."""
     packages = Package.objects.filter(created_at__year=year)
     trek_count = 0
     tour_count = 0
@@ -638,6 +685,7 @@ def _package_category_breakdown_for_year(year):
 
 
 def _vendor_display_label(vendor_user):
+    """Pick a display name for a vendor: business → full name → email → fallback."""
     profile = _get_vendor_profile(vendor_user)
     if profile and profile.business_name:
         return profile.business_name
@@ -648,6 +696,10 @@ def _vendor_display_label(vendor_user):
 
 
 def _top_vendor_earnings_for_year(year, limit=8):
+    """Return up to ``limit`` highest-earning vendors (by vendor share) for ``year``.
+
+    Earnings are summed from CONFIRMED bookings using ``Booking.vendor_amount``.
+    """
     bookings = Booking.objects.filter(
         status=Booking.STATUS_CONFIRMED,
         created_at__year=year,
@@ -705,8 +757,6 @@ __all__ = [
     'transaction',
     'Avg',
     'BooleanField',
-    'Case',
-    'CharField',
     'Count',
     'DateTimeField',
     'Max',
@@ -715,8 +765,6 @@ __all__ = [
     'Subquery',
     'Sum',
     'TextField',
-    'Value',
-    'When',
     'HttpResponse',
     'JsonResponse',
     'get_object_or_404',
@@ -731,7 +779,6 @@ __all__ = [
     'require_POST',
     'Booking',
     'Package',
-    'SpecialOffer',
     'Review',
     'PackageImage',
     'SupportConversation',
@@ -761,25 +808,22 @@ __all__ = [
     'notify_admins',
     'notification_link',
     'serialize_notification',
-    'create_otp',
-    'verify_otp_util',
     'add_points',
     'sync_badges_for_user',
     'total_points_for_user',
     'badge_progress_for_user',
-    'TRAVELER_CATEGORY_LABELS',
-    'TRAVELER_CATEGORY_SLUGS',
     '_get_vendor_profile',
     '_get_admin_profile',
     '_get_traveler_profile',
     '_get_active_subscription',
-    '_sync_active_special_offers_for_user',
-    '_notify_opted_in_travelers_for_limited_package_offer',
     '_delete_stored_file',
     '_is_valid_uploaded_image',
     '_ensure_vendor',
     '_ensure_vendor_account',
     '_ensure_traveler',
+    'traveler_required',
+    'vendor_required',
+    'vendor_account_required',
     '_safe_next_url',
     '_plan_esewa_payload',
     '_plan_payment_session_key',
@@ -787,9 +831,7 @@ __all__ = [
     '_apply_transaction_filters',
     '_transaction_csv_response',
     '_dashboard_route_name',
-    '_traveler_category_expression',
     '_traveler_package_queryset',
-    '_add_category_labels',
     '_append_package_images',
     '_reorder_package_images',
     '_sync_package_images',
@@ -804,7 +846,6 @@ __all__ = [
     '_monthly_sum_for_bookings',
     '_monthly_count_for_queryset',
     '_monthly_growth',
-    '_is_cultural_package',
     '_package_category_breakdown_for_year',
     '_vendor_display_label',
     '_top_vendor_earnings_for_year',

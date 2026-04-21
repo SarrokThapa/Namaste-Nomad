@@ -1,3 +1,16 @@
+"""Database models for the accounts app.
+
+Custom User (with ``user_type`` switching between traveler/vendor/admin),
+the matching profile models (TravelerProfile, VendorProfile, AdminProfile),
+authentication helpers (OTP, PasswordResetOTP), the feature subscription
+domain (FeaturePlan, VendorFeatureSubscription, FeaturedPackage), and
+the gamification layer (Notification, Badge, UserBadge, RewardPoint).
+"""
+
+# NOTE: file > 300 lines — split deferred. Same model-split caveat as
+# core/models.py: splitting risks Django app-label / migration breakage,
+# and the project's safety rules forbid migration changes.
+
 from datetime import timedelta
 from decimal import Decimal
 
@@ -16,7 +29,6 @@ class User(AbstractUser):
     user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES)
     phone = models.CharField(max_length=20, blank=True, null=True)
     is_verified = models.BooleanField(default=False)
-    wants_promotions = models.BooleanField(default=False)
     
     def __str__(self):
         return f"{self.username} - {self.user_type}"
@@ -168,13 +180,26 @@ class VendorFeatureSubscription(models.Model):
         overdue = cls.objects.filter(is_active=True, end_date__lt=today)
         if vendor is not None:
             overdue = overdue.filter(vendor=vendor)
-        expired_ids = list(overdue.values_list('id', flat=True))
+        expired_subscriptions = list(overdue.select_related('vendor'))
+        expired_ids = [subscription.id for subscription in expired_subscriptions]
         if expired_ids:
             FeaturedPackage.objects.filter(
                 subscription_id__in=expired_ids,
                 is_active=True,
             ).update(is_active=False)
             overdue.update(is_active=False)
+            Notification.objects.bulk_create([
+                Notification(
+                    user=subscription.vendor,
+                    message=(
+                        f'Your feature subscription "{subscription.plan_name}" has expired. '
+                        'Please renew your plan to keep featuring packages.'
+                    ),
+                    type=Notification.TYPE_SUBSCRIPTION,
+                    related_object_id=subscription.id,
+                )
+                for subscription in expired_subscriptions
+            ])
         return expired_ids
 
     @classmethod
@@ -249,6 +274,7 @@ class Notification(models.Model):
     TYPE_PACKAGE_SUBMISSION = 'package_submission'
     TYPE_USER_REGISTRATION = 'user_registration'
     TYPE_PROMOTION = 'promotion'
+    TYPE_SUBSCRIPTION = 'subscription'
 
     TYPE_CHOICES = (
         (TYPE_BOOKING, 'Booking'),
@@ -262,6 +288,7 @@ class Notification(models.Model):
         (TYPE_PACKAGE_SUBMISSION, 'Package Submission'),
         (TYPE_USER_REGISTRATION, 'User Registration'),
         (TYPE_PROMOTION, 'Promotion'),
+        (TYPE_SUBSCRIPTION, 'Subscription'),
     )
 
     user = models.ForeignKey(

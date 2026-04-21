@@ -1,9 +1,3 @@
-"""Accounts views package exports."""
+"""Accounts views package."""
 
-from .auth_views import *
-
-from .profile_views import *
-
-from .vendor import *
-
-from .admin_views import *
+__all__ = []

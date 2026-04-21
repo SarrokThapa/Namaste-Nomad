@@ -1,4 +1,30 @@
-"""Shared core view helpers and dependencies."""
+"""Shared core view helpers and dependencies.
+
+Hub module for the ``core/views/`` package — every sibling view file
+imports the names it needs from here instead of pulling Django, the
+models, the forms, the payments wrapper, or the eSewa service directly.
+This keeps each view file short and gives us one place to update an
+import path when something is renamed.
+
+Helpers defined inline (not just re-exports):
+* ``BLOG_POSTS`` / ``TAG_PATTERN`` — static blog content + @vendor tag regex
+* ``_safe_related`` — guarded reverse-OneToOne lookup
+* ``_user_display_name`` / ``_user_avatar_url`` / ``_public_profile_url_for_user``
+* ``_vendor_display_name`` / ``_vendor_is_verified`` / ``_verified_badge_html``
+* ``_caption_with_vendor_links`` — turn ``@username`` into vendor profile links
+* ``_prepare_review_cards`` / ``_prepare_feed_posts`` / ``_community_posts``
+* ``_get_or_create_traveler_profile``
+* ``_can_access_booking_invoice``
+* ``_parse_int`` / ``_parse_float``
+* ``_budget_threshold`` / ``_apply_package_filters`` / ``_public_package_queryset``
+* ``_wishlist_ids_for_user`` / ``_render_package_list``
+
+Do not flatten this hub — multiple view files import from it.
+"""
+
+# NOTE: file > 300 lines — split deferred. This is a hub re-export module
+# consumed by every file in core/views/; splitting would force matching
+# import-path edits across all consumers.
 
 from datetime import date, timedelta
 
@@ -54,7 +80,9 @@ from accounts.achievements import (
 )
 
 from accounts.notifications import create_notification, notify_admins
+from core.selectors import public_package_queryset, wishlist_ids_for_user
 
+# --- Forms, services, and invoice helpers re-exported through this hub ------
 from ..forms import BookingForm, CommentForm, ContactMessageForm, PostEditForm, PostForm, ReviewForm
 from ..services.search_service import budget_threshold as search_budget_threshold, filter_packages as filter_packages_service
 
@@ -77,12 +105,16 @@ from ..models import (
     Wishlist,
 )
 
+# Stripe wrapper for international card payments.
 from ..payments import (
     StripeError,
     create_checkout_session,
     expire_checkout_session,
     retrieve_checkout_session,
 )
+# eSewa V2 (HMAC-SHA256, NPR) for Nepal-side payments. Aliased so views can
+# call ``build_esewa_payment_payload`` etc. without remembering the original
+# function names inside the service module.
 from ..services.esewa_service import (
     EsewaError,
     get_esewa_payment_url,
@@ -91,6 +123,10 @@ from ..services.esewa_service import (
     process_success_callback as esewa_process_success_callback,
 )
 
+# --- Static blog content ----------------------------------------------------
+# Hardcoded blog posts shown on the public site. Kept inline (instead of in
+# the database) so non-technical edits to copy can be made by updating this
+# list directly.
 BLOG_POSTS = [
     {
         'slug': 'top-5-treks-in-nepal',
@@ -228,9 +264,16 @@ BLOG_POSTS = [
     },
 ]
 
+# Matches ``@username`` mentions inside community post captions.
 TAG_PATTERN = re.compile(r'@([A-Za-z0-9_.+-]+)')
 
+
 def _safe_related(instance, attribute_name):
+    """``getattr`` that returns ``None`` instead of raising for a missing related row.
+
+    Useful for reverse OneToOne lookups like ``user.traveler_profile`` where
+    the related object may simply not exist yet.
+    """
     try:
         return getattr(instance, attribute_name)
     except ObjectDoesNotExist:
@@ -238,6 +281,7 @@ def _safe_related(instance, attribute_name):
 
 
 def _user_display_name(user):
+    """Best-effort human label for a user (full name → username → 'Traveler')."""
     if not user:
         return "Traveler"
     full_name = user.get_full_name().strip()
@@ -245,6 +289,7 @@ def _user_display_name(user):
 
 
 def _user_avatar_url(user):
+    """Avatar URL for a user, switching on user_type to find the right profile."""
     if not user:
         return ""
 
@@ -266,6 +311,7 @@ def _user_avatar_url(user):
 
 
 def _public_profile_url_for_user(user):
+    """Reverse the public profile URL for a traveler or vendor (admins → '')."""
     if not user:
         return ''
 
@@ -278,6 +324,7 @@ def _public_profile_url_for_user(user):
 
 
 def _vendor_display_name(vendor):
+    """Best-effort vendor label: business name → full name → username → 'Vendor'."""
     if not vendor:
         return "Vendor"
 
@@ -299,6 +346,7 @@ def _vendor_display_name(vendor):
 
 
 def _vendor_is_verified(vendor):
+    """True iff the vendor's profile has the admin-set ``is_verified`` flag."""
     if not vendor:
         return False
     profile = _safe_related(vendor, 'vendor_profile')
@@ -306,6 +354,7 @@ def _vendor_is_verified(vendor):
 
 
 def _verified_badge_html(is_verified):
+    """Tiny inline 'Verified ✔' badge HTML; empty string if not verified."""
     if not is_verified:
         return ""
     return (
@@ -317,6 +366,12 @@ def _verified_badge_html(is_verified):
 
 
 def _caption_with_vendor_links(post):
+    """Render a community post caption as safe HTML with @vendor links.
+
+    Replaces ``@username`` mentions with anchors to the vendor's public
+    profile, escapes everything else, and appends any tagged vendors that
+    were not mentioned in the caption text on a "Tagged:" line.
+    """
     caption = post.caption or ""
     if not caption:
         caption = ""
@@ -367,6 +422,7 @@ def _caption_with_vendor_links(post):
 
 
 def _prepare_review_cards(review_queryset):
+    """Decorate each review with the traveler's display name, avatar, and profile URL."""
     reviews = list(review_queryset)
 
     for review in reviews:
@@ -379,6 +435,13 @@ def _prepare_review_cards(review_queryset):
 
 
 def _prepare_feed_posts(post_queryset, viewer=None):
+    """Annotate community posts with everything the feed template needs.
+
+    For each post we attach: author name/avatar/profile URL, vendor-verified
+    flag, rendered caption HTML (with @mentions linked), media items, like
+    count, ``is_liked_by_current_user``, and a nested top-level/reply
+    comment tree under ``prepared_comments``.
+    """
     posts = list(post_queryset)
     viewer_id = viewer.id if getattr(viewer, 'is_authenticated', False) else None
 
@@ -431,10 +494,12 @@ def _prepare_feed_posts(post_queryset, viewer=None):
 
 
 def _traveler_level_label(total_points):
+    """Map a reward-points total to a level badge ('Beginner' / 'Pro')."""
     return 'Pro Traveler' if total_points >= 200 else 'Beginner Traveler'
 
 
 def _community_posts(viewer=None):
+    """Build the community feed queryset with all the prefetches the cards need."""
     user_model = get_user_model()
     comment_queryset = Comment.objects.select_related(
         'user',
@@ -470,6 +535,7 @@ def _community_posts(viewer=None):
 
 
 def _get_or_create_traveler_profile(user):
+    """Return the user's TravelerProfile, creating an empty one if missing."""
     profile = _safe_related(user, 'traveler_profile')
     if profile is None:
         profile = TravelerProfile.objects.create(user=user)
@@ -477,6 +543,7 @@ def _get_or_create_traveler_profile(user):
 
 
 def _can_access_booking_invoice(user, booking):
+    """Authorization check: only admins or the booking owner may view the invoice."""
     if not user.is_authenticated:
         return False
     if getattr(user, 'user_type', '') == 'admin' and user.is_staff:
@@ -485,6 +552,7 @@ def _can_access_booking_invoice(user, booking):
 
 
 def _parse_int(value):
+    """``int(value)`` that returns ``None`` for blank/invalid input."""
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -492,6 +560,7 @@ def _parse_int(value):
 
 
 def _parse_float(value):
+    """``float(value)`` that returns ``None`` for blank/invalid input."""
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -499,10 +568,12 @@ def _parse_float(value):
 
 
 def _budget_threshold(queryset):
+    """Wrapper around the search service so views import it via the helpers hub."""
     return search_budget_threshold(queryset)
 
 
 def _apply_package_filters(request, queryset, forced_category=None, budget_threshold=None):
+    """Apply the search/filter service to a package queryset using ``request.GET``."""
     return filter_packages_service(
         queryset,
         request.GET,
@@ -512,28 +583,17 @@ def _apply_package_filters(request, queryset, forced_category=None, budget_thres
 
 
 def _public_package_queryset():
-    return (
-        Package.objects.filter(is_active=True)
-        .select_related('vendor', 'vendor__vendor_profile')
-        .prefetch_related('images')
-        .annotate(
-            review_count=Count('reviews', distinct=True),
-            avg_rating=Avg('reviews__rating'),
-            booking_count=Count('bookings', distinct=True),
-        )
-        .order_by('-created_at')
-    )
+    """Wrapper kept under its old underscore name; logic lives in the selectors layer."""
+    return public_package_queryset()
 
 
 def _wishlist_ids_for_user(user):
-    if not getattr(user, 'is_authenticated', False):
-        return set()
-    if getattr(user, 'user_type', '') != 'traveler':
-        return set()
-    return set(Wishlist.objects.filter(traveler=user).values_list('package_id', flat=True))
+    """IDs of packages the user has wishlisted; used to mark hearts in templates."""
+    return wishlist_ids_for_user(user)
 
 
 def _render_package_list(request, category=None):
+    """Render the public package list page, optionally scoped to TREK or TOUR."""
     VendorFeatureSubscription.expire_overdue()
     wishlist_ids = _wishlist_ids_for_user(request.user)
     packages = _public_package_queryset()

@@ -48,7 +48,11 @@
                 <tbody>
                     {% for booking in recent_bookings %}
                         <tr>
-                            <td>{% firstof booking.traveler.get_full_name booking.traveler.email "Traveler" %}</td>
+                            {% if booking.traveler %}
+                                <td>{% firstof booking.traveler.get_full_name booking.traveler.email "Traveler" %}</td>
+                            {% else %}
+                                <td>Deleted User</td>
+                            {% endif %}
                             <td>{{ booking.package.title }}</td>
                             <td>{{ booking.travel_date|date:"M d, Y" }}</td>
                             <td>Rs {{ booking.total_price|floatformat:0 }}</td>

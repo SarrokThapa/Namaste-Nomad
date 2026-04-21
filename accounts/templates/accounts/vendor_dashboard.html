@@ -95,7 +95,7 @@
     <div class="card chart-card">
         <div class="card-header">
             <h3>Vendor Earnings (Monthly)</h3>
-            <span class="card-meta">Completed bookings · 75% share</span>
+            <span class="card-meta">Completed bookings</span>
         </div>
         <div class="chart-canvas-wrap">
             <canvas id="earningsChart"></canvas>
@@ -294,11 +294,19 @@
                 {% for booking in upcoming_bookings %}
                     <div class="booking-item">
                         <div class="booking-avatar">
-                            {{ booking.traveler.first_name|default:"T"|slice:":1" }}{{ booking.traveler.last_name|default:""|slice:":1" }}
+                            {% if booking.traveler %}
+                                {{ booking.traveler.first_name|default:"T"|slice:":1" }}{{ booking.traveler.last_name|default:""|slice:":1" }}
+                            {% else %}
+                                DU
+                            {% endif %}
                         </div>
                         <div class="booking-info">
                             <div class="booking-name">
-                                {{ booking.traveler.get_full_name|default:"Traveler" }}
+                                {% if booking.traveler %}
+                                    {{ booking.traveler.get_full_name|default:"Traveler" }}
+                                {% else %}
+                                    Deleted User
+                                {% endif %}
                             </div>
                             <div class="booking-meta">
                                 {{ booking.package.title }} -

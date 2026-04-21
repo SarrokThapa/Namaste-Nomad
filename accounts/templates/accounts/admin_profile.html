@@ -51,6 +51,17 @@
                     </span>
                     Dashboard
                 </a>
+                <div class="nav-section-label">Finance</div>
+                <a class="nav-item nav-item-finance {% if active_page == 'transactions' %}active{% endif %}" href="{% url 'admin_transactions' %}">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="5" width="18" height="14" rx="2"/>
+                            <path d="M3 10h18"/>
+                            <path d="M7 15h4"/>
+                        </svg>
+                    </span>
+                    Admin Transactions
+                </a>
                 <a class="nav-item" href="{% url 'admin_users' %}">
                     <span class="nav-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -263,7 +274,7 @@
                         </div>
                         {% for vendor in pending_vendors %}
                             <div class="approval-row">
-                                <span>{{ vendor.get_full_name|default:vendor.email }}</span>
+                                <span>{{ vendor.get_full_name|default:vendor.username|default:"Vendor" }}</span>
                                 <span>{{ vendor.vendor_profile.business_name|default:"-" }}</span>
                                 <span>{{ vendor.email }}</span>
                                 <span>{{ vendor.phone|default:"-" }}</span>

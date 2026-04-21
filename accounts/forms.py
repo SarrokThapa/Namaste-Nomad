@@ -5,12 +5,6 @@ from .models import VendorProfile
 
 
 class PackageForm(forms.ModelForm):
-    limited_time_offer = forms.BooleanField(
-        required=False,
-        initial=False,
-        label='Limited-time special offer',
-    )
-
     class Meta:
         model = Package
         fields = [
@@ -114,7 +108,7 @@ class PackageForm(forms.ModelForm):
             self.add_error('longitude', 'Longitude must be between -180 and 180.')
 
         if available_from and available_until and available_from > available_until:
-            self.add_error('available_until', 'Available until must be after the available from date.')
+            self.add_error('available_until', 'Available from date cannot be later than available until date.')
 
         return cleaned_data
 
@@ -136,28 +130,17 @@ class VendorProfileForm(forms.ModelForm):
             'business_name',
             'owner_name',
             'tagline',
-            'website',
             'license_number',
             'business_address',
             'description',
-            'bank_name',
-            'account_number',
-            'routing_number',
-            'paypal_email',
             'logo',
             'cover_image',
-            'document',
         ]
         widgets = {
             'business_name': forms.TextInput(attrs={'class': 'form-control'}),
             'owner_name': forms.TextInput(attrs={'class': 'form-control'}),
             'tagline': forms.TextInput(attrs={'class': 'form-control'}),
-            'website': forms.URLInput(attrs={'class': 'form-control'}),
             'license_number': forms.TextInput(attrs={'class': 'form-control'}),
             'business_address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-            'bank_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'account_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'routing_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'paypal_email': forms.EmailInput(attrs={'class': 'form-control'}),
         }

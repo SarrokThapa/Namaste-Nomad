@@ -296,8 +296,8 @@
         </div>
     </section>
 
-    <!-- Recommended for You (unchanged logic) -->
-    {% if show_promotions %}
+    <!-- Recommended for You -->
+    {% if request.user.is_authenticated and request.user.user_type == 'traveler' %}
         <section class="popular">
             <div class="container-landing">
                 <div class="section-header">
@@ -339,112 +339,7 @@
                 </div>
             </div>
         </section>
-    {% elif request.user.is_authenticated and request.user.user_type == 'traveler' %}
-        <section class="popular">
-            <div class="container-landing">
-                <div class="review-empty">Turn on "travel tips and special offers" in your profile to unlock personalized recommendations.</div>
-            </div>
-        </section>
     {% endif %}
-
-    <!-- ======================================================
-         SECTION 4: SPECIAL OFFERS
-         ====================================================== -->
-    <section class="home-offers">
-        <div class="container-landing">
-            <div class="section-header">
-                <div>
-                    <h2 class="section-title">Special Offers</h2>
-                    <p class="section-subtitle">Limited-time deals from trusted Nepal operators</p>
-                </div>
-            </div>
-            <div class="offers-grid">
-                {% if special_offers %}
-                    {% for offer in special_offers %}
-                        <article class="offer-card">
-                            <div class="offer-badge offer-badge--green">
-                                <i class="fas fa-tag"></i> Limited Offer
-                            </div>
-                            <div class="offer-body">
-                                <h3>{{ offer.title }}</h3>
-                                <p class="offer-summary">{{ offer.summary }}</p>
-                                <p class="offer-detail">{{ offer.content|truncatewords:20 }}</p>
-                                <div class="offer-footer">
-                                    {% if offer.valid_until %}
-                                        <span class="offer-validity"><i class="fas fa-clock"></i> Valid until {{ offer.valid_until|date:"M d, Y" }}</span>
-                                    {% else %}
-                                        <span class="offer-validity"><i class="fas fa-infinity"></i> Ongoing offer</span>
-                                    {% endif %}
-                                    {% if offer.cta_url %}
-                                        <a class="btn-offer" href="{{ offer.cta_url }}" target="_blank" rel="noopener">Book Now</a>
-                                    {% else %}
-                                        <a class="btn-offer" href="{% url 'package_list' %}">Book Now</a>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </article>
-                    {% endfor %}
-                {% else %}
-                    <article class="offer-card">
-                        <div class="offer-badge offer-badge--orange">
-                            <i class="fas fa-percent"></i> 15% OFF
-                        </div>
-                        <div class="offer-body">
-                            <h3>Early Bird Discount</h3>
-                            <p class="offer-summary">Book 30 days in advance and save big</p>
-                            <p class="offer-detail">Plan ahead and enjoy 15% off on any trek or tour when you book at least 30 days before your departure date.</p>
-                            <div class="offer-footer">
-                                <span class="offer-validity"><i class="fas fa-clock"></i> Ongoing</span>
-                                <a class="btn-offer" href="{% url 'package_list' %}">Book Now</a>
-                            </div>
-                        </div>
-                    </article>
-                    <article class="offer-card">
-                        <div class="offer-badge offer-badge--teal">
-                            <i class="fas fa-percent"></i> 20% OFF
-                        </div>
-                        <div class="offer-body">
-                            <h3>Group Special</h3>
-                            <p class="offer-summary">Book for 4+ people and save together</p>
-                            <p class="offer-detail">Travelling with a group? Get 20% off on Annapurna Circuit and other popular treks when you book for 4 or more travellers.</p>
-                            <div class="offer-footer">
-                                <span class="offer-validity"><i class="fas fa-users"></i> Groups of 4+</span>
-                                <a class="btn-offer" href="{% url 'package_treks' %}">Book Now</a>
-                            </div>
-                        </div>
-                    </article>
-                    <article class="offer-card">
-                        <div class="offer-badge offer-badge--blue">
-                            <i class="fas fa-percent"></i> 25% OFF
-                        </div>
-                        <div class="offer-body">
-                            <h3>Monsoon Deal</h3>
-                            <p class="offer-summary">Lush valleys at unbeatable prices</p>
-                            <p class="offer-detail">25% off on all Chitwan wildlife tours and rain-shadow treks during July–August. Experience Nepal's green season at its finest.</p>
-                            <div class="offer-footer">
-                                <span class="offer-validity"><i class="fas fa-calendar"></i> Jul – Aug</span>
-                                <a class="btn-offer" href="{% url 'package_tours' %}">Book Now</a>
-                            </div>
-                        </div>
-                    </article>
-                    <article class="offer-card">
-                        <div class="offer-badge offer-badge--purple">
-                            <i class="fas fa-gift"></i> NPR 500 OFF
-                        </div>
-                        <div class="offer-body">
-                            <h3>First Trip Bonus</h3>
-                            <p class="offer-summary">New travellers get an exclusive welcome discount</p>
-                            <p class="offer-detail">First time booking with Namaste Nomad? Enjoy NPR 500 off your first trek or tour as our welcome gift to you.</p>
-                            <div class="offer-footer">
-                                <span class="offer-validity"><i class="fas fa-star"></i> New users only</span>
-                                <a class="btn-offer" href="{% url 'package_list' %}">Book Now</a>
-                            </div>
-                        </div>
-                    </article>
-                {% endif %}
-            </div>
-        </div>
-    </section>
 
     <!-- ======================================================
          SECTION 5: TRAVEL TIPS

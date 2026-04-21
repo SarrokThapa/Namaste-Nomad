@@ -1,20 +1,106 @@
-"""Admin views and analytics endpoints."""
+"""Admin views and analytics endpoints.
 
-from .common import *
+Owns the admin support inbox, the dashboard, the analytics JSON API,
+admin profile editing, and the moderation actions (verify vendor,
+suspend traveler, toggle package, manage feature plans, deactivate
+subscriptions, view transactions). All view functions are wrapped in
+``admin_required`` so non-admin users get redirected to the login flow.
+"""
+
+# NOTE: file > 300 lines — split deferred. URL configs and templates
+# already reference these view names directly; splitting would force
+# matching changes in accounts/urls.py and add an indirection layer
+# that the project's safety rules forbid.
+
+from .common import (
+    AdminProfile,
+    Avg,
+    Booking,
+    BooleanField,
+    Count,
+    DateTimeField,
+    Decimal,
+    FeaturePlan,
+    FeaturedPackage,
+    IntegrityError,
+    InvalidOperation,
+    JsonResponse,
+    Notification,
+    OuterRef,
+    Package,
+    Review,
+    Subquery,
+    Sum,
+    SupportConversation,
+    SupportMessage,
+    TextField,
+    Transaction,
+    User,
+    VendorFeatureSubscription,
+    _admin_analytics_year_options,
+    _apply_transaction_filters,
+    _delete_stored_file,
+    _get_admin_profile,
+    _get_vendor_profile,
+    _is_valid_uploaded_image,
+    _month_labels,
+    _month_range_dates,
+    _monthly_count_for_queryset,
+    _monthly_growth,
+    _monthly_sum_for_bookings,
+    _package_category_breakdown_for_year,
+    _parse_admin_analytics_year,
+    _safe_next_url,
+    _top_vendor_earnings_for_year,
+    _transaction_csv_response,
+    _vendor_display_label,
+    admin_required,
+    create_notification,
+    csrf_protect,
+    csv,
+    date,
+    get_object_or_404,
+    messages,
+    never_cache,
+    redirect,
+    render,
+    reverse,
+    timezone,
+    update_session_auth_hash,
+)
 from ..services import email_service
+from ..services.user_deletion_service import delete_user_permanently
 from core.services.subscription_service import (
     deactivate_subscription,
     expire_overdue_subscriptions,
     get_all_featured_packages,
+    reactivate_subscription,
 )
+
+
+def _can_permanently_delete_user(actor, target_user):
+    """Central safety rules for permanent deletion from admin tools."""
+    if not actor.is_superuser:
+        return False, 'Only super admin can permanently delete users.'
+    if target_user.is_superuser or target_user.is_staff or target_user.user_type == 'admin':
+        return False, 'Admin/superuser accounts cannot be permanently deleted.'
+    if actor.id == target_user.id:
+        return False, 'You cannot permanently delete your own account.'
+    return True, ''
+
+
+def _delete_user_permanently_with_related_auth(user):
+    """Delete user and all owned rows that must not survive account deletion."""
+    delete_user_permanently(user)
 
 @admin_required
 def admin_support_inbox(request):
+    """List every support thread, annotated with the latest message and unread state."""
     admin_profile = _get_admin_profile(request.user)
     last_message_qs = SupportMessage.objects.filter(
         conversation=OuterRef('pk'),
     ).order_by('-created_at', '-id')
-    conversations = SupportConversation.objects.select_related('user').annotate(
+    conversations = SupportConversation.objects.select_related('user', 'user__vendor_profile').annotate(
         last_message_text=Subquery(
             last_message_qs.values('message')[:1],
             output_field=TextField(),
@@ -33,7 +119,10 @@ def admin_support_inbox(request):
     unread_count = 0
     for conversation in conversations:
         user = conversation.user
-        conversation.user_display = user.get_full_name().strip() or user.username or user.email
+        if user.user_type == 'vendor':
+            conversation.user_display = _vendor_display_label(user)
+        else:
+            conversation.user_display = user.get_full_name().strip() or user.username or user.email
         conversation.user_role = role_labels.get(user.user_type, user.user_type.title())
         conversation.last_message_text = conversation.last_message_text or ''
         conversation.unread_by_admin = conversation.last_message_is_admin is False
@@ -51,20 +140,13 @@ def admin_support_inbox(request):
 @admin_required
 @csrf_protect
 def admin_support_chat(request, conversation_id):
+    """Render one support thread; POST sends an admin reply."""
     admin_profile = _get_admin_profile(request.user)
     conversation = get_object_or_404(
-        SupportConversation.objects.select_related('user'),
+        SupportConversation.objects.select_related('user', 'user__vendor_profile'),
         id=conversation_id,
     )
     if request.method == 'POST':
-        action = (request.POST.get('action') or '').lower()
-        if action == 'close':
-            if conversation.status != SupportConversation.STATUS_CLOSED:
-                conversation.status = SupportConversation.STATUS_CLOSED
-                conversation.save(update_fields=['status'])
-                messages.success(request, 'Conversation closed.')
-            return redirect('admin_support_chat', conversation_id=conversation.id)
-
         message_text = (request.POST.get('message') or '').strip()
         if not message_text:
             messages.error(request, 'Please enter a message before sending.')
@@ -87,11 +169,14 @@ def admin_support_chat(request, conversation_id):
 
     role_labels = dict(User.USER_TYPE_CHOICES)
     user = conversation.user
-    conversation.user_display = user.get_full_name().strip() or user.username or user.email
+    if user.user_type == 'vendor':
+        conversation.user_display = _vendor_display_label(user)
+    else:
+        conversation.user_display = user.get_full_name().strip() or user.username or user.email
     conversation.user_role = role_labels.get(user.user_type, user.user_type.title())
     support_messages = (
         SupportMessage.objects.filter(conversation=conversation)
-        .select_related('sender', 'related_booking')
+        .select_related('sender', 'sender__vendor_profile', 'related_booking')
         .order_by('created_at')
     )
 
@@ -103,9 +188,27 @@ def admin_support_chat(request, conversation_id):
     })
 
 
+@admin_required
+@csrf_protect
+def admin_support_delete(request, conversation_id):
+    """POST-only: permanently delete a support conversation and its messages."""
+    if request.method != 'POST':
+        return redirect('admin_support_inbox')
+
+    conversation = get_object_or_404(SupportConversation, id=conversation_id)
+    conversation.delete()
+    messages.success(request, 'Support conversation deleted.')
+
+    next_url = (request.POST.get('next') or '').strip()
+    if next_url:
+        return redirect(next_url)
+    return redirect('admin_support_inbox')
+
+
 @never_cache
 @admin_required
 def admin_dashboard(request):
+    """Aggregate the headline numbers, lists, and recent activity feed for the admin home."""
     expire_overdue_subscriptions()
     admin_profile = _get_admin_profile(request.user)
     vendors = User.objects.filter(user_type='vendor').select_related('vendor_profile').annotate(
@@ -223,6 +326,7 @@ def admin_dashboard(request):
 
 @admin_required
 def admin_analytics_api(request):
+    """JSON endpoint backing the dashboard charts (revenue, signups, packages, vendors)."""
     year_options = _admin_analytics_year_options()
     selected_year = _parse_admin_analytics_year(
         request.GET.get('year'),
@@ -334,6 +438,7 @@ def admin_analytics_api(request):
 @admin_required
 @csrf_protect
 def admin_profile(request):
+    """Show / update the logged-in admin's profile, avatar, and password."""
     profile = _get_admin_profile(request.user)
     if profile is None:
         profile = AdminProfile.objects.create(user=request.user)
@@ -399,7 +504,7 @@ def admin_profile(request):
             messages.success(request, 'Password updated successfully.')
         else:
             messages.success(request, 'Profile updated successfully.')
-
+ 
         return redirect('admin_profile')
 
     full_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
@@ -420,6 +525,7 @@ def admin_profile(request):
 @admin_required
 @csrf_protect
 def admin_vendor_action(request, vendor_id):
+    """POST-only moderation: approve / reject / suspend / activate / (un)verify a vendor."""
     next_url = _safe_next_url(request, 'admin_dashboard')
 
     if request.method != 'POST':
@@ -491,6 +597,20 @@ def admin_vendor_action(request, vendor_id):
             related_object_id=vendor.id,
         )
         messages.success(request, f'{vendor.email} marked as unverified.')
+    elif action == 'delete_permanent':
+        is_allowed, error_message = _can_permanently_delete_user(request.user, vendor)
+        if not is_allowed:
+            messages.error(request, error_message)
+            return redirect(next_url)
+
+        confirm_delete = (request.POST.get('confirm_delete') or '').strip().upper()
+        if confirm_delete != 'DELETE':
+            messages.error(request, 'Permanent deletion requires DELETE confirmation.')
+            return redirect(next_url)
+
+        _delete_user_permanently_with_related_auth(vendor)
+        messages.success(request, f'{vendor.email} permanently deleted.')
+        return redirect(next_url)
     else:
         messages.error(request, 'Invalid action.')
         return redirect(next_url)
@@ -503,6 +623,7 @@ def admin_vendor_action(request, vendor_id):
 @admin_required
 @csrf_protect
 def admin_traveler_action(request, traveler_id):
+    """POST-only moderation: suspend or activate a traveler account."""
     next_url = _safe_next_url(request, 'admin_dashboard')
     if request.method != 'POST':
         return redirect(next_url)
@@ -528,6 +649,20 @@ def admin_traveler_action(request, traveler_id):
             related_object_id=traveler.id,
         )
         messages.success(request, f'{traveler.email} activated.')
+    elif action == 'delete_permanent':
+        is_allowed, error_message = _can_permanently_delete_user(request.user, traveler)
+        if not is_allowed:
+            messages.error(request, error_message)
+            return redirect(next_url)
+
+        confirm_delete = (request.POST.get('confirm_delete') or '').strip().upper()
+        if confirm_delete != 'DELETE':
+            messages.error(request, 'Permanent deletion requires DELETE confirmation.')
+            return redirect(next_url)
+
+        _delete_user_permanently_with_related_auth(traveler)
+        messages.success(request, f'{traveler.email} permanently deleted.')
+        return redirect(next_url)
     else:
         messages.error(request, 'Invalid action.')
         return redirect(next_url)
@@ -539,6 +674,7 @@ def admin_traveler_action(request, traveler_id):
 @admin_required
 @csrf_protect
 def admin_package_toggle(request, package_id):
+    """POST-only: flip a package's is_active flag and notify the owning vendor."""
     next_url = request.POST.get('next') or 'admin_dashboard'
     if request.method != 'POST':
         return redirect('admin_dashboard')
@@ -607,6 +743,7 @@ def admin_feature_toggle(request, package_id):
 @admin_required
 @csrf_protect
 def admin_feature_plan_create(request):
+    """POST-only: validate and create a new FeaturePlan that vendors can buy."""
     next_url = request.POST.get('next') or 'admin_dashboard'
     if request.method != 'POST':
         return redirect('admin_dashboard')
@@ -657,7 +794,39 @@ def admin_feature_plan_create(request):
 
 @admin_required
 @csrf_protect
+def admin_feature_plan_delete(request, plan_id):
+    """POST-only: permanently delete a FeaturePlan from admin subscriptions."""
+    next_url = request.POST.get('next') or 'admin_dashboard'
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+
+    plan = get_object_or_404(FeaturePlan, id=plan_id)
+    plan_name = plan.name
+
+    linked_subscriptions = VendorFeatureSubscription.objects.filter(plan=plan)
+    linked_ids = list(linked_subscriptions.values_list('id', flat=True))
+    if linked_ids:
+        FeaturedPackage.objects.filter(
+            subscription_id__in=linked_ids,
+            is_active=True,
+        ).update(is_active=False)
+        linked_subscriptions.update(is_active=False, plan=None)
+
+    plan.delete()
+    if linked_ids:
+        messages.success(
+            request,
+            f'Feature plan "{plan_name}" deleted and removed from {len(linked_ids)} vendor subscription record(s).',
+        )
+    else:
+        messages.success(request, f'Feature plan "{plan_name}" deleted.')
+    return redirect(next_url)
+
+
+@admin_required
+@csrf_protect
 def admin_subscription_deactivate(request, subscription_id):
+    """POST-only: forcibly deactivate a vendor's feature subscription."""
     next_url = request.POST.get('next') or 'admin_dashboard'
     if request.method != 'POST':
         return redirect('admin_dashboard')
@@ -669,7 +838,25 @@ def admin_subscription_deactivate(request, subscription_id):
 
 
 @admin_required
+@csrf_protect
+def admin_subscription_activate(request, subscription_id):
+    """POST-only: reactivate an eligible vendor subscription."""
+    next_url = request.POST.get('next') or 'admin_dashboard'
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+
+    subscription = get_object_or_404(VendorFeatureSubscription, id=subscription_id)
+    success, error_message = reactivate_subscription(subscription)
+    if not success:
+        messages.error(request, error_message)
+    else:
+        messages.success(request, f'Subscription for {subscription.vendor.email} activated.')
+    return redirect(next_url)
+
+
+@admin_required
 def admin_vendor_detail(request, vendor_id):
+    """Read-only vendor profile + their packages, accessible to admins."""
     vendor = get_object_or_404(User, id=vendor_id, user_type='vendor')
     profile = _get_vendor_profile(vendor)
     admin_profile = _get_admin_profile(request.user)
@@ -687,16 +874,51 @@ def admin_vendor_detail(request, vendor_id):
 @never_cache
 @admin_required
 def admin_transactions(request):
+    """List all platform transactions with date/status/vendor filters and CSV export."""
     admin_profile = _get_admin_profile(request.user)
     transactions = Transaction.objects.select_related(
         'booking',
         'booking__package',
+        'booking__package__vendor',
+        'booking__package__vendor__vendor_profile',
         'traveler',
         'vendor',
+        'vendor__vendor_profile',
     )
-    transactions, filters = _apply_transaction_filters(transactions, request, allow_vendor=True)
+    transactions, filters = _apply_transaction_filters(
+        transactions,
+        request,
+        allow_vendor=True,
+        allow_status=False,
+    )
     transactions = transactions.order_by('-created_at')
-    vendor_choices = User.objects.filter(user_type='vendor').order_by('email')
+
+    for tx in transactions:
+        vendor_user = tx.vendor
+        if vendor_user is None and tx.booking and tx.booking.package:
+            vendor_user = tx.booking.package.vendor
+
+        vendor_display_name = 'Vendor'
+        if vendor_user is not None:
+            vendor_profile = _get_vendor_profile(vendor_user)
+            if vendor_profile and getattr(vendor_profile, 'business_name', ''):
+                vendor_display_name = vendor_profile.business_name
+            else:
+                vendor_display_name = (
+                    vendor_user.get_full_name()
+                    or vendor_user.username
+                    or vendor_user.email
+                    or 'Vendor'
+                )
+
+        tx.vendor_display_name = vendor_display_name
+
+    vendor_choices = User.objects.filter(user_type='vendor').select_related('vendor_profile').order_by(
+        'vendor_profile__business_name',
+        'first_name',
+        'last_name',
+        'id',
+    )
 
     if request.GET.get('export') == 'csv':
         return _transaction_csv_response(transactions, 'admin-transactions.csv')

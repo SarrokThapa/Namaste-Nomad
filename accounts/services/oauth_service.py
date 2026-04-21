@@ -1,11 +1,59 @@
-from django.urls import reverse
+"""Google OAuth (social-auth) integration helpers.
 
-from accounts.models import TravelerProfile, VendorProfile
+Owns the social-auth pipeline step that normalises new Google users,
+the role-selection helpers used after a first-time Google login, and
+the post-login dashboard routing for OAuth users.
+"""
+
+from django.db import IntegrityError
+from django.urls import reverse
+from social_django.models import UserSocialAuth
+
+from accounts.models import TravelerProfile, User, VendorProfile
 from accounts.services import email_service
 
 GOOGLE_BACKEND_NAME = 'google-oauth2'
 SESSION_OAUTH_IS_NEW = 'oauth_is_new_user'
 SESSION_OAUTH_BACKEND = 'oauth_backend_name'
+
+
+def link_existing_user_by_email(strategy, details, backend, uid=None, user=None, *args, **kwargs):
+    """Link Google OAuth to an existing account before creating a new user.
+
+    This prevents duplicate users when a traveler already registered with
+    email/password before Google OAuth was introduced.
+    """
+    if backend.name != GOOGLE_BACKEND_NAME or user is not None:
+        return {}
+
+    email = (details.get('email') or '').strip().lower()
+    if not email:
+        return {}
+
+    # check if account already exists before creating oauth user
+    existing_users = User.objects.filter(email__iexact=email).order_by('date_joined', 'id')
+    primary_user = existing_users.first()
+    if primary_user is None:
+        return {}
+
+    if uid:
+        social_record = (
+            UserSocialAuth.objects.select_related('user')
+            .filter(provider=backend.name, uid=str(uid))
+            .first()
+        )
+        if social_record and social_record.user_id != primary_user.id:
+            social_record.user = primary_user
+            try:
+                social_record.save(update_fields=['user'])
+            except IntegrityError:
+                # If a conflicting link already exists for the target user, keep one canonical record.
+                social_record.delete()
+
+    return {
+        'user': primary_user,
+        'is_new': False,
+    }
 
 
 def social_auth_user_setup(strategy, details, backend, user=None, is_new=False, *args, **kwargs):
@@ -61,23 +109,28 @@ def social_auth_user_setup(strategy, details, backend, user=None, is_new=False, 
 
 
 def was_google_oauth_login(request):
+    """Return True if the current session was authenticated via Google OAuth."""
     return request.session.get(SESSION_OAUTH_BACKEND) == GOOGLE_BACKEND_NAME
 
 
 def pop_oauth_new_user_flag(request):
+    """Pop and return the "new OAuth user" flag from the session (one-shot)."""
     return bool(request.session.pop(SESSION_OAUTH_IS_NEW, False))
 
 
 def clear_oauth_session_markers(request):
+    """Remove the OAuth backend/new-user markers from the session (logout/cleanup)."""
     request.session.pop(SESSION_OAUTH_IS_NEW, None)
     request.session.pop(SESSION_OAUTH_BACKEND, None)
 
 
 def user_needs_role_selection(user):
+    """Return True if the user has no valid role yet and must pick one before continuing."""
     return getattr(user, 'user_type', '') not in {'traveler', 'vendor', 'admin'}
 
 
 def assign_user_role(user, role):
+    """Assign a role to a fresh OAuth user. Only 'traveler' is currently supported."""
     role = (role or '').strip().lower()
     if role != 'traveler':
         raise ValueError('Google OAuth is only available for traveler accounts.')
@@ -105,6 +158,7 @@ def assign_user_role(user, role):
 
 
 def dashboard_route_name_for_user(user):
+    """Return the URL-name of the post-login landing page based on the user's role."""
     user_type = getattr(user, 'user_type', '')
     if user_type == 'traveler':
         return 'traveler_home'
@@ -118,10 +172,12 @@ def dashboard_route_name_for_user(user):
 
 
 def tag_google_oauth_start(request, intent='login'):
+    """Tag the session with the user's OAuth intent ('login' or 'register') before the redirect."""
     request.session['oauth_intent'] = intent
 
 
 def role_selection_page_context(request):
+    """Return template context for the OAuth role-selection page."""
     return {
         'oauth_intent': request.session.get('oauth_intent', 'login'),
         'google_backend_name': GOOGLE_BACKEND_NAME,
@@ -129,4 +185,5 @@ def role_selection_page_context(request):
 
 
 def build_google_oauth_url():
-    return reverse('social:begin', args=[GOOGLE_BACKEND_NAME])
+    """Return the URL that kicks off the Google OAuth flow."""
+    return reverse('google_oauth_begin')

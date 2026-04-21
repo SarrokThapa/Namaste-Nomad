@@ -5,7 +5,13 @@
             <p>Reach out to our admin team for booking and account support.</p>
         </div>
         <div class="support-chat__header-meta">
-            <div class="support-chat__user">{{ request.user.get_full_name|default:request.user.username }}</div>
+            <div class="support-chat__user">
+                {% if request.user.user_type == 'vendor' and vendor_profile and vendor_profile.business_name %}
+                    {{ vendor_profile.business_name }}
+                {% else %}
+                    {{ request.user.get_full_name|default:request.user.username }}
+                {% endif %}
+            </div>
             <span class="support-chat__status support-chat__status--{{ conversation.status }}">
                 {{ conversation.get_status_display }}
             </span>
@@ -25,7 +31,7 @@
                                 Auto Message
                             {% elif message.is_admin_reply %}
                                 {% if message.sender.user_type == 'vendor' %}
-                                    {{ message.sender.get_full_name|default:message.sender.username|default:message.sender.email }}
+                                    {{ message.sender.vendor_profile.business_name|default:message.sender.get_full_name|default:message.sender.username|default:message.sender.email }}
                                 {% else %}
                                     Admin
                                 {% endif %}

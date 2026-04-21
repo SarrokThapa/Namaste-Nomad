@@ -1,12 +1,46 @@
-"""Community feed and interactions."""
+"""Community feed and interactions.
+
+Owns the public community feed, the per-user community dashboard, and
+all post/comment/like/tag mutations. Each entry point first checks the
+admin "enable_community" site setting via ``_ensure_community_enabled``.
+"""
+
+# NOTE: file > 300 lines — split deferred. Posts, comments, likes and
+# tag-vendor mutations all share the `from ..utils.helpers import (...)`
+# bundle and the same community-enabled gate; splitting would force the
+# same hub bundle into multiple sibling files.
 
 import mimetypes
 
-from ..utils.helpers import *
+from ..utils.helpers import (
+    Comment,
+    CommentForm,
+    Max,
+    Notification,
+    Post,
+    PostEditForm,
+    PostForm,
+    PostMedia,
+    _community_posts,
+    _get_or_create_traveler_profile,
+    add_points,
+    create_notification,
+    get_object_or_404,
+    get_user_model,
+    login_required,
+    messages,
+    notify_admins,
+    redirect,
+    render,
+    reverse,
+    sync_badges_for_user,
+    transaction,
+)
 from ..services.site_settings import get_site_settings
 
 
 def _ensure_community_enabled(request):
+    """Return a redirect response if community is admin-disabled, else None."""
     if get_site_settings().enable_community:
         return None
     messages.error(request, 'Community is currently disabled by admin.')
@@ -14,6 +48,7 @@ def _ensure_community_enabled(request):
 
 
 def community_feed(request):
+    """Public community feed page (read-only for anonymous, post-actions for logged in)."""
     disabled_response = _ensure_community_enabled(request)
     if disabled_response:
         return disabled_response
@@ -31,6 +66,7 @@ def community_feed(request):
 
 @login_required(login_url='traveler_login')
 def community_dashboard(request):
+    """Logged-in user's community dashboard with their own posts visible first."""
     disabled_response = _ensure_community_enabled(request)
     if disabled_response:
         return disabled_response
@@ -55,6 +91,7 @@ def community_dashboard(request):
 
 @login_required(login_url='account_login_choice')
 def community_post_create(request):
+    """Create a new community post (with media + tagged vendors); awards points for travelers."""
     disabled_response = _ensure_community_enabled(request)
     if disabled_response:
         return disabled_response
@@ -134,6 +171,7 @@ def community_post_create(request):
 
 @login_required(login_url='account_login_choice')
 def community_post_edit(request, post_id):
+    """Edit an existing community post owned by the current user (caption, media, tags)."""
     disabled_response = _ensure_community_enabled(request)
     if disabled_response:
         return disabled_response
@@ -230,6 +268,7 @@ def community_post_edit(request, post_id):
 
 @login_required(login_url='account_login_choice')
 def community_post_delete(request, post_id):
+    """Delete a community post owned by the current user."""
     disabled_response = _ensure_community_enabled(request)
     if disabled_response:
         return disabled_response
@@ -245,6 +284,7 @@ def community_post_delete(request, post_id):
 
 @login_required(login_url='account_login_choice')
 def community_post_tag_vendor(request, post_id):
+    """Redirect to the post-edit page anchored on the tag-vendors section."""
     disabled_response = _ensure_community_enabled(request)
     if disabled_response:
         return disabled_response
@@ -257,6 +297,7 @@ def community_post_tag_vendor(request, post_id):
 
 @login_required(login_url='account_login_choice')
 def community_comment_create(request, post_id):
+    """Add a comment (or single-level reply by the original poster) to a community post."""
     disabled_response = _ensure_community_enabled(request)
     if disabled_response:
         return disabled_response
@@ -305,6 +346,7 @@ def community_comment_create(request, post_id):
 
 @login_required(login_url='account_login_choice')
 def community_post_like_toggle(request, post_id):
+    """Toggle the current user's like on a post; awards points to traveler authors."""
     disabled_response = _ensure_community_enabled(request)
     if disabled_response:
         return disabled_response

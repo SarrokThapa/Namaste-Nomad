@@ -49,9 +49,13 @@
                 <tbody>
                     {% for booking in bookings %}
                         <tr>
-                            <td>{{ booking.traveler.get_full_name|default:booking.traveler.email|default:"Traveler" }}</td>
+                            {% if booking.traveler %}
+                                <td>{{ booking.traveler.get_full_name|default:booking.traveler.email|default:"Traveler" }}</td>
+                            {% else %}
+                                <td>Deleted User</td>
+                            {% endif %}
                             <td>{{ booking.package.title }}</td>
-                            <td>{{ booking.vendor.get_full_name|default:booking.package.vendor.get_full_name|default:booking.package.vendor.email|default:"Vendor" }}</td>
+                            <td>{{ booking.vendor.get_full_name|default:booking.package.vendor.get_full_name|default:booking.package.vendor.username|default:"Vendor" }}</td>
                             <td>{{ booking.travel_date|date:"M d, Y" }}</td>
                             <td>{{ booking.number_of_people }}</td>
                             <td>Rs {{ booking.total_price|floatformat:0 }}</td>

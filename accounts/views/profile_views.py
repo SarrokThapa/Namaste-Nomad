@@ -1,13 +1,60 @@
-"""Traveler and profile-related views."""
+"""Traveler and profile-related views.
 
-from .common import *
+Owns the traveler home dashboard, the per-user wishlist, the bookings
+list, the achievements/badges page, the personal transactions list,
+the traveler profile editor, the vendor profile editor, and the
+public-facing vendor profile page.
+"""
+
+# NOTE: file > 300 lines — split deferred. The traveler home + profile
+# screens share a large bundle of imports from accounts/views/common.py
+# and a single common context-prep flow; splitting would duplicate that
+# bundle in multiple files.
+
+from .common import (
+    Avg,
+    Booking,
+    Count,
+    IntegrityError,
+    JsonResponse,
+    Package,
+    Q,
+    Review,
+    Transaction,
+    TravelerProfile,
+    User,
+    UserBadge,
+    VendorProfile,
+    VendorProfileForm,
+    Wishlist,
+    _apply_transaction_filters,
+    _delete_stored_file,
+    _get_traveler_profile,
+    _get_vendor_profile,
+    _is_valid_uploaded_image,
+    _transaction_csv_response,
+    _traveler_package_queryset,
+    add_points,
+    badge_progress_for_user,
+    csv,
+    get_object_or_404,
+    login_required,
+    messages,
+    never_cache,
+    redirect,
+    render,
+    require_POST,
+    sync_badges_for_user,
+    traveler_required,
+    timesince,
+    total_points_for_user,
+    vendor_account_required,
+)
 
 @never_cache
-@login_required(login_url='vendor_login')
+@vendor_account_required(login_url='vendor_login')
 def vendor_profile(request):
-    if not _ensure_vendor_account(request):
-        return redirect('vendor_login')
-
+    """Show / update the logged-in vendor's profile, logo, contact details, and password."""
     vendor_profile = _get_vendor_profile(request.user)
     if vendor_profile is None:
         vendor_profile = VendorProfile.objects.create(
@@ -17,23 +64,12 @@ def vendor_profile(request):
         )
 
     if request.method == 'POST':
-        had_promotions_enabled = bool(request.user.wants_promotions)
         old_logo_name = vendor_profile.logo.name if vendor_profile.logo else ''
         form = VendorProfileForm(request.POST, request.FILES, instance=vendor_profile)
-        email = (request.POST.get('email') or '').strip()
         phone = (request.POST.get('phone') or '').strip()
-        wants_promotions = request.POST.get('wants_promotions') == 'on'
         remove_logo = request.POST.get('remove_logo') == '1'
 
-        if email and email != request.user.email:
-            if User.objects.filter(email=email).exclude(id=request.user.id).exists():
-                messages.error(request, 'Email is already in use.')
-                return redirect('vendor_profile')
-            request.user.email = email
-            request.user.username = email
-
         request.user.phone = phone
-        request.user.wants_promotions = wants_promotions
         request.user.save()
 
         if form.is_valid():
@@ -48,14 +84,6 @@ def vendor_profile(request):
                 current_logo_name = profile_instance.logo.name if profile_instance.logo else ''
                 if old_logo_name and old_logo_name != current_logo_name:
                     _delete_stored_file(profile_instance, 'logo', old_logo_name)
-
-            if wants_promotions and not had_promotions_enabled:
-                offers_count = _sync_active_special_offers_for_user(request.user)
-                if offers_count:
-                    messages.info(
-                        request,
-                        f'Limited-time special offers enabled. {offers_count} active offer notification(s) were added.',
-                    )
             messages.success(request, 'Profile updated successfully.')
             return redirect('vendor_profile')
         messages.error(request, 'Please correct the errors below.')
@@ -73,6 +101,7 @@ def vendor_profile(request):
 
 
 def vendor_public_profile(request, vendor_id):
+    """Public-facing vendor profile page listing their active packages."""
     vendor = get_object_or_404(
         User.objects.select_related('vendor_profile'),
         id=vendor_id,
@@ -99,6 +128,7 @@ def vendor_public_profile(request, vendor_id):
 @require_POST
 @login_required(login_url='account_login_choice')
 def wishlist_toggle(request):
+    """Add or remove a package from the current traveler's wishlist (AJAX)."""
     if getattr(request.user, 'user_type', '') != 'traveler':
         return JsonResponse(
             {'error': 'forbidden', 'message': 'Traveler access only.'},
@@ -139,11 +169,9 @@ def wishlist_toggle(request):
 
 
 @never_cache
-@login_required(login_url='traveler_login')
+@traveler_required(login_url='traveler_login')
 def traveler_home(request):
-    if not _ensure_traveler(request):
-        return redirect('traveler_login')
-
+    """Traveler explore dashboard with search and curated package lists."""
     profile = _get_traveler_profile(request.user)
     if profile is None:
         profile = TravelerProfile.objects.create(user=request.user)
@@ -153,12 +181,7 @@ def traveler_home(request):
     )
 
     search_query = (request.GET.get('q') or '').strip()
-    selected_category = (request.GET.get('category') or 'all').strip().lower()
-    if selected_category not in {'all', *TRAVELER_CATEGORY_SLUGS}:
-        selected_category = 'all'
-
-    base_packages = _traveler_package_queryset()
-    filtered_packages = base_packages
+    filtered_packages = _traveler_package_queryset()
 
     if search_query:
         filtered_packages = filtered_packages.filter(
@@ -168,18 +191,6 @@ def traveler_home(request):
             | Q(description__icontains=search_query)
         )
 
-    if selected_category != 'all':
-        filtered_packages = filtered_packages.filter(category_slug=selected_category)
-
-    category_counts = {
-        'all': base_packages.count(),
-        **{slug: 0 for slug in TRAVELER_CATEGORY_SLUGS},
-    }
-    for row in base_packages.values('category_slug').annotate(total=Count('id')):
-        slug = row['category_slug']
-        if slug in category_counts:
-            category_counts[slug] = row['total']
-
     featured_packages = list(
         filtered_packages.order_by(
             '-avg_rating',
@@ -188,66 +199,32 @@ def traveler_home(request):
             '-created_at',
         )[:4]
     )
-    featured_ids = {package.id for package in featured_packages}
+    result_count = filtered_packages.count()
 
-    recommended_packages = list(
-        filtered_packages.exclude(id__in=featured_ids).order_by(
-            '-booking_count',
-            '-avg_rating',
-            '-review_count',
-            '-views_count',
-            '-created_at',
-        )[:4]
-    )
-
-    recommended_ids = featured_ids | {package.id for package in recommended_packages}
-    recently_added_packages = list(
-        filtered_packages.exclude(id__in=recommended_ids).order_by('-created_at')[:4]
-    )
-
-    _add_category_labels(featured_packages)
-    _add_category_labels(recommended_packages)
-    _add_category_labels(recently_added_packages)
-
-    recent_reviews = Review.objects.filter(package__is_active=True).select_related(
+    recent_reviews = Review.objects.filter(
+        package__is_active=True,
+        traveler__isnull=False,
+    ).select_related(
         'traveler',
         'package',
     ).order_by('-created_at')[:6]
-
-    category_filters = [
-        {'slug': 'all', 'label': 'All', 'count': category_counts['all']},
-        *[
-            {
-                'slug': slug,
-                'label': TRAVELER_CATEGORY_LABELS[slug],
-                'count': category_counts[slug],
-            }
-            for slug in TRAVELER_CATEGORY_SLUGS
-        ],
-    ]
 
     return render(request, 'accounts/traveler_home.html', {
         'traveler_profile': profile,
         'active_page': 'explore',
         'search_query': search_query,
-        'selected_category': selected_category,
-        'category_filters': category_filters,
         'featured_packages': featured_packages,
-        'recommended_packages': recommended_packages,
-        'recently_added_packages': recently_added_packages,
         'recent_reviews': recent_reviews,
-        'result_count': filtered_packages.count(),
-        'can_clear_filters': bool(search_query or selected_category != 'all'),
+        'result_count': result_count,
+        'can_clear_filters': bool(search_query),
         'wishlist_ids': wishlist_ids,
     })
 
 
 @never_cache
-@login_required(login_url='traveler_login')
+@traveler_required(login_url='traveler_login')
 def traveler_wishlist(request):
-    if not _ensure_traveler(request):
-        return redirect('traveler_login')
-
+    """List the traveler's saved packages."""
     profile = _get_traveler_profile(request.user)
     if profile is None:
         profile = TravelerProfile.objects.create(user=request.user)
@@ -269,11 +246,9 @@ def traveler_wishlist(request):
 
 
 @never_cache
-@login_required(login_url='traveler_login')
+@traveler_required(login_url='traveler_login')
 def traveler_achievements(request):
-    if not _ensure_traveler(request):
-        return redirect('traveler_login')
-
+    """Show the traveler's badges, points, and progress toward the next badge."""
     profile = _get_traveler_profile(request.user)
     if profile is None:
         profile = TravelerProfile.objects.create(user=request.user)
@@ -302,11 +277,9 @@ def traveler_achievements(request):
 
 
 @never_cache
-@login_required(login_url='traveler_login')
+@traveler_required(login_url='traveler_login')
 def traveler_bookings(request):
-    if not _ensure_traveler(request):
-        return redirect('traveler_login')
-
+    """List all bookings made by the current traveler, newest first."""
     profile = _get_traveler_profile(request.user)
     if profile is None:
         profile = TravelerProfile.objects.create(user=request.user)
@@ -323,24 +296,29 @@ def traveler_bookings(request):
 
 
 @never_cache
-@login_required(login_url='traveler_login')
+@traveler_required(login_url='traveler_login')
 def traveler_transactions(request):
-    if not _ensure_traveler(request):
-        return redirect('traveler_login')
-
+    """List the traveler's payment transactions with optional filters and CSV export."""
     profile = _get_traveler_profile(request.user)
     if profile is None:
         profile = TravelerProfile.objects.create(user=request.user)
 
-    transactions = Transaction.objects.filter(traveler=request.user).select_related(
+    transactions = Transaction.objects.filter(
+        traveler=request.user,
+        payment_status=Booking.PAYMENT_STATUS_COMPLETED,
+    ).select_related(
         'booking',
         'booking__package',
         'vendor',
     )
-    transactions, filters = _apply_transaction_filters(transactions, request)
+    transactions, filters = _apply_transaction_filters(
+        transactions,
+        request,
+        allow_status=False,
+    )
     transactions = transactions.order_by('-created_at')
 
-    if request.GET.get('export') == 'csv':
+    if request.GET.get('export') == 'csv' and not filters.get('date_error'):
         return _transaction_csv_response(transactions, 'traveler-transactions.csv')
 
     return render(request, 'accounts/traveler_transactions.html', {
@@ -352,11 +330,9 @@ def traveler_transactions(request):
 
 
 @never_cache
-@login_required(login_url='traveler_login')
+@traveler_required(login_url='traveler_login')
 def traveler_profile(request):
-    if not _ensure_traveler(request):
-        return redirect('traveler_login')
-
+    """Show / update the logged-in traveler's profile, avatar, and personal info."""
     profile = _get_traveler_profile(request.user)
     if profile is None:
         profile = TravelerProfile.objects.create(user=request.user)
@@ -364,9 +340,7 @@ def traveler_profile(request):
     if request.method == 'POST':
         old_avatar_name = profile.avatar.name if profile.avatar else ''
         full_name = (request.POST.get('full_name') or '').strip()
-        email = (request.POST.get('email') or '').strip()
         phone = (request.POST.get('phone') or '').strip()
-        wants_promotions = request.POST.get('wants_promotions') == 'on'
         date_of_birth = request.POST.get('date_of_birth')
         gender = request.POST.get('gender') or ''
         nationality = (request.POST.get('nationality') or '').strip()
@@ -383,15 +357,7 @@ def traveler_profile(request):
             request.user.first_name = parts[0]
             request.user.last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
 
-        if email and email != request.user.email:
-            if User.objects.filter(email=email).exclude(id=request.user.id).exists():
-                messages.error(request, 'Email is already in use.')
-                return redirect('traveler_profile')
-            request.user.email = email
-            request.user.username = email
-
         request.user.phone = phone
-        request.user.wants_promotions = wants_promotions
         request.user.save()
 
         profile.gender = gender

@@ -1,3 +1,10 @@
+"""Admin: edit the SiteSetting singleton.
+
+NOTE: this file duplicates ``settings_view.py`` and is not re-exported
+from ``core/views/admin/__init__.py``. Kept here only because removing
+it is out of scope for the current "comments only" pass.
+"""
+
 from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_protect
@@ -11,6 +18,7 @@ from ...services.site_settings import get_site_settings
 @admin_required
 @csrf_protect
 def admin_settings(request):
+    """Admin site-settings editor (duplicate of settings_view.admin_settings)."""
     site_settings = get_site_settings()
 
     if request.method == 'POST':

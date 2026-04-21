@@ -8,6 +8,7 @@ from ..models import Discount
 
 
 def _best_available_discount_for_user(user, original_total):
+    """Pick the unused achievement discount that yields the largest reduction on *original_total*."""
     if not user.is_authenticated or getattr(user, 'user_type', '') != 'traveler':
         return None, Decimal('0.00')
 

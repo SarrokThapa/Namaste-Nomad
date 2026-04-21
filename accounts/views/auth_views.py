@@ -1,12 +1,62 @@
-"""Authentication and account entry views."""
+"""Authentication and account entry views.
 
-from .common import *
+Owns vendor login/register, traveler login/register, admin login,
+the OTP email verification flow, the forgot/reset password flow, the
+post-OAuth landing page, and ``logout``. Each view is wrapped in
+``@never_cache`` + ``@csrf_protect`` so back-button replays don't
+resubmit credentials.
+"""
+
+# NOTE: file > 300 lines — split deferred. Splitting auth flows would
+# duplicate the shared session/redirect setup and require renaming view
+# functions referenced by accounts/urls.py.
+
+from .common import (
+    Notification,
+    Path,
+    TravelerProfile,
+    User,
+    VendorProfile,
+    _dashboard_route_name,
+    _get_traveler_profile,
+    _get_vendor_profile,
+    _safe_next_url,
+    authenticate,
+    csrf_protect,
+    login,
+    login_required,
+    logout,
+    messages,
+    never_cache,
+    notify_admins,
+    redirect,
+    render,
+)
 from ..services import oauth_service, otp_service, email_service
 from ..services import password_reset_service as prs
+
+
+def _users_for_login(email, user_type):
+    """Return deterministic user candidates for login when duplicate emails exist."""
+    normalized_email = (email or '').strip()
+    return list(
+        User.objects.filter(email__iexact=normalized_email, user_type=user_type)
+        .order_by('date_joined', 'id')
+    )
+
+
+def _authenticate_first_match(request, users, password):
+    """Try each candidate user until one password match succeeds."""
+    for candidate in users:
+        authenticated = authenticate(request, username=candidate.username, password=password)
+        if authenticated is not None:
+            return authenticated
+    return None
 
 @never_cache
 @csrf_protect
 def vendor_login(request):
+    """Email/password login for vendors. Blocks unapproved accounts up front."""
     if request.user.is_authenticated:
         return redirect(_dashboard_route_name(request.user))
 
@@ -16,19 +66,32 @@ def vendor_login(request):
         remember_me = request.POST.get('remember_me')
         next_url = _safe_next_url(request, 'vendor_dashboard')
 
-        try:
-            vendor_user = User.objects.get(email=email, user_type='vendor')
-        except User.DoesNotExist:
+        vendor_candidates = _users_for_login(email, 'vendor')
+        if not vendor_candidates:
             messages.error(request, 'No vendor account found with this email')
             return render(request, 'accounts/vendor_login.html')
 
+        for vendor_candidate in vendor_candidates:
+            if not vendor_candidate.is_active and vendor_candidate.check_password(password):
+                messages.error(request, 'Your account has been suspend')
+                return render(request, 'accounts/vendor_login.html')
+
+        approved_candidates = []
+        for vendor_candidate in vendor_candidates:
+            vendor_profile = _get_vendor_profile(vendor_candidate)
+            if vendor_profile and not vendor_profile.is_approved:
+                continue
+            approved_candidates.append(vendor_candidate)
+
         # Block unapproved vendors before authenticating
-        vendor_profile = _get_vendor_profile(vendor_user)
-        if vendor_profile and not vendor_profile.is_approved:
-            messages.error(request, 'Your account is pending admin approval. Please wait for confirmation email.')
+        if not approved_candidates:
+            messages.error(request, 'Your account has not been Approved yet')
             return render(request, 'accounts/vendor_login.html')
 
-        user = authenticate(request, username=vendor_user.username, password=password)
+        if len(vendor_candidates) > 1:
+            messages.warning(request, 'Multiple vendor accounts were found for this email. Signing in with the matched account.')
+
+        user = _authenticate_first_match(request, approved_candidates, password)
         if user is not None:
             login(request, user)
             if not remember_me:
@@ -43,6 +106,7 @@ def vendor_login(request):
 @never_cache
 @csrf_protect
 def vendor_register(request):
+    """Vendor signup. Creates the user + VendorProfile and notifies admins for approval."""
     if request.user.is_authenticated:
         return redirect(_dashboard_route_name(request.user))
 
@@ -51,7 +115,6 @@ def vendor_register(request):
         owner_name = (request.POST.get('owner_name') or '').strip()
         email = (request.POST.get('email') or '').strip()
         phone = (request.POST.get('phone') or '').strip()
-        wants_promotions = request.POST.get('wants_promotions') == 'on'
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
         document = request.FILES.get('document')
@@ -89,7 +152,6 @@ def vendor_register(request):
             'email': email,
             'phone': phone,
             'password': password,
-            'wants_promotions': wants_promotions,
             'document_name': document.name,
             'document_content_type': document.content_type or '',
             'document_bytes': doc_content.hex(),
@@ -111,6 +173,7 @@ def vendor_register(request):
 @never_cache
 @csrf_protect
 def traveler_login(request):
+    """Email/password login for travelers; auto-creates a TravelerProfile if missing."""
     if request.user.is_authenticated:
         return redirect(_dashboard_route_name(request.user))
 
@@ -119,20 +182,30 @@ def traveler_login(request):
         password = request.POST.get('password') or ''
         next_url = _safe_next_url(request, 'traveler_home')
         
-        try:
-            user = User.objects.get(email=email, user_type='traveler')
-
-            user = authenticate(request, username=user.username, password=password)
-            
-            if user is not None:
-                login(request, user)
-                if _get_traveler_profile(user) is None:
-                    TravelerProfile.objects.create(user=user)
-                return redirect(next_url)
-            else:
-                messages.error(request, 'Invalid credentials')
-        except User.DoesNotExist:
+        traveler_candidates = _users_for_login(email, 'traveler')
+        if not traveler_candidates:
             messages.error(request, 'No traveler account found with this email')
+            return render(request, 'accounts/traveler_login.html')
+
+        # Show a clear account-status message for suspended travelers.
+        for traveler_candidate in traveler_candidates:
+            if not traveler_candidate.is_active and traveler_candidate.check_password(password):
+                messages.error(request, 'Your account has been suspended.')
+                return render(request, 'accounts/traveler_login.html')
+
+        active_traveler_candidates = [candidate for candidate in traveler_candidates if candidate.is_active]
+
+        if len(traveler_candidates) > 1:
+            messages.warning(request, 'Multiple traveler accounts were found for this email. Signing in with the matched account.')
+
+        user = _authenticate_first_match(request, active_traveler_candidates, password)
+        if user is not None:
+            login(request, user)
+            if _get_traveler_profile(user) is None:
+                TravelerProfile.objects.create(user=user)
+            return redirect(next_url)
+
+        messages.error(request, 'Invalid credentials')
     
     return render(request, 'accounts/traveler_login.html')
 
@@ -140,6 +213,7 @@ def traveler_login(request):
 @never_cache
 @csrf_protect
 def admin_login(request):
+    """Email/password login for admin/staff users; rejects non-staff accounts."""
     if request.user.is_authenticated:
         return redirect(_dashboard_route_name(request.user))
 
@@ -149,20 +223,20 @@ def admin_login(request):
         remember_me = request.POST.get('remember_me')
         next_url = _safe_next_url(request, 'admin_dashboard')
         
-        try:
-            user = User.objects.get(email=email, user_type='admin')
-
-            user = authenticate(request, username=user.username, password=password)
-            
-            if user is not None and user.is_staff:
-                login(request, user)
-                if not remember_me:
-                    request.session.set_expiry(0)
-                return redirect(next_url)
-            else:
-                messages.error(request, 'Invalid credentials or insufficient permissions')
-        except User.DoesNotExist:
+        admin_candidates = _users_for_login(email, 'admin')
+        if not admin_candidates:
             messages.error(request, 'No admin account found')
+            return render(request, 'accounts/admin_login.html')
+
+        user = _authenticate_first_match(request, admin_candidates, password)
+
+        if user is not None and user.is_staff:
+            login(request, user)
+            if not remember_me:
+                request.session.set_expiry(0)
+            return redirect(next_url)
+
+        messages.error(request, 'Invalid credentials or insufficient permissions')
     
     return render(request, 'accounts/admin_login.html')
 
@@ -191,11 +265,8 @@ def _create_user_from_registration(data):
             last_name=data.get('last_name', ''),
             is_verified=True,
             is_active=True,
-            wants_promotions=data.get('wants_promotions', False),
         )
         TravelerProfile.objects.create(user=user)
-        if data.get('wants_promotions'):
-            _sync_active_special_offers_for_user(user)
         notify_admins(
             f'New traveler registered: {user.email}',
             Notification.TYPE_USER_REGISTRATION,
@@ -213,8 +284,9 @@ def _create_user_from_registration(data):
             user_type='vendor',
             phone=data.get('phone', ''),
             is_verified=True,
-            is_active=False,  # vendor stays inactive until admin approval
-            wants_promotions=data.get('wants_promotions', False),
+            # Keep pending vendors active so they appear in the admin approval queue.
+            # Login is still blocked until admin approval by vendor_login checks.
+            is_active=True,
         )
         # Reconstruct uploaded document from hex-encoded bytes
         doc_bytes = bytes.fromhex(data.get('document_bytes', ''))
@@ -228,8 +300,6 @@ def _create_user_from_registration(data):
             business_license=doc_file,
             document=doc_file,
         )
-        if data.get('wants_promotions'):
-            _sync_active_special_offers_for_user(user)
         notify_admins(
             f'New vendor registered: {user.email}',
             Notification.TYPE_USER_REGISTRATION,
@@ -242,6 +312,7 @@ def _create_user_from_registration(data):
 
 @csrf_protect
 def verify_otp_view(request):
+    """Validate the email-OTP code, then materialize the pending registration into a User."""
     reg_data = otp_service.get_registration_data(request)
     if not reg_data:
         return redirect('account_register_choice')
@@ -287,6 +358,7 @@ def verify_otp_view(request):
 
 @csrf_protect
 def resend_otp(request):
+    """Generate a fresh OTP and re-email it to the pending registration's address."""
     reg_data = otp_service.get_registration_data(request)
     if not reg_data:
         return redirect('account_register_choice')
@@ -305,6 +377,7 @@ def resend_otp(request):
 
 @never_cache
 def logout_view(request):
+    """Log the current user out and redirect to the public landing page."""
     logout(request)
     messages.success(request, 'You have been logged out successfully.')
     return redirect('home')
@@ -313,6 +386,7 @@ def logout_view(request):
 @never_cache
 @csrf_protect
 def traveler_register(request):
+    """Traveler signup. Stores form data in session and emails an OTP for verification."""
     if request.user.is_authenticated:
         return redirect(_dashboard_route_name(request.user))
 
@@ -321,7 +395,6 @@ def traveler_register(request):
         last_name = (request.POST.get('last_name') or '').strip()
         email = (request.POST.get('email') or '').strip()
         phone = (request.POST.get('phone') or '').strip()
-        wants_promotions = request.POST.get('wants_promotions') == 'on' or request.POST.get('newsletter') == 'on'
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
 
@@ -341,7 +414,6 @@ def traveler_register(request):
             'email': email,
             'phone': phone,
             'password': password,
-            'wants_promotions': wants_promotions,
         })
 
         # Generate & send OTP
@@ -358,6 +430,7 @@ def traveler_register(request):
 
 
 def landing(request):
+    """Public marketing landing page (no auth required)."""
     return render(request, 'landing.html')
 
 
@@ -503,6 +576,7 @@ def forgot_password_new_password(request):
 
 @never_cache
 def account_register_choice(request):
+    """Show the 'Sign up as Traveler / Vendor' picker page."""
     if request.user.is_authenticated:
         return redirect(_dashboard_route_name(request.user))
     oauth_service.tag_google_oauth_start(request, intent='register')
@@ -511,6 +585,7 @@ def account_register_choice(request):
 
 @never_cache
 def account_login_choice(request):
+    """Show the 'Login as Traveler / Vendor / Admin' picker page."""
     if request.user.is_authenticated:
         return redirect(_dashboard_route_name(request.user))
     oauth_service.tag_google_oauth_start(request, intent='login')
@@ -519,6 +594,7 @@ def account_login_choice(request):
 
 @never_cache
 def oauth_post_login_redirect(request):
+    """Post-Google-OAuth landing page; only travelers may use OAuth — vendors/admins are bounced."""
     if not request.user.is_authenticated:
         return redirect('account_login_choice')
 

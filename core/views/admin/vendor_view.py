@@ -1,3 +1,5 @@
+"""Admin: list vendor users with pending/approved approval-status filter."""
+
 from django.db.models import Count
 from django.shortcuts import render
 
@@ -7,6 +9,7 @@ from accounts.views.common import _get_admin_profile, admin_required
 
 @admin_required
 def admin_vendors(request):
+    """Admin vendors list filtered by approval status."""
     status = (request.GET.get('status') or '').strip().lower()
 
     vendors = User.objects.filter(user_type='vendor').select_related('vendor_profile').annotate(

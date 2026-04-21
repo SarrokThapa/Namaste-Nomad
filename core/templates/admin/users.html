@@ -51,11 +51,29 @@
                                         {% else %}
                                             <form method="POST" action="{% url 'admin_vendor_action' user.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'admin_users' %}"><input type="hidden" name="action" value="activate"><button class="btn small success" type="submit">Activate</button></form>
                                         {% endif %}
+                                        {% if request.user.is_superuser and not user.is_staff and not user.is_superuser %}
+                                            <form method="POST" action="{% url 'admin_vendor_action' user.id %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="next" value="{% url 'admin_users' %}">
+                                                <input type="hidden" name="action" value="delete_permanent">
+                                                <input type="hidden" name="confirm_delete" value="">
+                                                <button class="btn small danger" type="button" onclick="confirmPermanentDelete(this.form, '{{ user.email|escapejs }}')">Delete Permanently</button>
+                                            </form>
+                                        {% endif %}
                                     {% else %}
                                         {% if user.is_active %}
                                             <form method="POST" action="{% url 'admin_traveler_action' user.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'admin_users' %}"><input type="hidden" name="action" value="suspend"><button class="btn small danger" type="submit">Suspend</button></form>
                                         {% else %}
                                             <form method="POST" action="{% url 'admin_traveler_action' user.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'admin_users' %}"><input type="hidden" name="action" value="activate"><button class="btn small success" type="submit">Activate</button></form>
+                                        {% endif %}
+                                        {% if request.user.is_superuser and not user.is_staff and not user.is_superuser %}
+                                            <form method="POST" action="{% url 'admin_traveler_action' user.id %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="next" value="{% url 'admin_users' %}">
+                                                <input type="hidden" name="action" value="delete_permanent">
+                                                <input type="hidden" name="confirm_delete" value="">
+                                                <button class="btn small danger" type="button" onclick="confirmPermanentDelete(this.form, '{{ user.email|escapejs }}')">Delete Permanently</button>
+                                            </form>
                                         {% endif %}
                                     {% endif %}
                                 </div>
@@ -69,4 +87,22 @@
         <div class="empty-state">No users found.</div>
     {% endif %}
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmPermanentDelete(form, email) {
+    const promptText = "Type DELETE to permanently remove user " + email + ". This action cannot be undone.";
+    const confirmation = window.prompt(promptText, "");
+    if (!confirmation) {
+        return;
+    }
+    if (confirmation.trim().toUpperCase() !== "DELETE") {
+        window.alert("Permanent deletion canceled. Confirmation text did not match DELETE.");
+        return;
+    }
+    form.querySelector('input[name="confirm_delete"]').value = "DELETE";
+    form.submit();
+}
+</script>
 {% endblock %}

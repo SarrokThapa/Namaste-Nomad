@@ -237,6 +237,7 @@
         const HAS_PAYMENT_ERROR = {{ form.payment_method.errors|yesno:"true,false" }};
 
         const NATIONALITY_CHOICES = safeJsonParse('nationalityChoicesData', ['Nepali']);
+        const NATIONALITY_DATALIST_ID = 'travelerNationalitySuggestions';
         const PRIMARY_AUTOFILL    = safeJsonParse('primaryAutofillData', {});
         const POSTED_TRAVELERS    = safeJsonParse('postedTravelersData', []);
         const TRAVELER_ERRORS     = safeJsonParse('travelerErrorsData', {});
@@ -390,14 +391,22 @@
             return sel;
         }
 
-        function makeNatSelect(name, value) {
-            const sel = makeEl('select', { name, id: name });
+        function ensureNationalityDatalist() {
+            let list = document.getElementById(NATIONALITY_DATALIST_ID);
+            if (list) return;
+            list = makeEl('datalist', { id: NATIONALITY_DATALIST_ID });
             NATIONALITY_CHOICES.forEach(nat => {
-                const opt = makeEl('option', { value: nat }, nat);
-                if (nat === value) opt.selected = true;
-                sel.appendChild(opt);
+                if (!nat) return;
+                list.appendChild(makeEl('option', { value: nat }));
             });
-            return sel;
+            document.body.appendChild(list);
+        }
+
+        function makeNatInput(name, value) {
+            const input = makeInput('text', name, value, 'e.g. Nepali');
+            input.maxLength = 80;
+            input.setAttribute('list', NATIONALITY_DATALIST_ID);
+            return input;
         }
 
         function makeField(labelText, inputEl, required) {
@@ -445,8 +454,9 @@
             const genderSel = makeSelect(p + 'gender', GENDER_OPTS, d.gender);
             grid.appendChild(makeField('Gender', genderSel, false));
 
-            const natSel = makeNatSelect(p + 'nationality', d.nationality || (isPrimary ? PRIMARY_AUTOFILL.nationality : 'Nepali'));
-            grid.appendChild(makeField('Nationality', natSel, false));
+            const natInp = makeNatInput(p + 'nationality', d.nationality || (isPrimary ? PRIMARY_AUTOFILL.nationality : 'Nepali'));
+            grid.appendChild(makeField('Nationality', natInp, false));
+            if (e.nationality) showFieldError(natInp, e.nationality);
 
             const phoneInp = makeInput('tel', p + 'phone_number', d.phone_number, '+977 98XXXXXXXX');
             grid.appendChild(makeField('Phone' + (isPrimary ? '' : ' (Optional)'), phoneInp, isPrimary));
@@ -527,9 +537,33 @@
                     }
                 });
 
+                const ageEl = document.querySelector(`[name="t_${i}_age"]`);
+                if (ageEl && ageEl.value.trim()) {
+                    const parsedAge = Number(ageEl.value);
+                    if (!Number.isInteger(parsedAge) || parsedAge < 1 || parsedAge > 120) {
+                        showFieldError(ageEl, 'Please enter a valid age (1-120).');
+                        if (!firstErrorEl) firstErrorEl = ageEl;
+                        valid = false;
+                    }
+                }
+
+                const nationalityEl = document.querySelector(`[name="t_${i}_nationality"]`);
+                if (nationalityEl && nationalityEl.value.trim().length > 80) {
+                    showFieldError(nationalityEl, 'Nationality must be 80 characters or fewer.');
+                    if (!firstErrorEl) firstErrorEl = nationalityEl;
+                    valid = false;
+                }
+
                 /* Email format check for primary */
                 if (isPrimary) {
                     const emailEl = document.querySelector('[name="t_0_email"]');
+                    if (emailEl && emailEl.value.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailEl.value.trim())) {
+                        showFieldError(emailEl, 'Please enter a valid email address.');
+                        if (!firstErrorEl) firstErrorEl = emailEl;
+                        valid = false;
+                    }
+                } else {
+                    const emailEl = document.querySelector(`[name="t_${i}_email"]`);
                     if (emailEl && emailEl.value.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailEl.value.trim())) {
                         showFieldError(emailEl, 'Please enter a valid email address.');
                         if (!firstErrorEl) firstErrorEl = emailEl;
@@ -679,6 +713,7 @@
            Initialise
            ════════════════════════════════════════════════ */
         updatePayButton();
+        ensureNationalityDatalist();
 
         if (START_STEP === 2) {
             /* Server returned traveler errors — rebuild cards and jump to step 2 */

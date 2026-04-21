@@ -15,6 +15,37 @@
     <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20260313a">
     <link rel="stylesheet" href="{% static 'css/animations.css' %}">
     <link rel="stylesheet" href="{% static 'css/toast.css' %}">
+    <style>
+        .support-chat {
+            position: relative;
+        }
+
+        .support-chat__page-close {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            width: 2rem;
+            height: 2rem;
+            border: 1px solid #d1d5db;
+            border-radius: 999px;
+            background: #fff;
+            color: #334155;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            font-size: 1.2rem;
+            line-height: 1;
+            font-weight: 700;
+            transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .support-chat__page-close:hover {
+            background: #f8fafc;
+            color: #0f172a;
+            border-color: #94a3b8;
+        }
+    </style>
 </head>
 <body class="admin-dashboard">
     {% include "core/includes/messages_toast.html" %}
@@ -62,6 +93,17 @@
                     </span>
                     Support Inbox{% if support_inbox_unread_count %} ({{ support_inbox_unread_count }} new){% endif %}
                 </a>
+                <div class="nav-section-label">Finance</div>
+                <a class="nav-item nav-item-finance {% if active_page == 'transactions' %}active{% endif %}" href="{% url 'admin_transactions' %}">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="5" width="18" height="14" rx="2"/>
+                            <path d="M3 10h18"/>
+                            <path d="M7 15h4"/>
+                        </svg>
+                    </span>
+                    Admin Transactions
+                </a>
                 <a class="nav-item {% if active_page == 'settings' %}active{% endif %}" href="{% url 'admin_settings' %}">
                     <span class="nav-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -97,6 +139,7 @@
         <main class="dashboard-main admin-main main-content">
 
             <section class="support-chat">
+                <a class="support-chat__page-close" href="{% url 'admin_support_inbox' %}" aria-label="Close conversation page">&times;</a>
                 <div class="support-chat__header support-chat__header--admin">
                     <div>
                         <h1>{{ conversation.user_display }}</h1>
@@ -106,13 +149,11 @@
                         <span class="support-chat__status support-chat__status--{{ conversation.status }}">
                             {{ conversation.get_status_display }}
                         </span>
-                        {% if conversation.status == 'open' %}
-                            <form method="post" class="support-chat__close">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="close">
-                                <button type="submit" class="btn danger">Close Conversation</button>
-                            </form>
-                        {% endif %}
+                        <form method="post" action="{% url 'admin_support_delete' conversation.id %}" class="support-chat__close">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{% url 'admin_support_inbox' %}">
+                            <button type="submit" class="btn danger" onclick="return confirm('Delete this conversation permanently?')">Delete Conversation</button>
+                        </form>
                     </div>
                 </div>
 

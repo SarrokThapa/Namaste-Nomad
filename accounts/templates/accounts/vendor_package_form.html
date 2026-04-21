@@ -82,10 +82,12 @@
             <div class="pf-field">
                 <label for="{{ form.latitude.id_for_label }}">Latitude</label>
                 {{ form.latitude }}
+                {% if form.latitude.errors %}<span class="pf-field-error">{{ form.latitude.errors|join:", " }}</span>{% endif %}
             </div>
             <div class="pf-field">
                 <label for="{{ form.longitude.id_for_label }}">Longitude</label>
                 {{ form.longitude }}
+                {% if form.longitude.errors %}<span class="pf-field-error">{{ form.longitude.errors|join:", " }}</span>{% endif %}
             </div>
             <div class="pf-field pf-col-full">
                 <label for="packageLocationMap">Pin Location on Map</label>
@@ -123,10 +125,12 @@
             <div class="pf-field">
                 <label for="{{ form.available_from.id_for_label }}">Available From</label>
                 {{ form.available_from }}
+                {% if form.available_from.errors %}<span class="pf-field-error">{{ form.available_from.errors|join:", " }}</span>{% endif %}
             </div>
             <div class="pf-field">
                 <label for="{{ form.available_until.id_for_label }}">Available Until</label>
                 {{ form.available_until }}
+                {% if form.available_until.errors %}<span class="pf-field-error">{{ form.available_until.errors|join:", " }}</span>{% endif %}
             </div>
         </div>
     </div>
@@ -297,7 +301,7 @@
             </div>
             <div>
                 <h3>Publishing Settings</h3>
-                <p>Control visibility and promotional flags.</p>
+                <p>Control package visibility.</p>
             </div>
         </div>
         <div class="pf-toggle-list">
@@ -308,15 +312,6 @@
                     <span class="pf-hint">Make this package visible to travelers right away.</span>
                 </div>
             </label>
-            {% if not is_edit %}
-            <label class="pf-toggle-row">
-                <div class="pf-toggle-wrap">{{ form.limited_time_offer }}</div>
-                <div>
-                    <span class="pf-toggle-label">Limited-time special offer</span>
-                    <span class="pf-hint">Notify opted-in travelers about this deal.</span>
-                </div>
-            </label>
-            {% endif %}
             <p class="pf-hint" style="padding: 0 0.25rem;">
                 To feature packages on the homepage, go to
                 <a href="{% url 'vendor_settings' %}">Settings</a> and manage your featured slots.

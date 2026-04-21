@@ -1,3 +1,12 @@
+"""Stripe Checkout integration plus eSewa V2 re-exports.
+
+Owns the Stripe Checkout REST calls (create / retrieve / expire) used
+by the booking and feature-plan flows. eSewa logic lives in
+``core/services/esewa_service.py``; the re-exports at the top of this
+file preserve the legacy ``from core.payments import EsewaError`` etc.
+import paths so older callers keep working.
+"""
+
 import json
 from decimal import Decimal, ROUND_HALF_UP
 from urllib.error import HTTPError, URLError
@@ -20,16 +29,18 @@ from .services.esewa_service import (  # noqa: F401
 
 
 class StripeError(Exception):
-    pass
+    """Raised when a Stripe API call fails or Stripe is not configured."""
 
 
 def _amount_to_minor_units(amount):
+    """Convert a major-unit amount (e.g. dollars) to Stripe's expected minor units (e.g. cents)."""
     decimal_amount = Decimal(amount)
     return int((decimal_amount * Decimal('100')).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
 
 
 
 def _stripe_request(method, path, payload=None):
+    """Low-level Stripe REST helper that raises StripeError on any failure."""
     if not settings.STRIPE_SECRET_KEY:
         raise StripeError('Stripe is not configured. Add STRIPE_SECRET_KEY to your .env file or environment.')
 
@@ -63,6 +74,7 @@ def _stripe_request(method, path, payload=None):
 
 
 def create_checkout_session(*, booking, success_url, cancel_url):
+    """Create a Stripe Checkout session for a Booking and return the JSON response."""
     description = (
         f'{booking.number_of_people} traveler(s) · '
         f'{booking.travel_date:%b %d, %Y} · '
@@ -103,6 +115,7 @@ def create_checkout_session_for_item(
     metadata=None,
     customer_email=None,
 ):
+    """Generic Stripe Checkout session for non-booking items (e.g. vendor feature plans)."""
     payload = [
         ('mode', 'payment'),
         ('success_url', success_url),
@@ -127,11 +140,13 @@ def create_checkout_session_for_item(
 
 
 def retrieve_checkout_session(session_id):
+    """Fetch a Stripe Checkout session by id (used by success-callback verification)."""
     safe_session_id = quote(session_id, safe='')
     return _stripe_request('GET', f'/checkout/sessions/{safe_session_id}')
 
 
 def expire_checkout_session(session_id):
+    """Tell Stripe to expire an outstanding Checkout session (used when cancelling unpaid bookings)."""
     safe_session_id = quote(session_id, safe='')
     return _stripe_request('POST', f'/checkout/sessions/{safe_session_id}/expire', [])
 

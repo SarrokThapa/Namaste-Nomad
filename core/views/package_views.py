@@ -1,10 +1,58 @@
-"""Package discovery and public content views."""
+"""Package discovery and public content views.
 
-from ..utils.helpers import *
-from ..utils.validators import *
+Owns the public-facing surfaces of the site: home page, package list
+(plus trek/tour subsets), explore map, package detail, search/discovery
+JSON APIs, blog, about, contact, and the public traveler profile.
+"""
+
+# NOTE: file > 300 lines — split deferred. Public package discovery,
+# the home page, the explore map and the JSON search APIs all share
+# the `_public_package_queryset` / `filter_packages` pipeline plus the
+# `from ..utils.helpers import (...)` bundle; splitting would force the
+# same hub bundle to be re-imported in three or four sibling files.
+
+from ..utils.helpers import (
+    Avg,
+    BLOG_POSTS,
+    Booking,
+    Comment,
+    ContactMessageForm,
+    Count,
+    Http404,
+    JsonResponse,
+    Package,
+    Post,
+    PostMedia,
+    Prefetch,
+    Q,
+    Review,
+    RewardPoint,
+    TravelTip,
+    UserBadge,
+    Wishlist,
+    _budget_threshold,
+    _prepare_feed_posts,
+    _prepare_review_cards,
+    _public_package_queryset,
+    _render_package_list,
+    _safe_related,
+    _traveler_level_label,
+    _wishlist_ids_for_user,
+    date,
+    get_object_or_404,
+    get_user_model,
+    messages,
+    redirect,
+    render,
+    render_to_string,
+    reverse,
+    send_mail,
+    settings,
+    timezone,
+    total_points_for_user,
+)
 from ..services.search_service import filter_packages
 from ..services.site_settings import get_site_settings
-from .payment_views import *
 
 
 
@@ -75,20 +123,14 @@ def home(request):
     destination_stats = _build_destination_stats()
 
     reviews = _prepare_review_cards(
-        Review.objects.select_related('traveler', 'traveler__traveler_profile', 'package').order_by('-created_at')[:5]
+        Review.objects.filter(traveler__isnull=False)
+        .select_related('traveler', 'traveler__traveler_profile', 'package')
+        .order_by('-created_at')[:5]
     )
 
     travel_tips = TravelTip.objects.filter(is_active=True).order_by('-created_at')[:6]
-    special_offers = SpecialOffer.objects.filter(is_active=True).filter(
-        Q(valid_until__isnull=True) | Q(valid_until__gte=today)
-    ).order_by('-created_at')[:4]
-
     recommended_packages = Package.objects.none()
-    show_promotions = bool(
-        request.user.is_authenticated
-        and getattr(request.user, 'wants_promotions', False)
-    )
-    if show_promotions:
+    if request.user.is_authenticated and getattr(request.user, 'user_type', '') == 'traveler':
         wishlist_package_ids = Wishlist.objects.filter(traveler=request.user).values_list('package_id', flat=True)
         preferred_categories = Package.objects.filter(id__in=wishlist_package_ids).values_list('category', flat=True)
         preferred_locations = Package.objects.filter(id__in=wishlist_package_ids).exclude(location_name='').values_list('location_name', flat=True)
@@ -117,14 +159,13 @@ def home(request):
         'destination_stats': destination_stats,
         'travel_moments': travel_moments,
         'travel_tips': travel_tips,
-        'special_offers': special_offers,
         'recommended_packages': recommended_packages,
-        'show_promotions': show_promotions,
         'wishlist_ids': wishlist_ids,
     })
 
 
 def destinations_api(request):
+    """JSON list of distinct active-package destinations for the search autocomplete."""
     destinations = set()
     for location_name, location in Package.objects.filter(is_active=True).values_list(
         'location_name',
@@ -138,22 +179,27 @@ def destinations_api(request):
 
 
 def package_list(request):
+    """All-categories public package list with filters and pagination."""
     return _render_package_list(request)
 
 
 def trek_package_list(request):
+    """Public package list filtered to trekking packages only."""
     return _render_package_list(request, category=Package.CATEGORY_TREK)
 
 
 def tour_package_list(request):
+    """Public package list filtered to tour packages only."""
     return _render_package_list(request, category=Package.CATEGORY_TOUR)
 
 
 def explore_map(request):
+    """Render the interactive explore-map page (data is loaded via packages_map_api)."""
     return render(request, 'core/explore_map.html')
 
 
 def packages_map_api(request):
+    """JSON feed of geo-tagged active packages for the explore map."""
     packages = (
         Package.objects.filter(is_active=True, latitude__isnull=False, longitude__isnull=False)
         .prefetch_related('images')
@@ -182,6 +228,7 @@ def packages_map_api(request):
 
 
 def package_details_api(request, package_id):
+    """JSON payload (name, images, description) for the explore-map info popup."""
     package = get_object_or_404(
         Package.objects.prefetch_related('images'),
         id=package_id,
@@ -206,6 +253,7 @@ def package_details_api(request, package_id):
 
 
 def packages_search_api(request):
+    """AJAX search endpoint that returns rendered package cards plus a filter snapshot."""
     packages = _public_package_queryset()
     wishlist_ids = _wishlist_ids_for_user(request.user)
     filtered_packages, filters = filter_packages(
@@ -231,6 +279,7 @@ def packages_search_api(request):
 
 
 def package_detail(request, package_id):
+    """Public package detail page with reviews, photos, and view-count tracking."""
     package = get_object_or_404(
         Package.objects.select_related('vendor', 'vendor__vendor_profile').prefetch_related('images'),
         id=package_id,
@@ -242,7 +291,10 @@ def package_detail(request, package_id):
     package.views_count += 1
 
     wishlist_ids = _wishlist_ids_for_user(request.user)
-    reviews_base = Review.objects.filter(package=package).select_related('traveler', 'traveler__traveler_profile')
+    reviews_base = Review.objects.filter(
+        package=package,
+        traveler__isnull=False,
+    ).select_related('traveler', 'traveler__traveler_profile')
     sort = (request.GET.get('sort') or 'recent').lower()
     if sort == 'highest':
         reviews = reviews_base.order_by('-rating', '-created_at')
@@ -267,8 +319,14 @@ def package_detail(request, package_id):
         })
 
     can_review = request.user.is_authenticated and getattr(request.user, 'user_type', '') == 'traveler'
+    booking_enabled = get_site_settings().enable_booking
     season_open = package.is_in_season()
-    can_book = request.user.is_authenticated and getattr(request.user, 'user_type', '') == 'traveler' and season_open
+    can_book = (
+        request.user.is_authenticated
+        and getattr(request.user, 'user_type', '') == 'traveler'
+        and season_open
+        and booking_enabled
+    )
     facts = [
         {
             'label': 'Duration',
@@ -313,6 +371,7 @@ def package_detail(request, package_id):
         'review_sort': sort,
         'can_review': can_review,
         'can_book': can_book,
+        'booking_enabled': booking_enabled,
         'season_open': season_open,
         'facts': facts,
         'inclusions': inclusions,
@@ -329,11 +388,13 @@ def about(request):
 
 
 def blog_list(request):
+    """Render the static blog index from the in-memory BLOG_POSTS list."""
     posts = sorted(BLOG_POSTS, key=lambda item: item['published_on'], reverse=True)
     return render(request, 'core/blog.html', {'posts': posts})
 
 
 def blog_detail(request, slug):
+    """Render a single static blog post by slug, 404 if not found."""
     post = next((item for item in BLOG_POSTS if item['slug'] == slug), None)
     if post is None:
         raise Http404('Blog post not found.')
@@ -426,6 +487,7 @@ def contact(request):
 
 
 def public_traveler_profile(request, user_id):
+    """Public-facing traveler profile page (badges, points, recent activity)."""
     User = get_user_model()
     traveler = get_object_or_404(
         User.objects.select_related('traveler_profile'),

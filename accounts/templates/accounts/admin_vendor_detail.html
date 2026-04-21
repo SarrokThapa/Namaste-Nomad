@@ -54,6 +54,17 @@
                     </span>
                     Vendors
                 </a>
+                <div class="nav-section-label">Finance</div>
+                <a class="nav-item nav-item-finance {% if active_page == 'transactions' %}active{% endif %}" href="{% url 'admin_transactions' %}">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="5" width="18" height="14" rx="2"/>
+                            <path d="M3 10h18"/>
+                            <path d="M7 15h4"/>
+                        </svg>
+                    </span>
+                    Admin Transactions
+                </a>
                 <a class="nav-item {% if active_page == 'settings' %}active{% endif %}" href="{% url 'admin_settings' %}">
                     <span class="nav-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -1,3 +1,5 @@
+"""Admin: list and filter all bookings on the platform."""
+
 from django.shortcuts import render
 
 from accounts.views.common import _get_admin_profile, admin_required
@@ -6,10 +8,16 @@ from core.models import Booking
 
 @admin_required
 def admin_bookings(request):
+    """Admin booking list with status and payment-status filters."""
     status = (request.GET.get('status') or '').strip().lower()
     payment_status = (request.GET.get('payment_status') or '').strip().lower()
 
-    bookings = Booking.objects.select_related('package', 'traveler', 'vendor', 'package__vendor').order_by('-created_at')
+    bookings = Booking.objects.filter(traveler__isnull=False).select_related(
+        'package',
+        'traveler',
+        'vendor',
+        'package__vendor',
+    ).order_by('-created_at')
 
     if status in {
         Booking.STATUS_PENDING,

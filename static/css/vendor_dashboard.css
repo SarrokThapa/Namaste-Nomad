@@ -648,6 +648,56 @@ body {
 .btn.neutral { background: var(--navy); color: #fff; }
 .btn.secondary { background: #e2e8f0; color: #334155; }
 
+.bookings-filter-card {
+    margin-bottom: 1rem;
+}
+
+.bookings-filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.85rem;
+}
+
+.bookings-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 230px;
+}
+
+.bookings-filter-field label {
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.bookings-filter-field select {
+    border: 1px solid #d7dde6;
+    background: #f9fafb;
+    border-radius: 0.7rem;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.92rem;
+    color: var(--slate);
+    min-height: 40px;
+    outline: none;
+}
+
+.bookings-filter-field select:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.bookings-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.bookings-filter-actions .btn {
+    min-width: 74px;
+}
+
 .package-revenue {
     font-weight: 700;
     color: var(--success);
@@ -972,6 +1022,20 @@ body {
     }
 
     .booking-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .bookings-filter-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .bookings-filter-field {
+        min-width: 0;
+    }
+
+    .bookings-filter-actions {
         width: 100%;
         justify-content: flex-start;
     }

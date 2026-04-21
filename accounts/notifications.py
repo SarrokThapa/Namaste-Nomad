@@ -1,3 +1,12 @@
+"""Notification creation, deep-linking, and websocket fan-out helpers.
+
+Owns the small utility layer that:
+- maps a Notification record to its in-app deep link (``notification_link``),
+- serializes a Notification for the JSON dropdown / websocket payload,
+- creates a Notification and immediately broadcasts it via Channels,
+- fans out a single message to every admin user (``notify_admins``).
+"""
+
 import logging
 
 from asgiref.sync import async_to_sync
@@ -10,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def notification_link(notification):
+    """Return the in-app URL the notification dropdown / list should link to."""
     notif_type = notification.type
     related_id = notification.related_object_id
     user_type = notification.user.user_type
@@ -46,10 +56,16 @@ def notification_link(notification):
     if notif_type == 'user_registration':
         return f"{reverse('admin_dashboard')}#users"
 
+    if notif_type == 'subscription':
+        if user_type == 'vendor':
+            return reverse('vendor_settings')
+        return reverse('admin_subscriptions')
+
     return reverse('home')
 
 
 def serialize_notification(notification):
+    """Render a Notification as a JSON-friendly dict for the dropdown / websocket payload."""
     return {
         'id': notification.id,
         'message': notification.message,
@@ -61,6 +77,7 @@ def serialize_notification(notification):
 
 
 def create_notification(user, message, notif_type, related_object_id=None):
+    """Persist a Notification and immediately fan it out over the websocket."""
     notification = Notification.objects.create(
         user=user,
         message=message,
@@ -72,12 +89,14 @@ def create_notification(user, message, notif_type, related_object_id=None):
 
 
 def notify_admins(message, notif_type, related_object_id=None):
+    """Send a notification to every staff admin user."""
     admins = User.objects.filter(user_type='admin', is_staff=True)
     for admin in admins:
         create_notification(admin, message, notif_type, related_object_id=related_object_id)
 
 
 def send_notification(notification):
+    """Push a notification payload to the user's Channels group; logs and swallows errors."""
     channel_layer = get_channel_layer()
     if channel_layer is None:
         return

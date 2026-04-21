@@ -1,6 +1,34 @@
-"""Vendor feature plan purchase views."""
+"""Vendor feature plan purchase views.
 
-from ..common import *
+Handles the full feature-plan purchase lifecycle (Stripe + eSewa):
+plan selection, checkout session creation, success/failure callbacks,
+and subscription activation.
+"""
+
+from ..common import (
+    Booking,
+    Decimal,
+    EsewaError,
+    FeaturePlan,
+    InvalidOperation,
+    StripeError,
+    _plan_esewa_payload,
+    _plan_payment_session_key,
+    create_checkout_session_for_item,
+    csrf_protect,
+    esewa_process_success_callback,
+    get_esewa_payment_url,
+    get_object_or_404,
+    messages,
+    never_cache,
+    redirect,
+    render,
+    retrieve_checkout_session,
+    reverse,
+    timezone,
+    vendor_required,
+    uuid,
+)
 from core.services.subscription_service import (
     activate_subscription,
     record_failed_transaction,
@@ -8,11 +36,10 @@ from core.services.subscription_service import (
 
 
 @never_cache
-@login_required(login_url='account_login_choice')
+@vendor_required(login_url='account_login_choice')
 @csrf_protect
 def vendor_plan_purchase(request, plan_id):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
+    """Start a feature-plan purchase: build the Stripe or eSewa checkout session and redirect."""
     if request.method != 'POST':
         return redirect('vendor_settings')
 
@@ -93,11 +120,9 @@ def vendor_plan_purchase(request, plan_id):
 
 
 @never_cache
-@login_required(login_url='vendor_login')
+@vendor_required(login_url='vendor_login')
 def vendor_plan_esewa_success(request):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
-
+    """eSewa success callback for plan purchase: verify HMAC, activate subscription."""
     session_key = _plan_payment_session_key(request.user.id)
     payment_session = request.session.get(session_key)
     if not payment_session:
@@ -152,11 +177,9 @@ def vendor_plan_esewa_success(request):
 
 
 @never_cache
-@login_required(login_url='vendor_login')
+@vendor_required(login_url='vendor_login')
 def vendor_plan_esewa_failure(request):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
-
+    """eSewa failure callback for plan purchase: record failed transaction and clear session."""
     session_key = _plan_payment_session_key(request.user.id)
     payment_session = request.session.get(session_key)
     if payment_session:
@@ -179,11 +202,9 @@ def vendor_plan_esewa_failure(request):
 
 
 @never_cache
-@login_required(login_url='vendor_login')
+@vendor_required(login_url='vendor_login')
 def vendor_plan_stripe_success(request):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
-
+    """Stripe success callback for plan purchase: verify session and activate subscription."""
     session_key = _plan_payment_session_key(request.user.id)
     payment_session = request.session.get(session_key)
     if not payment_session:
@@ -245,11 +266,9 @@ def vendor_plan_stripe_success(request):
 
 
 @never_cache
-@login_required(login_url='vendor_login')
+@vendor_required(login_url='vendor_login')
 def vendor_plan_stripe_cancel(request):
-    if not _ensure_vendor(request):
-        return redirect('vendor_login')
-
+    """Stripe cancel callback for plan purchase: record cancellation and return to settings."""
     session_key = _plan_payment_session_key(request.user.id)
     payment_session = request.session.get(session_key)
     if payment_session and payment_session.get('payment_method') == Booking.PAYMENT_METHOD_STRIPE:

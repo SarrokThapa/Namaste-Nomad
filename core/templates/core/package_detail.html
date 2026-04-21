@@ -14,8 +14,10 @@
     <link rel="stylesheet" href="{% static 'css/wishlist.css' %}?v=20260315a">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     <link rel="stylesheet" href="{% static 'css/maps.css' %}?v=20260313a">
+    <link rel="stylesheet" href="{% static 'css/toast.css' %}">
 </head>
 <body class="packages-body">
+    {% include "core/includes/messages_toast.html" %}
     <nav class="landing-nav">
         <div class="nav-container">
             <a class="nav-brand" href="{% url 'home' %}">
@@ -220,7 +222,7 @@
                         {% if reviews %}
                             <div class="package-review-list">
                                 {% for review in reviews %}
-                                    {% with reviewer=review.traveler.get_full_name|default:review.traveler.username|default:"Traveler" %}
+                                    {% with reviewer=review.traveler_name|default:"Deleted User" %}
                                         <article class="package-review-card">
                                             <div class="review-card-top">
                                                 <div class="reviewer">
@@ -292,7 +294,10 @@
                 <div class="price-amount">Rs {{ package.price|floatformat:0 }}</div>
                 <p>Per traveler (estimate)</p>
                 <p>{{ package.available_slots }} slot{{ package.available_slots|pluralize }} left</p>
-                {% if not season_open %}
+                {% if not booking_enabled %}
+                    <p class="detail-empty">You can't book right now. Booking is disabled by admin.</p>
+                    <button class="btn-primary" type="button" disabled>Book Now</button>
+                {% elif not season_open %}
                     <p class="detail-empty">This package is currently not available for booking.</p>
                     <button class="btn-primary" type="button" disabled>Book Now</button>
                 {% else %}
@@ -328,5 +333,6 @@
     <script src="{% static 'js/package_maps.js' %}?v=20260313a"></script>
     <script src="{% static 'js/wishlist.js' %}?v=20260315a"></script>
     <script src="{% static 'js/notifications.js' %}?v=20260313a"></script>
+    <script src="{% static 'js/toast.js' %}"></script>
 </body>
 </html>

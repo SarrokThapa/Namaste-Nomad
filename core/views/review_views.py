@@ -1,9 +1,25 @@
 """Review listing and submission views."""
 
-from ..utils.helpers import *
+from ..utils.helpers import (
+    Avg,
+    Count,
+    Package,
+    Paginator,
+    Review,
+    ReviewForm,
+    _prepare_review_cards,
+    add_points,
+    login_required,
+    messages,
+    redirect,
+    render,
+    reverse,
+    sync_badges_for_user,
+)
 
 
 def review_list(request):
+    """Public review listing page with sort, rating breakdown, and pagination."""
     sort = (request.GET.get('sort') or 'recent').lower()
     reviews_base = Review.objects.select_related('traveler', 'traveler__traveler_profile', 'package')
     if sort == 'highest':
@@ -55,6 +71,7 @@ def review_list(request):
 
 @login_required(login_url='account_login_choice')
 def submit_review(request):
+    """Traveler-only review submission; awards points and syncs badges on success."""
     next_url = request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('review_list')
     if request.method != 'POST':
         return redirect(next_url)

@@ -51,7 +51,7 @@
                     </div>
                     <div class="form-group">
                         <label>Email</label>
-                        <input class="form-control" type="email" name="email" value="{{ request.user.email }}">
+                        <p class="readonly-value">{{ request.user.email }}</p>
                     </div>
                     <div class="form-group">
                         <label>Phone</label>
@@ -112,38 +112,6 @@
             </div>
         </section>
 
-        <section class="card preferences-card">
-            <div class="card-header">
-                <h2>Travel Preferences</h2>
-            </div>
-            <div class="preferences-grid">
-                <div>
-                    <h3>Notifications</h3>
-                    <label class="check-row">
-                        <input type="checkbox" name="wants_promotions" {% if request.user.wants_promotions %}checked{% endif %}>
-                        Receive travel tips and special offers
-                    </label>
-                </div>
-                <div>
-                    <h3>Preferred Difficulty</h3>
-                    <label class="check-row"><input type="checkbox" checked> Easy</label>
-                    <label class="check-row"><input type="checkbox" checked> Medium</label>
-                    <label class="check-row"><input type="checkbox"> Hard</label>
-                </div>
-                <div>
-                    <h3>Preferred Regions</h3>
-                    <label class="check-row"><input type="checkbox" checked> Himalayas</label>
-                    <label class="check-row"><input type="checkbox"> Kathmandu Valley</label>
-                    <label class="check-row"><input type="checkbox" checked> Annapurna</label>
-                </div>
-                <div>
-                    <h3>Activities</h3>
-                    <label class="check-row"><input type="checkbox" checked> Trekking</label>
-                    <label class="check-row"><input type="checkbox"> Climbing</label>
-                    <label class="check-row"><input type="checkbox" checked> Cultural Tours</label>
-                </div>
-            </div>
-        </section>
     </form>
 
     <section class="card review-entry-card">

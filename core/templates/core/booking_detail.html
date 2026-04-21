@@ -53,6 +53,10 @@
                     <strong>{{ booking.travel_date|date:"M d, Y" }}</strong>
                 </div>
                 <div>
+                    <span>Vendor</span>
+                    <strong>{% firstof booking.vendor.vendor_profile.business_name booking.vendor.get_full_name booking.vendor.username booking.package.vendor.vendor_profile.business_name booking.package.vendor.get_full_name booking.package.vendor.username "Vendor" %}</strong>
+                </div>
+                <div>
                     <span>Travelers</span>
                     <strong>{{ booking.number_of_people }} person{{ booking.number_of_people|pluralize }}</strong>
                 </div>
@@ -71,7 +75,11 @@
                     </div>
                     <div>
                         <span>Booked By</span>
-                        <strong>{{ booking.traveler.get_full_name|default:booking.traveler.username }}</strong>
+                        {% if booking.traveler %}
+                            <strong>{{ booking.traveler.get_full_name|default:booking.traveler.username|default:"Deleted User" }}</strong>
+                        {% else %}
+                            <strong>Deleted User</strong>
+                        {% endif %}
                     </div>
                 {% endif %}
                 {% if booking.discount_amount %}
@@ -98,9 +106,6 @@
             <div class="booking-detail-actions">
                 {% if is_owner_traveler %}
                     <a href="{% url 'traveler_bookings' %}" class="btn-outline-dark">My Bookings</a>
-                    {% if can_edit_travelers %}
-                        <a href="{% url 'booking_traveler_edit' booking.id %}" class="btn-primary">Edit Traveler Details</a>
-                    {% endif %}
                     {% if booking.payment_status == 'completed' %}
                         <a href="{% url 'booking_invoice_download' booking.id %}" class="btn-outline-dark">Download Invoice</a>
                     {% elif booking.status != 'cancelled' %}

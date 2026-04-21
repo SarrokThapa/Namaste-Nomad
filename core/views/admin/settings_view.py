@@ -1,3 +1,5 @@
+"""Admin: edit the singleton SiteSetting row (commission, contact email, feature flags)."""
+
 from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_protect
@@ -10,6 +12,7 @@ from core.services.site_settings import get_site_settings
 @admin_required
 @csrf_protect
 def admin_settings(request):
+    """Admin site-settings editor (POST persists, GET renders the form)."""
     site_settings = get_site_settings()
 
     if request.method == 'POST':

@@ -56,6 +56,7 @@
                         <th>Price</th>
                         <th>Duration</th>
                         <th>Status</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -66,6 +67,13 @@
                             <td>Rs {{ plan.price|floatformat:0 }}</td>
                             <td>{{ plan.duration_days }} days</td>
                             <td>{% if plan.is_active %}Active{% else %}Inactive{% endif %}</td>
+                            <td>
+                                <form method="POST" action="{% url 'admin_feature_plan_delete' plan.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{% url 'admin_subscriptions' %}">
+                                    <button class="btn small danger" type="submit" onclick="return confirm('Delete this feature plan? Existing records keep their saved plan name.')">Delete</button>
+                                </form>
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>
@@ -98,7 +106,7 @@
                 <tbody>
                     {% for sub in active_subscriptions %}
                         <tr>
-                            <td>{{ sub.vendor.get_full_name|default:sub.vendor.email }}</td>
+                            <td>{{ sub.vendor.get_full_name|default:sub.vendor.username|default:"Vendor" }}</td>
                             <td>{{ sub.plan_name }}</td>
                             <td>{{ sub.slots_used }} / {{ sub.slots_total }}</td>
                             <td>Rs {{ sub.price|floatformat:0 }}</td>
@@ -138,12 +146,13 @@
                         <th>Expiry</th>
                         <th>Payment</th>
                         <th>Status</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for sub in subscriptions %}
                         <tr>
-                            <td>{{ sub.vendor.get_full_name|default:sub.vendor.email }}</td>
+                            <td>{{ sub.vendor.get_full_name|default:sub.vendor.username|default:"Vendor" }}</td>
                             <td>{{ sub.plan_name }}</td>
                             <td>{{ sub.slots_used }} / {{ sub.slots_total }}</td>
                             <td>Rs {{ sub.price|floatformat:0 }}</td>
@@ -151,6 +160,21 @@
                             <td>{{ sub.end_date|date:"M d, Y" }}</td>
                             <td>{{ sub.get_payment_status_display }}</td>
                             <td>{% if sub.is_active %}Active{% else %}Inactive{% endif %}</td>
+                            <td>
+                                {% if sub.is_active %}
+                                    <form method="POST" action="{% url 'admin_subscription_deactivate' sub.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{% url 'admin_subscriptions' %}">
+                                        <button class="btn small danger" type="submit" onclick="return confirm('Deactivate this subscription?')">Deactivate</button>
+                                    </form>
+                                {% else %}
+                                    <form method="POST" action="{% url 'admin_subscription_activate' sub.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{% url 'admin_subscriptions' %}">
+                                        <button class="btn small success" type="submit" onclick="return confirm('Activate this subscription?')">Activate</button>
+                                    </form>
+                                {% endif %}
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>
